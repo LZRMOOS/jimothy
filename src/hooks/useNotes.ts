@@ -1,0 +1,156 @@
+import { useState, useCallback, useRef, useEffect } from "react";
+import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
+import MiniSearch from "minisearch";
+import type { Note, SaveStatus } from "../types";
+
+export function useNotes() {
+  const [notes, setNotes] = useState<Note[]>([]);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
+  const [folderSet, setFolderSet] = useState(false);
+  const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const searchRef = useRef<MiniSearch<Note>>(
+    new MiniSearch({
+      fields: ["title", "body"],
+      storeFields: ["title", "body"],
+      searchOptions: {
+        boost: { title: 3 },
+        prefix: true,
+        fuzzy: 0.2,
+      },
+    })
+  );
+
+  const rebuildIndex = useCallback((noteList: Note[]) => {
+    searchRef.current.removeAll();
+    searchRef.current.addAll(noteList);
+  }, []);
+
+  const loadNotes = useCallback(async () => {
+    const loaded = (await invoke("get_notes")) as Note[];
+    setNotes(loaded);
+    rebuildIndex(loaded);
+  }, [rebuildIndex]);
+
+  const initFolder = useCallback(
+    async (path: string) => {
+      await invoke("set_notes_folder", { path });
+      setFolderSet(true);
+      await loadNotes();
+    },
+    [loadNotes]
+  );
+
+  const checkExistingFolder = useCallback(async () => {
+    const folder = (await invoke("get_notes_folder")) as string | null;
+    if (folder) {
+      setFolderSet(true);
+      await loadNotes();
+    }
+  }, [loadNotes]);
+
+  useEffect(() => {
+    const unlisten = listen("notes-changed", () => {
+      loadNotes();
+    });
+    return () => {
+      unlisten.then((fn) => fn());
+    };
+  }, [loadNotes]);
+
+  const createNote = useCallback(
+    async (title: string): Promise<Note> => {
+      const note = (await invoke("create_note", { title })) as Note;
+      setNotes((prev) => {
+        const updated = [note, ...prev];
+        rebuildIndex(updated);
+        return updated;
+      });
+      setSelectedId(note.id);
+      return note;
+    },
+    [rebuildIndex]
+  );
+
+  const saveNote = useCallback(
+    async (id: string, title: string, body: string) => {
+      setSaveStatus("saving");
+      try {
+        const updated = (await invoke("save_note", {
+          id,
+          title,
+          body,
+        })) as Note;
+        setNotes((prev) => {
+          const newList = prev.map((n) => (n.id === id ? updated : n));
+          rebuildIndex(newList);
+          return newList;
+        });
+        setSaveStatus("saved");
+      } catch {
+        setSaveStatus("error");
+      }
+    },
+    [rebuildIndex]
+  );
+
+  const debouncedSave = useCallback(
+    (id: string, title: string, body: string) => {
+      if (saveTimerRef.current) {
+        clearTimeout(saveTimerRef.current);
+      }
+      saveTimerRef.current = setTimeout(() => {
+        saveNote(id, title, body);
+      }, 400);
+    },
+    [saveNote]
+  );
+
+  const deleteNote = useCallback(
+    async (id: string) => {
+      await invoke("delete_note", { id });
+      setNotes((prev) => {
+        const updated = prev.filter((n) => n.id !== id);
+        rebuildIndex(updated);
+        return updated;
+      });
+      if (selectedId === id) {
+        setSelectedId(null);
+      }
+    },
+    [selectedId, rebuildIndex]
+  );
+
+  const search = useCallback(
+    (query: string) => {
+      if (!query.trim()) {
+        return notes;
+      }
+      const results = searchRef.current.search(query);
+      return results
+        .map((r) => notes.find((n) => n.id === r.id))
+        .filter(Boolean) as Note[];
+    },
+    [notes]
+  );
+
+  const selectedNote = notes.find((n) => n.id === selectedId) || null;
+
+  return {
+    notes,
+    selectedNote,
+    selectedId,
+    setSelectedId,
+    folderSet,
+    saveStatus,
+    initFolder,
+    checkExistingFolder,
+    createNote,
+    saveNote,
+    debouncedSave,
+    deleteNote,
+    search,
+    loadNotes,
+  };
+}
