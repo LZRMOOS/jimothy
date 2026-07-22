@@ -36,7 +36,26 @@
       "icons/128x128@2x.png",
       "icons/icon.icns",
       "icons/icon.ico"
-    ]
+    ],
+    "macOS": {
+      "minimumSystemVersion": "10.15",
+      "signingIdentity": null,
+      "entitlements": null
+    },
+    "windows": {
+      "certificateThumbprint": null,
+      "wix": null,
+      "nsis": {
+        "installMode": "currentUser"
+      }
+    }
   },
-  "plugins": {}
+  "plugins": {
+    "updater": {
+      "endpoints": [
+        "https://github.com/OWNER/scratch/releases/latest/download/latest.json"
+      ],
+      "pubkey": ""
+    }
+  }
 }

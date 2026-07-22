@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { open } from "@tauri-apps/plugin-dialog";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
+import { useUpdater } from "../hooks/useUpdater";
 import type { AppSettings, VaultStatus } from "../types";
 
 type SettingsTab = "general" | "keyboard" | "storage" | "security";
@@ -35,6 +36,8 @@ export function Settings({
   vaultLoading,
 }: Props) {
   const [activeTab, setActiveTab] = useState<SettingsTab>("general");
+  const { updateState, updateVersion, checkForUpdate, installUpdate } =
+    useUpdater();
 
   // Encryption setup form
   const [setupPassword, setSetupPassword] = useState("");
@@ -144,6 +147,32 @@ export function Settings({
           <div className="settings-content">
             {activeTab === "general" && (
               <div className="settings-section">
+                <h3>Updates</h3>
+                <div className="settings-row">
+                  <label>Version 0.1.0</label>
+                  {updateState === "idle" && (
+                    <button className="btn secondary" onClick={checkForUpdate}>
+                      Check for Updates
+                    </button>
+                  )}
+                  {updateState === "available" && (
+                    <button className="btn primary" onClick={installUpdate}>
+                      Update to {updateVersion}
+                    </button>
+                  )}
+                  {updateState === "downloading" && (
+                    <span className="settings-hint">Downloading...</span>
+                  )}
+                  {updateState === "ready" && (
+                    <span className="settings-hint">
+                      Restart to finish updating
+                    </span>
+                  )}
+                  {updateState === "error" && (
+                    <span className="settings-hint">Update failed</span>
+                  )}
+                </div>
+
                 <h3>Appearance</h3>
                 <div className="settings-row">
                   <label>Theme</label>
