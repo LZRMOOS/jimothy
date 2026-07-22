@@ -20,6 +20,7 @@ pub fn run() {
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
+        .plugin(tauri_plugin_window_state::Builder::new().build())
         .manage(AppState::new())
         .invoke_handler(tauri::generate_handler![
             commands::set_notes_folder,
@@ -37,6 +38,7 @@ pub fn run() {
             commands::lock_vault,
             commands::get_vault_status,
             commands::change_vault_password,
+            commands::set_active_note,
         ])
         .setup(|app| {
             let handle = app.handle().clone();
@@ -79,7 +81,10 @@ pub fn run() {
                 app.global_shortcut().on_shortcut(shortcut, move |_app, _shortcut, event| {
                     if event.state == ShortcutState::Pressed {
                         if let Some(window) = h.get_webview_window("main") {
-                            if window.is_visible().unwrap_or(false) {
+                            if window.is_minimized().unwrap_or(false) {
+                                let _ = window.unminimize();
+                                let _ = window.set_focus();
+                            } else if window.is_visible().unwrap_or(false) {
                                 if window.is_focused().unwrap_or(false) {
                                     let _ = window.hide();
                                 } else {

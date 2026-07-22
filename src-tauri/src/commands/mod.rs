@@ -426,6 +426,11 @@ pub fn get_vault_status(state: State<'_, AppState>) -> String {
 }
 
 #[tauri::command]
+pub fn set_active_note(id: Option<String>, state: State<'_, AppState>) {
+    *state.active_note_id.lock().unwrap() = id;
+}
+
+#[tauri::command]
 pub fn change_vault_password(
     current: String,
     new_password: String,

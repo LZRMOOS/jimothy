@@ -51,6 +51,10 @@ export function useNotes() {
   }, [loadNotes]);
 
   useEffect(() => {
+    invoke("set_active_note", { id: selectedId ?? null });
+  }, [selectedId]);
+
+  useEffect(() => {
     const unlisten = listen("notes-changed", () => {
       loadNotes();
     });

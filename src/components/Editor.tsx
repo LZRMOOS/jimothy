@@ -97,6 +97,18 @@ export function Editor({ note, saveStatus, onTitleChange, onBodyChange }: Props)
           ? "Save failed"
           : "";
 
+  const wordCount = note.body.trim()
+    ? note.body.trim().split(/\s+/).length
+    : 0;
+
+  const modifiedDate = new Date(note.updated_at);
+  const modifiedStr = modifiedDate.toLocaleString(undefined, {
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+
   return (
     <div className="editor">
       <div className="editor-header">
@@ -112,6 +124,10 @@ export function Editor({ note, saveStatus, onTitleChange, onBodyChange }: Props)
         <span className={`save-status ${saveStatus}`}>{statusLabel}</span>
       </div>
       <div className="editor-body" ref={editorRef} />
+      <div className="editor-footer">
+        <span className="editor-meta">{modifiedStr}</span>
+        <span className="editor-meta">{wordCount} words</span>
+      </div>
     </div>
   );
 }

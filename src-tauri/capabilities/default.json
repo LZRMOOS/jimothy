@@ -9,6 +9,7 @@
     "global-shortcut:default",
     "dialog:default",
     "fs:default",
-    "core:event:default"
+    "core:event:default",
+    "window-state:default"
   ]
 }

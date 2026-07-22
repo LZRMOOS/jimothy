@@ -7,9 +7,12 @@ import { NotesList } from "./components/NotesList";
 import { Editor } from "./components/Editor";
 import { FolderSetup } from "./components/FolderSetup";
 import { UnlockScreen } from "./components/UnlockScreen";
+import { ConflictDialog } from "./components/ConflictDialog";
+import type { ConflictChoice } from "./components/ConflictDialog";
+import { Settings } from "./components/Settings";
 import { useNotes } from "./hooks/useNotes";
 import { useVault } from "./hooks/useVault";
-import type { Note } from "./types";
+import type { Note, AppSettings } from "./types";
 
 function App() {
   const {
@@ -35,6 +38,8 @@ function App() {
     checkVaultStatus,
     unlockVault,
     lockVault,
+    setupVault,
+    changePassword,
   } = useVault();
 
   const [query, setQuery] = useState("");
@@ -42,6 +47,13 @@ function App() {
   const searchInputRef = useRef<HTMLInputElement>(null);
   const [initialized, setInitialized] = useState(false);
   const [notification, setNotification] = useState<string | null>(null);
+  const [conflictNoteId, setConflictNoteId] = useState<string | null>(null);
+  const [showSettings, setShowSettings] = useState(false);
+  const [appSettings, setAppSettings] = useState<AppSettings>({
+    theme: "system",
+    confirmDelete: true,
+  });
+  const [notesFolder, setNotesFolder] = useState<string | null>(null);
 
   useEffect(() => {
     async function init() {
@@ -50,20 +62,57 @@ function App() {
         const settings = JSON.parse(settingsJson);
         if (settings.notesFolder) {
           await initFolder(settings.notesFolder);
+          setNotesFolder(settings.notesFolder);
         }
+        setAppSettings((prev) => ({ ...prev, ...settings }));
       } catch {
         // No settings yet
       }
       await checkExistingFolder();
       await checkVaultStatus();
+      const folder = (await invoke("get_notes_folder")) as string | null;
+      if (folder) setNotesFolder(folder);
       setInitialized(true);
     }
     init();
   }, [initFolder, checkExistingFolder, checkVaultStatus]);
 
+  // Theme application
+  useEffect(() => {
+    const theme = appSettings.theme || "system";
+    if (theme === "system") {
+      document.documentElement.removeAttribute("data-theme");
+      const mq = window.matchMedia("(prefers-color-scheme: dark)");
+      document.documentElement.setAttribute(
+        "data-theme",
+        mq.matches ? "dark" : "light"
+      );
+      const handler = (e: MediaQueryListEvent) => {
+        document.documentElement.setAttribute(
+          "data-theme",
+          e.matches ? "dark" : "light"
+        );
+      };
+      mq.addEventListener("change", handler);
+      return () => mq.removeEventListener("change", handler);
+    } else {
+      document.documentElement.setAttribute("data-theme", theme);
+    }
+  }, [appSettings.theme]);
+
   useEffect(() => {
     setFilteredNotes(search(query));
   }, [query, search, notes]);
+
+  // Auto-select best match when search results change
+  useEffect(() => {
+    if (filteredNotes.length > 0) {
+      const currentInList = filteredNotes.find((n) => n.id === selectedId);
+      if (!currentInList) {
+        setSelectedId(filteredNotes[0].id);
+      }
+    }
+  }, [filteredNotes, selectedId, setSelectedId]);
 
   useEffect(() => {
     const appWindow = getCurrentWindow();
@@ -101,12 +150,31 @@ function App() {
     const unlistenFolder = listen("folder-unavailable", () => {
       setNotification("Notes folder is no longer accessible.");
     });
+    const unlistenActiveConflict = listen<{ id: string }>(
+      "note-conflict-active",
+      (event) => {
+        setConflictNoteId(event.payload.id);
+      }
+    );
     return () => {
       unlistenConflict.then((fn) => fn());
       unlistenDropbox.then((fn) => fn());
       unlistenFolder.then((fn) => fn());
+      unlistenActiveConflict.then((fn) => fn());
     };
   }, []);
+
+  const handleConflictChoice = useCallback(
+    async (choice: ConflictChoice) => {
+      if (choice === "keep-external") {
+        await loadNotes();
+      }
+      // "keep-local" does nothing — the local version will win on next save
+      // "dismiss" just closes the dialog
+      setConflictNoteId(null);
+    },
+    [loadNotes]
+  );
 
   const handleUnlock = useCallback(
     async (password: string) => {
@@ -122,6 +190,31 @@ function App() {
   const handleLock = useCallback(async () => {
     await lockVault();
   }, [lockVault]);
+
+  const handleSettingsChange = useCallback(
+    async (newSettings: AppSettings) => {
+      setAppSettings(newSettings);
+      await invoke("save_app_settings", {
+        settingsJson: JSON.stringify({ ...newSettings, notesFolder }),
+      });
+    },
+    [notesFolder]
+  );
+
+  const handleChangeFolder = useCallback(
+    async (path: string) => {
+      await initFolder(path);
+      setNotesFolder(path);
+      await invoke("save_app_settings", {
+        settingsJson: JSON.stringify({ ...appSettings, notesFolder: path }),
+      });
+    },
+    [initFolder, appSettings]
+  );
+
+  const handleReloadNotes = useCallback(async () => {
+    await loadNotes();
+  }, [loadNotes]);
 
   const handleSearchSubmit = useCallback(async () => {
     if (!query.trim()) return;
@@ -155,9 +248,13 @@ function App() {
   }, [filteredNotes, notes, selectedId, setSelectedId]);
 
   const handleEscape = useCallback(async () => {
+    if (showSettings) {
+      setShowSettings(false);
+      return;
+    }
     const appWindow = getCurrentWindow();
     await appWindow.hide();
-  }, []);
+  }, [showSettings]);
 
   const handleTitleChange = useCallback(
     (title: string) => {
@@ -177,10 +274,21 @@ function App() {
 
   const handleDelete = useCallback(async () => {
     if (!selectedId) return;
-    if (confirm("Delete this note?")) {
-      await deleteNote(selectedId);
+    if (appSettings.confirmDelete !== false) {
+      if (!confirm("Delete this note?")) return;
     }
-  }, [selectedId, deleteNote]);
+    await deleteNote(selectedId);
+  }, [selectedId, deleteNote, appSettings.confirmDelete]);
+
+  const handleDeleteById = useCallback(
+    async (id: string) => {
+      if (appSettings.confirmDelete !== false) {
+        if (!confirm("Delete this note?")) return;
+      }
+      await deleteNote(id);
+    },
+    [deleteNote, appSettings.confirmDelete]
+  );
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -196,6 +304,9 @@ function App() {
         e.preventDefault();
         searchInputRef.current?.focus();
         searchInputRef.current?.select();
+      } else if (mod && e.key === ",") {
+        e.preventDefault();
+        setShowSettings((s) => !s);
       } else if (mod && (e.key === "Backspace" || e.key === "Delete")) {
         e.preventDefault();
         handleDelete();
@@ -233,6 +344,12 @@ function App() {
 
   return (
     <div className="app">
+      {conflictNoteId && (
+        <ConflictDialog
+          noteId={conflictNoteId}
+          onChoice={handleConflictChoice}
+        />
+      )}
       {notification && (
         <div className="notification">
           <span>{notification}</span>
@@ -252,26 +369,45 @@ function App() {
         onArrowDown={handleArrowDown}
         onArrowUp={handleArrowUp}
         onEscape={handleEscape}
+        onSettingsClick={() => setShowSettings(true)}
       />
-      <div className="main-content">
-        <NotesList
-          notes={displayNotes}
-          selectedId={selectedId}
-          onSelect={setSelectedId}
+      {showSettings ? (
+        <Settings
+          settings={appSettings}
+          onSettingsChange={handleSettingsChange}
+          notesFolder={notesFolder}
+          vaultStatus={vaultStatus}
+          onClose={() => setShowSettings(false)}
+          onSetupVault={setupVault}
+          onLockVault={handleLock}
+          onChangePassword={changePassword}
+          onReloadNotes={handleReloadNotes}
+          onChangeFolder={handleChangeFolder}
+          vaultError={vaultError}
+          vaultLoading={vaultLoading}
         />
-        {selectedNote ? (
-          <Editor
-            note={selectedNote}
-            saveStatus={saveStatus}
-            onTitleChange={handleTitleChange}
-            onBodyChange={handleBodyChange}
+      ) : (
+        <div className="main-content">
+          <NotesList
+            notes={displayNotes}
+            selectedId={selectedId}
+            onSelect={setSelectedId}
+            onDelete={handleDeleteById}
           />
-        ) : (
-          <div className="editor-placeholder">
-            <p>Select a note or create one</p>
-          </div>
-        )}
-      </div>
+          {selectedNote ? (
+            <Editor
+              note={selectedNote}
+              saveStatus={saveStatus}
+              onTitleChange={handleTitleChange}
+              onBodyChange={handleBodyChange}
+            />
+          ) : (
+            <div className="editor-placeholder">
+              <p>Select a note or create one</p>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
