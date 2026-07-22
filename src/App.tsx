@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
+import { ask } from "@tauri-apps/plugin-dialog";
 import { SearchBar } from "./components/SearchBar";
 import { NotesList } from "./components/NotesList";
 import { Editor } from "./components/Editor";
@@ -312,7 +313,11 @@ function App() {
   const handleDelete = useCallback(async () => {
     if (!selectedId) return;
     if (appSettings.confirmDelete !== false) {
-      if (!confirm("Delete this note?")) return;
+      const confirmed = await ask("Delete this note? This cannot be undone.", {
+        title: "Delete Note",
+        kind: "warning",
+      });
+      if (!confirmed) return;
     }
     await deleteNote(selectedId);
   }, [selectedId, deleteNote, appSettings.confirmDelete]);
@@ -320,7 +325,11 @@ function App() {
   const handleDeleteById = useCallback(
     async (id: string) => {
       if (appSettings.confirmDelete !== false) {
-        if (!confirm("Delete this note?")) return;
+        const confirmed = await ask("Delete this note? This cannot be undone.", {
+          title: "Delete Note",
+          kind: "warning",
+        });
+        if (!confirmed) return;
       }
       await deleteNote(id);
     },
