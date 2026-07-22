@@ -3,6 +3,7 @@ import { open } from "@tauri-apps/plugin-dialog";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
 import { enable, disable, isEnabled } from "@tauri-apps/plugin-autostart";
 import { useUpdater } from "../hooks/useUpdater";
+import { Dropdown } from "./Dropdown";
 import type { AppSettings, VaultStatus } from "../types";
 
 type SettingsTab = "general" | "keyboard" | "storage" | "security" | "markdown";
@@ -183,18 +184,15 @@ export function Settings({
                 <h3>Appearance</h3>
                 <div className="settings-row">
                   <label>Theme</label>
-                  <select
+                  <Dropdown
                     value={settings.theme || "system"}
-                    onChange={(e) =>
-                      handleThemeChange(
-                        e.target.value as "system" | "light" | "dark"
-                      )
-                    }
-                  >
-                    <option value="system">System</option>
-                    <option value="light">Light</option>
-                    <option value="dark">Dark</option>
-                  </select>
+                    onChange={(v) => handleThemeChange(v as "system" | "light" | "dark")}
+                    options={[
+                      { value: "system", label: "System" },
+                      { value: "light", label: "Light" },
+                      { value: "dark", label: "Dark" },
+                    ]}
+                  />
                 </div>
                 <h3>Behavior</h3>
                 <div className="settings-row">
@@ -266,6 +264,15 @@ export function Settings({
                   <label>Delete note</label>
                   <kbd className="shortcut-display">Cmd+Delete</kbd>
                 </div>
+                <h3>Codex</h3>
+                <div className="settings-row">
+                  <label>Toggle sidebar</label>
+                  <kbd className="shortcut-display">Cmd+/</kbd>
+                </div>
+                <div className="settings-row">
+                  <label>Switch codex</label>
+                  <kbd className="shortcut-display">Cmd+1–9</kbd>
+                </div>
                 <h3>App</h3>
                 <div className="settings-row">
                   <label>Open settings</label>
@@ -313,22 +320,23 @@ export function Settings({
                 <h3>Auto-Lock</h3>
                 <div className="settings-row">
                   <label>Lock after idle</label>
-                  <select
-                    value={settings.idleLockMinutes ?? 0}
-                    onChange={(e) =>
+                  <Dropdown
+                    value={String(settings.idleLockMinutes ?? 0)}
+                    onChange={(v) =>
                       onSettingsChange({
                         ...settings,
-                        idleLockMinutes: Number(e.target.value),
+                        idleLockMinutes: Number(v),
                       })
                     }
-                  >
-                    <option value={0}>Never</option>
-                    <option value={1}>1 minute</option>
-                    <option value={5}>5 minutes</option>
-                    <option value={15}>15 minutes</option>
-                    <option value={30}>30 minutes</option>
-                    <option value={60}>1 hour</option>
-                  </select>
+                    options={[
+                      { value: "0", label: "Never" },
+                      { value: "1", label: "1 minute" },
+                      { value: "5", label: "5 minutes" },
+                      { value: "15", label: "15 minutes" },
+                      { value: "30", label: "30 minutes" },
+                      { value: "60", label: "1 hour" },
+                    ]}
+                  />
                 </div>
                 <p className="settings-hint">
                   Vault also locks automatically when the system sleeps or the

@@ -11,6 +11,7 @@ pub struct Note {
     pub updated_at: DateTime<Utc>,
     pub encrypted: bool,
     pub file_path: String,
+    pub codex: Option<String>,
 }
 
 impl Note {
@@ -25,18 +26,24 @@ impl Note {
             updated_at: now,
             encrypted: false,
             file_path: String::new(),
+            codex: None,
         }
     }
 }
 
 pub fn serialize_note(note: &Note) -> String {
+    let codex_line = match &note.codex {
+        Some(c) if !c.is_empty() => format!("codex: {}\n", c),
+        _ => String::new(),
+    };
     format!(
-        "---\nid: {}\ntitle: {}\ncreated_at: {}\nupdated_at: {}\nencrypted: {}\n---\n\n{}",
+        "---\nid: {}\ntitle: {}\ncreated_at: {}\nupdated_at: {}\nencrypted: {}\n{}---\n\n{}",
         note.id,
         note.title,
         note.created_at.to_rfc3339(),
         note.updated_at.to_rfc3339(),
         note.encrypted,
+        codex_line,
         note.body
     )
 }
@@ -60,6 +67,7 @@ pub fn parse_note(content: &str, file_path: &str) -> Option<Note> {
     let mut created_at: Option<DateTime<Utc>> = None;
     let mut updated_at: Option<DateTime<Utc>> = None;
     let mut encrypted = false;
+    let mut codex: Option<String> = None;
 
     for line in frontmatter.lines() {
         if let Some((key, value)) = line.split_once(": ") {
@@ -78,6 +86,11 @@ pub fn parse_note(content: &str, file_path: &str) -> Option<Note> {
                         .map(|dt| dt.with_timezone(&Utc));
                 }
                 "encrypted" => encrypted = value == "true",
+                "codex" => {
+                    if !value.is_empty() {
+                        codex = Some(value.to_string());
+                    }
+                }
                 _ => {}
             }
         }
@@ -95,6 +108,7 @@ pub fn parse_note(content: &str, file_path: &str) -> Option<Note> {
         updated_at: updated_at.unwrap_or_else(Utc::now),
         encrypted,
         file_path: file_path.to_string(),
+        codex,
     })
 }
 

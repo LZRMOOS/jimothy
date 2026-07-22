@@ -5,6 +5,7 @@ export type Note = {
   created_at: string;
   updated_at: string;
   encrypted: boolean;
+  codex: string | null;
 };
 
 export type SearchResult = {
@@ -25,4 +26,5 @@ export type AppSettings = {
   theme?: "system" | "light" | "dark";
   confirmDelete?: boolean;
   idleLockMinutes?: number;
+  codexIcons?: Record<string, string>;
 };

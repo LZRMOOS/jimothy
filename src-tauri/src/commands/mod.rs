@@ -79,6 +79,7 @@ pub struct NoteDto {
     pub created_at: String,
     pub updated_at: String,
     pub encrypted: bool,
+    pub codex: Option<String>,
 }
 
 impl From<&Note> for NoteDto {
@@ -90,6 +91,7 @@ impl From<&Note> for NoteDto {
             created_at: note.created_at.to_rfc3339(),
             updated_at: note.updated_at.to_rfc3339(),
             encrypted: note.encrypted,
+            codex: note.codex.clone(),
         }
     }
 }
@@ -190,6 +192,7 @@ pub fn save_note(
     id: String,
     title: String,
     body: String,
+    codex: Option<String>,
     state: State<'_, AppState>,
 ) -> Result<NoteDto, String> {
     let folder = state
@@ -211,6 +214,7 @@ pub fn save_note(
 
     note.title = title;
     note.body = body;
+    note.codex = codex;
     note.updated_at = Utc::now();
 
     let new_path = match vault_status {

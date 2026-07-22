@@ -68,15 +68,72 @@ function createSearchHighlightExtension(queryRef: { current: string }) {
   });
 }
 
+function CodexPicker({ value, codexList, onChange }: {
+  value: string | null;
+  codexList: string[];
+  onChange: (codex: string | null) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [inputValue, setInputValue] = useState("");
+
+  if (editing) {
+    return (
+      <>
+        <input
+          className="codex-input"
+          autoFocus
+          placeholder="Codex name"
+          value={inputValue}
+          list="codex-options"
+          onChange={(e) => setInputValue(e.target.value)}
+          onBlur={() => {
+            const trimmed = inputValue.trim();
+            onChange(trimmed || null);
+            setEditing(false);
+          }}
+          onKeyDown={(e) => {
+            if (e.key === "Enter") {
+              const trimmed = inputValue.trim();
+              onChange(trimmed || null);
+              setEditing(false);
+            } else if (e.key === "Escape") {
+              setEditing(false);
+            }
+          }}
+        />
+        <datalist id="codex-options">
+          {codexList.map((c) => (
+            <option key={c} value={c} />
+          ))}
+        </datalist>
+      </>
+    );
+  }
+
+  return (
+    <span
+      className="editor-meta codex-label"
+      onClick={() => {
+        setInputValue(value || "");
+        setEditing(true);
+      }}
+    >
+      {value || "No codex"}
+    </span>
+  );
+}
+
 type Props = {
   note: Note;
   saveStatus: SaveStatus;
   onTitleChange: (title: string) => void;
   onBodyChange: (body: string) => void;
+  onCodexChange: (codex: string | null) => void;
   searchQuery?: string;
+  codexList: string[];
 };
 
-export function Editor({ note, saveStatus, onTitleChange, onBodyChange, searchQuery = "" }: Props) {
+export function Editor({ note, saveStatus, onTitleChange, onBodyChange, onCodexChange, searchQuery = "", codexList }: Props) {
   const [showCharCount, setShowCharCount] = useState(false);
   const noteIdRef = useRef(note.id);
   const onBodyChangeRef = useRef(onBodyChange);
@@ -185,6 +242,11 @@ export function Editor({ note, saveStatus, onTitleChange, onBodyChange, searchQu
       </div>
       <div className="editor-footer">
         <span className="editor-meta">{modifiedStr}</span>
+        <CodexPicker
+          value={note.codex}
+          codexList={codexList}
+          onChange={onCodexChange}
+        />
         <span
           className="editor-meta editor-count"
           onClick={() => setShowCharCount((s) => !s)}

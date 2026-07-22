@@ -78,13 +78,14 @@ export function useNotes() {
   );
 
   const saveNote = useCallback(
-    async (id: string, title: string, body: string) => {
+    async (id: string, title: string, body: string, codex?: string | null) => {
       setSaveStatus("saving");
       try {
         const updated = (await invoke("save_note", {
           id,
           title,
           body,
+          codex: codex ?? null,
         })) as Note;
         setNotes((prev) => {
           const newList = prev.map((n) => (n.id === id ? updated : n));
@@ -100,12 +101,12 @@ export function useNotes() {
   );
 
   const debouncedSave = useCallback(
-    (id: string, title: string, body: string) => {
+    (id: string, title: string, body: string, codex?: string | null) => {
       if (saveTimerRef.current) {
         clearTimeout(saveTimerRef.current);
       }
       saveTimerRef.current = setTimeout(() => {
-        saveNote(id, title, body);
+        saveNote(id, title, body, codex);
       }, 400);
     },
     [saveNote]
