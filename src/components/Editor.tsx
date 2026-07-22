@@ -268,7 +268,7 @@ export function Editor({ note, saveStatus, onTitleChange, onBodyChange, searchQu
   const wordCount = note.body.trim()
     ? note.body.trim().split(/\s+/).length
     : 0;
-  const charCount = note.body.length;
+  const charCount = note.body.replace(/\s/g, "").length;
 
   const modifiedDate = new Date(note.updated_at);
   const modifiedStr = modifiedDate.toLocaleString(undefined, {
