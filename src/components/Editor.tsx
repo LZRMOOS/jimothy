@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback } from "react";
+import { useEffect, useRef, useCallback, useState } from "react";
 import { EditorView, keymap, placeholder, Decoration, ViewPlugin, ViewUpdate, DecorationSet } from "@codemirror/view";
 import { EditorState, RangeSetBuilder, StateEffect, StateField } from "@codemirror/state";
 import { markdown, markdownLanguage } from "@codemirror/lang-markdown";
@@ -167,6 +167,7 @@ export function Editor({ note, saveStatus, onTitleChange, onBodyChange, searchQu
   const viewRef = useRef<EditorView | null>(null);
   const titleRef = useRef<HTMLInputElement>(null);
   const noteIdRef = useRef<string>(note.id);
+  const [showCharCount, setShowCharCount] = useState(false);
 
   const onBodyChangeRef = useRef(onBodyChange);
   onBodyChangeRef.current = onBodyChange;
@@ -267,6 +268,7 @@ export function Editor({ note, saveStatus, onTitleChange, onBodyChange, searchQu
   const wordCount = note.body.trim()
     ? note.body.trim().split(/\s+/).length
     : 0;
+  const charCount = note.body.length;
 
   const modifiedDate = new Date(note.updated_at);
   const modifiedStr = modifiedDate.toLocaleString(undefined, {
@@ -293,7 +295,12 @@ export function Editor({ note, saveStatus, onTitleChange, onBodyChange, searchQu
       <div className="editor-body" ref={editorRef} />
       <div className="editor-footer">
         <span className="editor-meta">{modifiedStr}</span>
-        <span className="editor-meta">{wordCount} words</span>
+        <span
+          className="editor-meta editor-count"
+          onClick={() => setShowCharCount((s) => !s)}
+        >
+          {showCharCount ? `${charCount} chars` : `${wordCount} words`}
+        </span>
       </div>
     </div>
   );

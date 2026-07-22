@@ -383,6 +383,16 @@ body {
   letter-spacing: 0.02em;
 }
 
+.editor-count {
+  cursor: pointer;
+  user-select: none;
+  transition: color var(--transition);
+}
+
+.editor-count:hover {
+  color: var(--text-secondary);
+}
+
 .editor-placeholder {
   flex: 1;
   display: flex;
