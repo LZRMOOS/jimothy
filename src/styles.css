@@ -52,8 +52,7 @@
 }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI",
-    system-ui, sans-serif;
+  font-family: "JetBrains Mono", monospace;
   background: var(--bg-primary);
   color: var(--text-primary);
   overflow: hidden;
@@ -105,7 +104,8 @@ body {
   border-radius: var(--radius);
   background: var(--bg-primary);
   color: var(--text-primary);
-  font-size: 14px;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 13px;
   outline: none;
   transition: border-color var(--transition), box-shadow var(--transition);
   -webkit-app-region: no-drag;
@@ -718,7 +718,7 @@ body {
   border: 1px solid var(--border-strong);
   border-radius: 4px;
   font-size: 12px;
-  font-family: "SF Mono", Menlo, Consolas, monospace;
+  font-family: "JetBrains Mono", monospace;
   color: var(--text-primary);
 }
 
@@ -726,7 +726,7 @@ body {
   font-size: 13px;
   color: var(--text-secondary);
   word-break: break-all;
-  font-family: "SF Mono", Menlo, Consolas, monospace;
+  font-family: "JetBrains Mono", monospace;
 }
 
 .settings-actions {
