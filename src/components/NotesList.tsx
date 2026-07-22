@@ -6,6 +6,7 @@ type Props = {
   selectedId: string | null;
   onSelect: (id: string) => void;
   onDelete: (id: string) => void;
+  searchQuery?: string;
 };
 
 function formatDate(dateStr: string): string {
@@ -36,7 +37,23 @@ type ContextMenuState = {
   y: number;
 } | null;
 
-export function NotesList({ notes, selectedId, onSelect, onDelete }: Props) {
+function highlightMatches(text: string, query: string): React.ReactNode {
+  if (!query.trim()) return text;
+  const terms = query.trim().split(/\s+/).filter(Boolean);
+  const pattern = terms.map((t) => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|");
+  const regex = new RegExp(`(${pattern})`, "gi");
+  const parts = text.split(regex);
+  if (parts.length === 1) return text;
+  return parts.map((part, i) =>
+    regex.test(part) ? (
+      <mark key={i} className="search-highlight">{part}</mark>
+    ) : (
+      part
+    )
+  );
+}
+
+export function NotesList({ notes, selectedId, onSelect, onDelete, searchQuery = "" }: Props) {
   const [contextMenu, setContextMenu] = useState<ContextMenuState>(null);
 
   const handleContextMenu = (e: React.MouseEvent, noteId: string) => {
@@ -66,10 +83,10 @@ export function NotesList({ notes, selectedId, onSelect, onDelete }: Props) {
           onContextMenu={(e) => handleContextMenu(e, note.id)}
         >
           <div className="note-item-title">
-            {note.title || "Untitled"}
+            {highlightMatches(note.title || "Untitled", searchQuery)}
             {note.encrypted && <span className="encrypted-badge">&#128274;</span>}
           </div>
-          <div className="note-item-preview">{getPreview(note.body)}</div>
+          <div className="note-item-preview">{highlightMatches(getPreview(note.body), searchQuery)}</div>
           <div className="note-item-date">{formatDate(note.updated_at)}</div>
         </div>
       ))}

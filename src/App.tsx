@@ -439,6 +439,7 @@ function App() {
             selectedId={selectedId}
             onSelect={setSelectedId}
             onDelete={handleDeleteById}
+            searchQuery={query}
           />
           {selectedNote ? (
             <Editor
