@@ -27,4 +27,5 @@ export type AppSettings = {
   confirmDelete?: boolean;
   idleLockMinutes?: number;
   codexIcons?: Record<string, string>;
+  showTrayIcon?: boolean;
 };

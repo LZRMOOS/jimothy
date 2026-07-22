@@ -8,10 +8,19 @@ mod watcher;
 use commands::AppState;
 use tauri::{
     menu::{Menu, MenuItem},
-    tray::TrayIconBuilder,
+    tray::{TrayIconBuilder, TrayIconId},
     Emitter, Manager, WindowEvent,
 };
 use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut, ShortcutState};
+
+#[tauri::command]
+fn set_tray_visible(app: tauri::AppHandle, visible: bool) -> Result<(), String> {
+    let id = TrayIconId::new("main-tray");
+    if let Some(tray) = app.tray_by_id(&id) {
+        tray.set_visible(visible).map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}
 
 #[cfg(target_os = "macos")]
 mod power_events;
@@ -48,6 +57,7 @@ pub fn run() {
             commands::change_vault_password,
             commands::set_active_note,
             commands::restore_from_trash,
+            set_tray_visible,
         ])
         .setup(|app| {
             let handle = app.handle().clone();
@@ -62,7 +72,7 @@ pub fn run() {
                 MenuItem::with_id(app, "settings", "Settings", true, None::<&str>)?;
             let menu = Menu::with_items(app, &[&show, &new_note, &lock, &settings, &quit])?;
 
-            TrayIconBuilder::new()
+            TrayIconBuilder::with_id("main-tray")
                 .icon(app.default_window_icon().cloned().unwrap())
                 .menu(&menu)
                 .tooltip("Scratch")

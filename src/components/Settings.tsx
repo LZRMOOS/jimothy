@@ -229,6 +229,20 @@ export function Settings({
                     }}
                   />
                 </div>
+                <div className="settings-row">
+                  <label htmlFor="show-tray">Show in menu bar</label>
+                  <input
+                    id="show-tray"
+                    type="checkbox"
+                    checked={settings.showTrayIcon !== false}
+                    onChange={(e) =>
+                      onSettingsChange({
+                        ...settings,
+                        showTrayIcon: e.target.checked,
+                      })
+                    }
+                  />
+                </div>
               </div>
             )}
 

@@ -93,6 +93,11 @@ function App() {
     init();
   }, [initFolder, checkExistingFolder, checkVaultStatus]);
 
+  // Tray icon visibility
+  useEffect(() => {
+    invoke("set_tray_visible", { visible: appSettings.showTrayIcon !== false });
+  }, [appSettings.showTrayIcon]);
+
   // Theme application
   useEffect(() => {
     const theme = appSettings.theme || "system";
