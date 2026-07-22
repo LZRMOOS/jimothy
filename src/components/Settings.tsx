@@ -1,6 +1,7 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { open } from "@tauri-apps/plugin-dialog";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
+import { enable, disable, isEnabled } from "@tauri-apps/plugin-autostart";
 import { useUpdater } from "../hooks/useUpdater";
 import type { AppSettings, VaultStatus } from "../types";
 
@@ -38,6 +39,11 @@ export function Settings({
   const [activeTab, setActiveTab] = useState<SettingsTab>("general");
   const { updateState, updateVersion, checkForUpdate, installUpdate } =
     useUpdater();
+  const [autoStart, setAutoStart] = useState(false);
+
+  useEffect(() => {
+    isEnabled().then(setAutoStart).catch(() => {});
+  }, []);
 
   // Encryption setup form
   const [setupPassword, setSetupPassword] = useState("");
@@ -201,6 +207,27 @@ export function Settings({
                     onChange={(e) =>
                       handleConfirmDeleteChange(e.target.checked)
                     }
+                  />
+                </div>
+                <div className="settings-row">
+                  <label htmlFor="auto-start">Launch at login</label>
+                  <input
+                    id="auto-start"
+                    type="checkbox"
+                    checked={autoStart}
+                    onChange={async (e) => {
+                      const checked = e.target.checked;
+                      try {
+                        if (checked) {
+                          await enable();
+                        } else {
+                          await disable();
+                        }
+                        setAutoStart(checked);
+                      } catch {
+                        // ignore if autostart setup fails
+                      }
+                    }}
                   />
                 </div>
               </div>
