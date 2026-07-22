@@ -1,158 +1,15 @@
-import { useEffect, useRef, useCallback, useState } from "react";
-import { EditorView, keymap, placeholder, Decoration, ViewPlugin, ViewUpdate, DecorationSet } from "@codemirror/view";
-import { EditorState, RangeSetBuilder, StateEffect, StateField } from "@codemirror/state";
-import { markdown, markdownLanguage } from "@codemirror/lang-markdown";
-import { languages } from "@codemirror/language-data";
-import { Strikethrough } from "@lezer/markdown";
-import { syntaxHighlighting, HighlightStyle, defaultHighlightStyle } from "@codemirror/language";
-import { tags } from "@lezer/highlight";
-import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
+import { useEffect, useCallback, useState } from "react";
+import { useEditor, EditorContent } from "@tiptap/react";
+import StarterKit from "@tiptap/starter-kit";
+import Placeholder from "@tiptap/extension-placeholder";
+import CodeBlockLowlight from "@tiptap/extension-code-block-lowlight";
+import TaskList from "@tiptap/extension-task-list";
+import TaskItem from "@tiptap/extension-task-item";
+import { Markdown } from "tiptap-markdown";
+import { common, createLowlight } from "lowlight";
 import type { Note, SaveStatus } from "../types";
 
-const markdownHighlight = HighlightStyle.define([
-  // Markdown formatting
-  { tag: tags.heading1, fontSize: "1.4em", fontWeight: "700" },
-  { tag: tags.heading2, fontSize: "1.25em", fontWeight: "700" },
-  { tag: tags.heading3, fontSize: "1.1em", fontWeight: "600" },
-  { tag: tags.heading4, fontSize: "1em", fontWeight: "600" },
-  { tag: tags.strong, fontWeight: "700" },
-  { tag: tags.emphasis, fontStyle: "italic" },
-  { tag: tags.strikethrough, textDecoration: "line-through", color: "var(--text-hint)" },
-  { tag: tags.link, color: "var(--accent)", textDecoration: "underline" },
-  { tag: tags.url, color: "var(--accent)", opacity: "0.7" },
-  { tag: tags.monospace, fontFamily: "'JetBrains Mono', monospace", background: "var(--bg-tertiary)", borderRadius: "3px", padding: "1px 4px" },
-  { tag: tags.processingInstruction, color: "var(--text-hint)" },
-  { tag: tags.quote, color: "var(--text-secondary)", fontStyle: "italic" },
-  // Code syntax highlighting
-  { tag: tags.keyword, color: "#c084fc" },
-  { tag: tags.controlKeyword, color: "#c084fc" },
-  { tag: tags.operatorKeyword, color: "#c084fc" },
-  { tag: tags.operator, color: "#94a3b8" },
-  { tag: tags.separator, color: "#94a3b8" },
-  { tag: tags.punctuation, color: "#94a3b8" },
-  { tag: tags.bracket, color: "#94a3b8" },
-  { tag: tags.atom, color: "#e879f9" },
-  { tag: tags.bool, color: "#e879f9" },
-  { tag: tags.null, color: "#e879f9" },
-  { tag: tags.number, color: "#f59e0b" },
-  { tag: tags.integer, color: "#f59e0b" },
-  { tag: tags.float, color: "#f59e0b" },
-  { tag: tags.string, color: "#34d399" },
-  { tag: tags.character, color: "#34d399" },
-  { tag: tags.regexp, color: "#fb923c" },
-  { tag: tags.escape, color: "#fbbf24" },
-  { tag: tags.comment, color: "#64748b", fontStyle: "italic" },
-  { tag: tags.lineComment, color: "#64748b", fontStyle: "italic" },
-  { tag: tags.blockComment, color: "#64748b", fontStyle: "italic" },
-  { tag: tags.variableName, color: "#60a5fa" },
-  { tag: tags.local(tags.variableName), color: "#60a5fa" },
-  { tag: tags.special(tags.variableName), color: "#f472b6" },
-  { tag: tags.definition(tags.variableName), color: "#818cf8" },
-  { tag: tags.function(tags.variableName), color: "#818cf8" },
-  { tag: tags.definition(tags.function(tags.variableName)), color: "#818cf8" },
-  { tag: tags.typeName, color: "#f472b6" },
-  { tag: tags.className, color: "#f472b6" },
-  { tag: tags.namespace, color: "#f472b6" },
-  { tag: tags.propertyName, color: "#34d399" },
-  { tag: tags.definition(tags.propertyName), color: "#34d399" },
-  { tag: tags.function(tags.propertyName), color: "#818cf8" },
-  { tag: tags.labelName, color: "#60a5fa" },
-  { tag: tags.attributeName, color: "#60a5fa" },
-  { tag: tags.attributeValue, color: "#34d399" },
-  { tag: tags.meta, color: "#94a3b8" },
-  { tag: tags.tagName, color: "#f87171" },
-  { tag: tags.angleBracket, color: "#94a3b8" },
-  { tag: tags.self, color: "#e879f9" },
-]);
-
-const codeBlockDeco = Decoration.line({ class: "cm-codeblock-line" });
-
-function buildCodeBlockDecorations(view: EditorView): DecorationSet {
-  const builder = new RangeSetBuilder<Decoration>();
-  const doc = view.state.doc;
-  let inBlock = false;
-
-  for (let i = 1; i <= doc.lines; i++) {
-    const line = doc.line(i);
-    const trimmed = line.text.trimStart();
-    if (trimmed.startsWith("```")) {
-      builder.add(line.from, line.from, codeBlockDeco);
-      inBlock = !inBlock;
-    } else if (inBlock) {
-      builder.add(line.from, line.from, codeBlockDeco);
-    }
-  }
-  return builder.finish();
-}
-
-const codeBlockPlugin = ViewPlugin.fromClass(
-  class {
-    decorations: DecorationSet;
-    constructor(view: EditorView) {
-      this.decorations = buildCodeBlockDecorations(view);
-    }
-    update(update: ViewUpdate) {
-      if (update.docChanged || update.viewportChanged) {
-        this.decorations = buildCodeBlockDecorations(update.view);
-      }
-    }
-  },
-  { decorations: (v) => v.decorations }
-);
-
-const setSearchQuery = StateEffect.define<string>();
-
-const searchHighlightMark = Decoration.mark({ class: "cm-search-highlight" });
-
-const searchHighlightField = StateField.define<DecorationSet>({
-  create() {
-    return Decoration.none;
-  },
-  update(decos, tr) {
-    for (const effect of tr.effects) {
-      if (effect.is(setSearchQuery)) {
-        return buildSearchDecos(tr.state, effect.value);
-      }
-    }
-    if (tr.docChanged) {
-      const query = tr.state.field(searchQueryField, false);
-      if (query) return buildSearchDecos(tr.state, query);
-    }
-    return decos;
-  },
-  provide: (f) => EditorView.decorations.from(f),
-});
-
-const searchQueryField = StateField.define<string>({
-  create() {
-    return "";
-  },
-  update(value, tr) {
-    for (const effect of tr.effects) {
-      if (effect.is(setSearchQuery)) return effect.value;
-    }
-    return value;
-  },
-});
-
-function buildSearchDecos(state: EditorState, query: string): DecorationSet {
-  if (!query.trim()) return Decoration.none;
-  const terms = query.trim().split(/\s+/).filter(Boolean);
-  const pattern = terms.map((t) => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|");
-  const regex = new RegExp(pattern, "gi");
-  const builder = new RangeSetBuilder<Decoration>();
-  const doc = state.doc;
-
-  for (let i = 1; i <= doc.lines; i++) {
-    const line = doc.line(i);
-    let match;
-    regex.lastIndex = 0;
-    while ((match = regex.exec(line.text)) !== null) {
-      builder.add(line.from + match.index, line.from + match.index + match[0].length, searchHighlightMark);
-    }
-  }
-  return builder.finish();
-}
+const lowlight = createLowlight(common);
 
 type Props = {
   note: Note;
@@ -162,98 +19,54 @@ type Props = {
   searchQuery?: string;
 };
 
-export function Editor({ note, saveStatus, onTitleChange, onBodyChange, searchQuery = "" }: Props) {
-  const editorRef = useRef<HTMLDivElement>(null);
-  const viewRef = useRef<EditorView | null>(null);
-  const titleRef = useRef<HTMLInputElement>(null);
-  const noteIdRef = useRef<string>(note.id);
+export function Editor({ note, saveStatus, onTitleChange, onBodyChange, searchQuery: _searchQuery = "" }: Props) {
   const [showCharCount, setShowCharCount] = useState(false);
 
-  const onBodyChangeRef = useRef(onBodyChange);
-  onBodyChangeRef.current = onBodyChange;
-
-  useEffect(() => {
-    if (!editorRef.current) return;
-
-    if (viewRef.current) {
-      viewRef.current.destroy();
-    }
-
-    const updateListener = EditorView.updateListener.of((update) => {
-      if (update.docChanged) {
-        onBodyChangeRef.current(update.state.doc.toString());
-      }
-    });
-
-    const state = EditorState.create({
-      doc: note.body,
-      extensions: [
-        keymap.of([...defaultKeymap, ...historyKeymap]),
-        history(),
-        markdown({
-          base: markdownLanguage,
-          codeLanguages: languages,
-          extensions: [Strikethrough],
-        }),
-        syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
-        syntaxHighlighting(markdownHighlight),
-        codeBlockPlugin,
-        searchQueryField,
-        searchHighlightField,
-        placeholder("Start writing…"),
-        updateListener,
-        EditorView.lineWrapping,
-        EditorView.theme({
-          "&": { height: "100%", fontSize: "14px", lineHeight: "1.6" },
-          ".cm-scroller": { overflow: "auto" },
-          ".cm-content": { padding: "8px 0", fontFamily: "'JetBrains Mono', monospace", caretColor: "var(--text-primary)" },
-          ".cm-cursor, .cm-dropCursor": { borderLeftColor: "var(--text-primary)" },
-          "&.cm-focused": { outline: "none" },
-          ".cm-line:has(.tok-processingInstruction)": { background: "var(--bg-tertiary)", borderRadius: "4px" },
-        }),
-      ],
-    });
-
-    viewRef.current = new EditorView({
-      state,
-      parent: editorRef.current,
-    });
-
-    noteIdRef.current = note.id;
-
-    return () => {
-      viewRef.current?.destroy();
-      viewRef.current = null;
-    };
+  const editor = useEditor({
+    extensions: [
+      StarterKit.configure({
+        codeBlock: false,
+      }),
+      CodeBlockLowlight.configure({
+        lowlight,
+      }),
+      TaskList,
+      TaskItem.configure({
+        nested: true,
+      }),
+      Placeholder.configure({
+        placeholder: "Start writing…",
+      }),
+      Markdown.configure({
+        html: false,
+        transformPastedText: true,
+        transformCopiedText: true,
+      }),
+    ],
+    content: note.body,
+    onUpdate: ({ editor }) => {
+      const md = (editor.storage as any).markdown.getMarkdown();
+      onBodyChange(md);
+    },
   }, [note.id]);
 
   useEffect(() => {
-    if (noteIdRef.current !== note.id) return;
-    const view = viewRef.current;
-    if (!view) return;
-
-    const currentDoc = view.state.doc.toString();
-    if (currentDoc !== note.body && !view.hasFocus) {
-      view.dispatch({
-        changes: { from: 0, to: currentDoc.length, insert: note.body },
-      });
+    if (!editor) return;
+    const currentMd = (editor.storage as any).markdown.getMarkdown();
+    if (currentMd !== note.body && !editor.isFocused) {
+      editor.commands.setContent(note.body);
     }
-  }, [note.body, note.id]);
+  }, [note.body, editor]);
 
-  useEffect(() => {
-    const view = viewRef.current;
-    if (!view) return;
-    view.dispatch({ effects: setSearchQuery.of(searchQuery) });
-  }, [searchQuery]);
 
   const handleTitleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
       if (e.key === "Enter") {
         e.preventDefault();
-        viewRef.current?.focus();
+        editor?.commands.focus("start");
       }
     },
-    []
+    [editor]
   );
 
   const statusLabel =
@@ -282,7 +95,6 @@ export function Editor({ note, saveStatus, onTitleChange, onBodyChange, searchQu
     <div className="editor">
       <div className="editor-header">
         <input
-          ref={titleRef}
           type="text"
           className="editor-title"
           value={note.title}
@@ -292,7 +104,9 @@ export function Editor({ note, saveStatus, onTitleChange, onBodyChange, searchQu
         />
         <span className={`save-status ${saveStatus}`}>{statusLabel}</span>
       </div>
-      <div className="editor-body" ref={editorRef} />
+      <div className="editor-body">
+        <EditorContent editor={editor} />
+      </div>
       <div className="editor-footer">
         <span className="editor-meta">{modifiedStr}</span>
         <span
