@@ -1,8 +1,9 @@
 import { useEffect, useRef, useCallback } from "react";
-import { EditorView, keymap, placeholder } from "@codemirror/view";
-import { EditorState } from "@codemirror/state";
-import { markdown } from "@codemirror/lang-markdown";
+import { EditorView, keymap, placeholder, Decoration, ViewPlugin, ViewUpdate, DecorationSet } from "@codemirror/view";
+import { EditorState, RangeSetBuilder } from "@codemirror/state";
+import { markdown, markdownLanguage } from "@codemirror/lang-markdown";
 import { languages } from "@codemirror/language-data";
+import { Strikethrough } from "@lezer/markdown";
 import { syntaxHighlighting, HighlightStyle, defaultHighlightStyle } from "@codemirror/language";
 import { tags } from "@lezer/highlight";
 import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
@@ -64,6 +65,41 @@ const markdownHighlight = HighlightStyle.define([
   { tag: tags.self, color: "#e879f9" },
 ]);
 
+const codeBlockDeco = Decoration.line({ class: "cm-codeblock-line" });
+
+function buildCodeBlockDecorations(view: EditorView): DecorationSet {
+  const builder = new RangeSetBuilder<Decoration>();
+  const doc = view.state.doc;
+  let inBlock = false;
+
+  for (let i = 1; i <= doc.lines; i++) {
+    const line = doc.line(i);
+    const trimmed = line.text.trimStart();
+    if (trimmed.startsWith("```")) {
+      builder.add(line.from, line.from, codeBlockDeco);
+      inBlock = !inBlock;
+    } else if (inBlock) {
+      builder.add(line.from, line.from, codeBlockDeco);
+    }
+  }
+  return builder.finish();
+}
+
+const codeBlockPlugin = ViewPlugin.fromClass(
+  class {
+    decorations: DecorationSet;
+    constructor(view: EditorView) {
+      this.decorations = buildCodeBlockDecorations(view);
+    }
+    update(update: ViewUpdate) {
+      if (update.docChanged || update.viewportChanged) {
+        this.decorations = buildCodeBlockDecorations(update.view);
+      }
+    }
+  },
+  { decorations: (v) => v.decorations }
+);
+
 type Props = {
   note: Note;
   saveStatus: SaveStatus;
@@ -98,9 +134,14 @@ export function Editor({ note, saveStatus, onTitleChange, onBodyChange }: Props)
       extensions: [
         keymap.of([...defaultKeymap, ...historyKeymap]),
         history(),
-        markdown({ codeLanguages: languages }),
+        markdown({
+          base: markdownLanguage,
+          codeLanguages: languages,
+          extensions: [Strikethrough],
+        }),
         syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
         syntaxHighlighting(markdownHighlight),
+        codeBlockPlugin,
         placeholder("Start writing…"),
         updateListener,
         EditorView.lineWrapping,

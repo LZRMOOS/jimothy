@@ -328,6 +328,19 @@ body {
   border: none;
 }
 
+.editor-body .cm-editor .cm-codeblock-line {
+  background: var(--bg-tertiary);
+  border-radius: 0;
+}
+
+.editor-body .cm-editor .cm-codeblock-line:first-of-type {
+  border-radius: 4px 4px 0 0;
+}
+
+.editor-body .cm-editor .cm-codeblock-line:last-of-type {
+  border-radius: 0 0 4px 4px;
+}
+
 .editor-body .cm-editor .cm-line .tok-processingInstruction {
   color: var(--text-hint);
   font-size: 0.9em;
