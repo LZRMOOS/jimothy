@@ -51,6 +51,10 @@
   box-sizing: border-box;
 }
 
+input, button, select, textarea {
+  font-family: inherit;
+}
+
 body {
   font-family: "JetBrains Mono", monospace;
   background: var(--bg-primary);
