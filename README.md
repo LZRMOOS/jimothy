@@ -6,9 +6,10 @@ Built with Tauri 2, React, TypeScript, and Rust.
 
 ## Features
 
-- **Keyboard-first** — global shortcut (Cmd+Shift+Space) toggles the window, Cmd+N new note, Cmd+L focus search
-- **Instant search** — full-text search via MiniSearch, results ranked by relevance
-- **Markdown notes** — CodeMirror 6 editor with word count and save status
+- **Keyboard-first** — global shortcut (Cmd+Shift+Space) toggles the window, Cmd+N new note, Cmd+L/F focus search
+- **Instant search** — full-text search via MiniSearch with highlighted results in the editor
+- **WYSIWYG Markdown** — Tiptap editor with syntax highlighting, task lists, and word/char count
+- **Codexes** — group notes into collections with a collapsible icon sidebar and custom emoji icons
 - **Local storage** — plain Markdown files with YAML frontmatter, compatible with any sync service
 - **Dropbox sync** — detects and handles Dropbox conflict files automatically
 - **Optional encryption** — XChaCha20-Poly1305 with Argon2id key derivation; vault locks on sleep, idle, or manually
@@ -50,7 +51,7 @@ cargo test --manifest-path src-tauri/Cargo.toml   # Rust (32 tests)
 
 ```
 src/                    React frontend
-  components/           SearchBar, NotesList, Editor, Settings, etc.
+  components/           SearchBar, NotesList, Editor, Settings, Dropdown, etc.
   hooks/                useNotes, useVault, useIdleLock, useUpdater
   types/                TypeScript type definitions
 
@@ -80,11 +81,26 @@ Accessible via Cmd+, or the gear icon. Tabs:
 | Tab | Options |
 |-----|---------|
 | General | Theme (system/light/dark), confirm before delete, check for updates |
-| Keyboard | Global shortcut display |
+| Keyboard | Full shortcut reference (global, navigation, codex, notes, app) |
 | Storage | Notes folder path, change folder, open in Finder, rebuild index |
 | Security | Idle lock timeout, enable encryption, lock now, change password |
 
 Settings stored at `~/Library/Application Support/scratch/settings.json` (macOS) or `%APPDATA%/scratch/settings.json` (Windows).
+
+## Keyboard Shortcuts
+
+| Shortcut | Action |
+|----------|--------|
+| Cmd+Shift+Space | Toggle window |
+| Cmd+N | New note |
+| Cmd+F / Cmd+L | Focus search |
+| Cmd+/ | Toggle codex sidebar |
+| Cmd+1 | All notes |
+| Cmd+2–9 | Switch codex |
+| Cmd+, | Settings |
+| Cmd+Shift+L | Lock vault |
+| Cmd+Delete | Delete note |
+| Escape | Hide window |
 
 ## Releasing
 
