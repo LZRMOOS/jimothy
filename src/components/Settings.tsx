@@ -5,7 +5,7 @@ import { enable, disable, isEnabled } from "@tauri-apps/plugin-autostart";
 import { useUpdater } from "../hooks/useUpdater";
 import type { AppSettings, VaultStatus } from "../types";
 
-type SettingsTab = "general" | "keyboard" | "storage" | "security";
+type SettingsTab = "general" | "keyboard" | "storage" | "security" | "markdown";
 
 type Props = {
   settings: AppSettings;
@@ -127,6 +127,7 @@ export function Settings({
     { id: "keyboard", label: "Keyboard" },
     { id: "storage", label: "Storage" },
     { id: "security", label: "Security" },
+    { id: "markdown", label: "Markdown" },
   ];
 
   return (
@@ -439,6 +440,107 @@ export function Settings({
                     encryption settings.
                   </p>
                 )}
+              </div>
+            )}
+
+            {activeTab === "markdown" && (
+              <div className="settings-section markdown-reference">
+                <h3>Text Formatting</h3>
+                <table className="md-ref-table">
+                  <tbody>
+                    <tr>
+                      <td className="md-ref-syntax"># Heading 1</td>
+                      <td className="md-ref-desc">Large heading</td>
+                    </tr>
+                    <tr>
+                      <td className="md-ref-syntax">## Heading 2</td>
+                      <td className="md-ref-desc">Medium heading</td>
+                    </tr>
+                    <tr>
+                      <td className="md-ref-syntax">### Heading 3</td>
+                      <td className="md-ref-desc">Small heading</td>
+                    </tr>
+                    <tr>
+                      <td className="md-ref-syntax">**bold**</td>
+                      <td className="md-ref-desc">Bold text</td>
+                    </tr>
+                    <tr>
+                      <td className="md-ref-syntax">*italic*</td>
+                      <td className="md-ref-desc">Italic text</td>
+                    </tr>
+                    <tr>
+                      <td className="md-ref-syntax">~~strikethrough~~</td>
+                      <td className="md-ref-desc">Strikethrough text</td>
+                    </tr>
+                    <tr>
+                      <td className="md-ref-syntax">`inline code`</td>
+                      <td className="md-ref-desc">Inline code</td>
+                    </tr>
+                  </tbody>
+                </table>
+
+                <h3>Code Blocks</h3>
+                <div className="md-ref-codeblock">
+                  <pre>{`\`\`\`javascript
+const hello = "world";
+console.log(hello);
+\`\`\``}</pre>
+                </div>
+                <p className="settings-hint">
+                  Supported languages: javascript, typescript, python, rust, go,
+                  c, cpp, java, ruby, html, css, json, yaml, bash, sql, and
+                  more.
+                </p>
+
+                <h3>Lists</h3>
+                <table className="md-ref-table">
+                  <tbody>
+                    <tr>
+                      <td className="md-ref-syntax">- item</td>
+                      <td className="md-ref-desc">Unordered list</td>
+                    </tr>
+                    <tr>
+                      <td className="md-ref-syntax">1. item</td>
+                      <td className="md-ref-desc">Ordered list</td>
+                    </tr>
+                    <tr>
+                      <td className="md-ref-syntax">- [ ] task</td>
+                      <td className="md-ref-desc">Task list</td>
+                    </tr>
+                    <tr>
+                      <td className="md-ref-syntax">- [x] done</td>
+                      <td className="md-ref-desc">Completed task</td>
+                    </tr>
+                  </tbody>
+                </table>
+
+                <h3>Links &amp; Images</h3>
+                <table className="md-ref-table">
+                  <tbody>
+                    <tr>
+                      <td className="md-ref-syntax">[text](url)</td>
+                      <td className="md-ref-desc">Hyperlink</td>
+                    </tr>
+                    <tr>
+                      <td className="md-ref-syntax">![alt](url)</td>
+                      <td className="md-ref-desc">Image</td>
+                    </tr>
+                  </tbody>
+                </table>
+
+                <h3>Other</h3>
+                <table className="md-ref-table">
+                  <tbody>
+                    <tr>
+                      <td className="md-ref-syntax">&gt; quote</td>
+                      <td className="md-ref-desc">Blockquote</td>
+                    </tr>
+                    <tr>
+                      <td className="md-ref-syntax">---</td>
+                      <td className="md-ref-desc">Horizontal rule</td>
+                    </tr>
+                  </tbody>
+                </table>
               </div>
             )}
           </div>
