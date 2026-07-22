@@ -63,6 +63,7 @@ pub fn run() {
             let menu = Menu::with_items(app, &[&show, &new_note, &lock, &settings, &quit])?;
 
             TrayIconBuilder::new()
+                .icon(app.default_window_icon().cloned().unwrap())
                 .menu(&menu)
                 .tooltip("Scratch")
                 .on_menu_event(move |app, event| match event.id.as_ref() {
