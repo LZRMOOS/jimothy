@@ -305,3 +305,78 @@ body {
   font-size: 13px;
   margin-top: 12px;
 }
+
+/* Unlock Screen */
+.unlock-screen {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  padding: 24px;
+}
+
+.unlock-content {
+  text-align: center;
+  max-width: 360px;
+}
+
+.unlock-icon {
+  font-size: 48px;
+  margin-bottom: 16px;
+}
+
+.unlock-content h2 {
+  font-size: 22px;
+  margin-bottom: 8px;
+}
+
+.unlock-content p {
+  color: var(--text-secondary);
+  margin-bottom: 20px;
+  font-size: 14px;
+}
+
+.unlock-content form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: center;
+}
+
+.unlock-input {
+  width: 100%;
+  padding: 10px 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: 15px;
+  outline: none;
+  text-align: center;
+}
+
+.unlock-input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(0, 113, 227, 0.15);
+}
+
+/* Notification Bar */
+.notification {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 16px;
+  background: var(--bg-selected);
+  border-bottom: 1px solid var(--border);
+  font-size: 13px;
+  color: var(--text-primary);
+}
+
+.notification-dismiss {
+  background: none;
+  border: none;
+  color: var(--accent);
+  cursor: pointer;
+  font-size: 13px;
+  padding: 4px 8px;
+}

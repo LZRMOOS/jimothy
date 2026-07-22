@@ -18,6 +18,8 @@ export type SearchResult = {
 
 export type SaveStatus = "idle" | "saving" | "saved" | "error";
 
+export type VaultStatus = "plaintext" | "locked" | "unlocked";
+
 export type AppSettings = {
   notesFolder?: string;
   theme?: "system" | "light" | "dark";

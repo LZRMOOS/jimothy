@@ -6,7 +6,9 @@ import { SearchBar } from "./components/SearchBar";
 import { NotesList } from "./components/NotesList";
 import { Editor } from "./components/Editor";
 import { FolderSetup } from "./components/FolderSetup";
+import { UnlockScreen } from "./components/UnlockScreen";
 import { useNotes } from "./hooks/useNotes";
+import { useVault } from "./hooks/useVault";
 import type { Note } from "./types";
 
 function App() {
@@ -23,12 +25,23 @@ function App() {
     debouncedSave,
     deleteNote,
     search,
+    loadNotes,
   } = useNotes();
+
+  const {
+    vaultStatus,
+    vaultError,
+    vaultLoading,
+    checkVaultStatus,
+    unlockVault,
+    lockVault,
+  } = useVault();
 
   const [query, setQuery] = useState("");
   const [filteredNotes, setFilteredNotes] = useState<Note[]>([]);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const [initialized, setInitialized] = useState(false);
+  const [notification, setNotification] = useState<string | null>(null);
 
   useEffect(() => {
     async function init() {
@@ -39,13 +52,14 @@ function App() {
           await initFolder(settings.notesFolder);
         }
       } catch {
-        // No settings yet, show folder picker
+        // No settings yet
       }
       await checkExistingFolder();
+      await checkVaultStatus();
       setInitialized(true);
     }
     init();
-  }, [initFolder, checkExistingFolder]);
+  }, [initFolder, checkExistingFolder, checkVaultStatus]);
 
   useEffect(() => {
     setFilteredNotes(search(query));
@@ -54,14 +68,14 @@ function App() {
   useEffect(() => {
     const appWindow = getCurrentWindow();
     const unlisten = appWindow.onFocusChanged(({ payload: focused }) => {
-      if (focused) {
+      if (focused && vaultStatus !== "locked") {
         searchInputRef.current?.focus();
       }
     });
     return () => {
       unlisten.then((fn) => fn());
     };
-  }, []);
+  }, [vaultStatus]);
 
   useEffect(() => {
     const unlisten = listen("create-new-note", () => {
@@ -72,6 +86,42 @@ function App() {
       unlisten.then((fn) => fn());
     };
   }, []);
+
+  useEffect(() => {
+    const unlistenConflict = listen("note-conflict", () => {
+      setNotification(
+        "A note was modified externally while you were editing. Both versions were preserved."
+      );
+    });
+    const unlistenDropbox = listen("dropbox-conflict", () => {
+      setNotification(
+        "A Dropbox sync conflict was detected and preserved in the conflicts folder."
+      );
+    });
+    const unlistenFolder = listen("folder-unavailable", () => {
+      setNotification("Notes folder is no longer accessible.");
+    });
+    return () => {
+      unlistenConflict.then((fn) => fn());
+      unlistenDropbox.then((fn) => fn());
+      unlistenFolder.then((fn) => fn());
+    };
+  }, []);
+
+  const handleUnlock = useCallback(
+    async (password: string) => {
+      const success = await unlockVault(password);
+      if (success) {
+        await loadNotes();
+      }
+      return success;
+    },
+    [unlockVault, loadNotes]
+  );
+
+  const handleLock = useCallback(async () => {
+    await lockVault();
+  }, [lockVault]);
 
   const handleSearchSubmit = useCallback(async () => {
     if (!query.trim()) return;
@@ -135,7 +185,10 @@ function App() {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       const mod = e.metaKey || e.ctrlKey;
-      if (mod && e.key === "n") {
+      if (mod && e.shiftKey && e.key === "L") {
+        e.preventDefault();
+        handleLock();
+      } else if (mod && e.key === "n") {
         e.preventDefault();
         searchInputRef.current?.focus();
         setQuery("");
@@ -150,7 +203,7 @@ function App() {
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [handleDelete]);
+  }, [handleDelete, handleLock]);
 
   if (!initialized) {
     return <div className="loading">Loading…</div>;
@@ -166,10 +219,31 @@ function App() {
     );
   }
 
+  if (vaultStatus === "locked") {
+    return (
+      <UnlockScreen
+        onUnlock={handleUnlock}
+        error={vaultError}
+        loading={vaultLoading}
+      />
+    );
+  }
+
   const displayNotes = query ? filteredNotes : notes;
 
   return (
     <div className="app">
+      {notification && (
+        <div className="notification">
+          <span>{notification}</span>
+          <button
+            className="notification-dismiss"
+            onClick={() => setNotification(null)}
+          >
+            Dismiss
+          </button>
+        </div>
+      )}
       <SearchBar
         ref={searchInputRef}
         value={query}
