@@ -435,19 +435,55 @@ body {
 
 .editor-body .tiptap ul[data-type="taskList"] li {
   display: flex;
-  align-items: flex-start;
-  gap: 8px;
+  align-items: center;
+  gap: 10px;
+  margin: 0.3em 0;
 }
 
 .editor-body .tiptap ul[data-type="taskList"] li label {
-  margin-top: 3px;
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
 }
 
 .editor-body .tiptap ul[data-type="taskList"] li input[type="checkbox"] {
-  width: 14px;
-  height: 14px;
-  accent-color: var(--accent);
+  -webkit-appearance: none;
+  appearance: none;
+  width: 16px;
+  height: 16px;
+  border: 1.5px solid var(--border-strong);
+  border-radius: 4px;
+  background: var(--bg-tertiary);
   cursor: pointer;
+  transition: all var(--transition);
+  position: relative;
+}
+
+.editor-body .tiptap ul[data-type="taskList"] li input[type="checkbox"]:hover {
+  border-color: var(--accent);
+  background: var(--accent-subtle);
+}
+
+.editor-body .tiptap ul[data-type="taskList"] li input[type="checkbox"]:checked {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.editor-body .tiptap ul[data-type="taskList"] li input[type="checkbox"]:checked::after {
+  content: "";
+  position: absolute;
+  left: 4.5px;
+  top: 1.5px;
+  width: 5px;
+  height: 9px;
+  border: solid white;
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+}
+
+.editor-body .tiptap ul[data-type="taskList"] li[data-checked="true"] > div > p {
+  color: var(--text-hint);
+  text-decoration: line-through;
 }
 
 /* Code syntax highlighting (lowlight) */

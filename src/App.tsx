@@ -346,6 +346,10 @@ function App() {
         e.preventDefault();
         searchInputRef.current?.focus();
         setQuery("");
+      } else if (mod && e.key === "f") {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+        searchInputRef.current?.select();
       } else if (mod && e.key === "l") {
         e.preventDefault();
         searchInputRef.current?.focus();

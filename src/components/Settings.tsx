@@ -236,14 +236,49 @@ export function Settings({
 
             {activeTab === "keyboard" && (
               <div className="settings-section">
-                <h3>Global Shortcut</h3>
+                <h3>Global</h3>
                 <div className="settings-row">
                   <label>Toggle window</label>
                   <kbd className="shortcut-display">Cmd+Shift+Space</kbd>
                 </div>
-                <p className="settings-hint">
-                  Custom shortcut recording coming soon
-                </p>
+                <h3>Navigation</h3>
+                <div className="settings-row">
+                  <label>Search / Find</label>
+                  <span>
+                    <kbd className="shortcut-display">Cmd+F</kbd>{" "}
+                    <kbd className="shortcut-display">Cmd+L</kbd>
+                  </span>
+                </div>
+                <div className="settings-row">
+                  <label>Navigate notes up</label>
+                  <kbd className="shortcut-display">↑</kbd>
+                </div>
+                <div className="settings-row">
+                  <label>Navigate notes down</label>
+                  <kbd className="shortcut-display">↓</kbd>
+                </div>
+                <h3>Notes</h3>
+                <div className="settings-row">
+                  <label>New note</label>
+                  <kbd className="shortcut-display">Cmd+N</kbd>
+                </div>
+                <div className="settings-row">
+                  <label>Delete note</label>
+                  <kbd className="shortcut-display">Cmd+Delete</kbd>
+                </div>
+                <h3>App</h3>
+                <div className="settings-row">
+                  <label>Open settings</label>
+                  <kbd className="shortcut-display">Cmd+,</kbd>
+                </div>
+                <div className="settings-row">
+                  <label>Lock vault</label>
+                  <kbd className="shortcut-display">Cmd+Shift+L</kbd>
+                </div>
+                <div className="settings-row">
+                  <label>Hide window</label>
+                  <kbd className="shortcut-display">Escape</kbd>
+                </div>
               </div>
             )}
 

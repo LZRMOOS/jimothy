@@ -1,4 +1,4 @@
-import { useEffect, useCallback, useState } from "react";
+import { useEffect, useCallback, useState, useRef } from "react";
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Placeholder from "@tiptap/extension-placeholder";
@@ -7,9 +7,66 @@ import TaskList from "@tiptap/extension-task-list";
 import TaskItem from "@tiptap/extension-task-item";
 import { Markdown } from "tiptap-markdown";
 import { common, createLowlight } from "lowlight";
+import { Extension } from "@tiptap/core";
+import { Plugin, PluginKey } from "@tiptap/pm/state";
+import { Decoration, DecorationSet } from "@tiptap/pm/view";
 import type { Note, SaveStatus } from "../types";
 
 const lowlight = createLowlight(common);
+
+const searchHighlightKey = new PluginKey("searchHighlight");
+
+function buildDecorations(doc: any, query: string): DecorationSet {
+  if (!query.trim()) return DecorationSet.empty;
+  const terms = query.trim().split(/\s+/).filter(Boolean);
+  const pattern = terms.map((t) => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|");
+  const regex = new RegExp(pattern, "gi");
+  const decorations: Decoration[] = [];
+
+  doc.descendants((node: any, pos: number) => {
+    if (!node.isText) return;
+    const text = node.text || "";
+    let match;
+    while ((match = regex.exec(text)) !== null) {
+      decorations.push(
+        Decoration.inline(pos + match.index, pos + match.index + match[0].length, {
+          class: "search-highlight",
+        })
+      );
+    }
+  });
+
+  return DecorationSet.create(doc, decorations);
+}
+
+function createSearchHighlightExtension(queryRef: { current: string }) {
+  return Extension.create({
+    name: "searchHighlight",
+    addProseMirrorPlugins() {
+      return [
+        new Plugin({
+          key: searchHighlightKey,
+          state: {
+            init(_, { doc }) {
+              return buildDecorations(doc, queryRef.current);
+            },
+            apply(tr, old) {
+              if (tr.docChanged || tr.getMeta(searchHighlightKey)) {
+                return buildDecorations(tr.doc, queryRef.current);
+              }
+              return old;
+            },
+          },
+          props: {
+            decorations(state) {
+              return this.getState(state);
+            },
+          },
+        }),
+      ];
+    },
+  });
+}
 
 type Props = {
   note: Note;
@@ -19,8 +76,15 @@ type Props = {
   searchQuery?: string;
 };
 
-export function Editor({ note, saveStatus, onTitleChange, onBodyChange, searchQuery: _searchQuery = "" }: Props) {
+export function Editor({ note, saveStatus, onTitleChange, onBodyChange, searchQuery = "" }: Props) {
   const [showCharCount, setShowCharCount] = useState(false);
+  const noteIdRef = useRef(note.id);
+  const onBodyChangeRef = useRef(onBodyChange);
+  onBodyChangeRef.current = onBodyChange;
+  const searchQueryRef = useRef(searchQuery);
+  searchQueryRef.current = searchQuery;
+
+  const [searchExt] = useState(() => createSearchHighlightExtension(searchQueryRef));
 
   const editor = useEditor({
     extensions: [
@@ -42,21 +106,33 @@ export function Editor({ note, saveStatus, onTitleChange, onBodyChange, searchQu
         transformPastedText: true,
         transformCopiedText: true,
       }),
+      searchExt,
     ],
     content: note.body,
     onUpdate: ({ editor }) => {
       const md = (editor.storage as any).markdown.getMarkdown();
-      onBodyChange(md);
+      onBodyChangeRef.current(md);
     },
-  }, [note.id]);
+  });
 
   useEffect(() => {
     if (!editor) return;
+    const tr = editor.state.tr.setMeta(searchHighlightKey, true);
+    editor.view.dispatch(tr);
+  }, [searchQuery, editor]);
+
+  useEffect(() => {
+    if (!editor) return;
+    if (noteIdRef.current !== note.id) {
+      noteIdRef.current = note.id;
+      editor.commands.setContent(note.body);
+      return;
+    }
     const currentMd = (editor.storage as any).markdown.getMarkdown();
     if (currentMd !== note.body && !editor.isFocused) {
       editor.commands.setContent(note.body);
     }
-  }, [note.body, editor]);
+  }, [note.id, note.body, editor]);
 
 
   const handleTitleKeyDown = useCallback(
