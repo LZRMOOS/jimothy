@@ -248,6 +248,7 @@ mod tests {
             updated_at: Utc::now(),
             encrypted: true,
             file_path: String::new(),
+            codex: None,
         }
     }
 

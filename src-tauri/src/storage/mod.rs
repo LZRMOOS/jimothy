@@ -434,6 +434,7 @@ mod tests {
             updated_at: Utc::now(),
             encrypted: false,
             file_path: String::new(),
+            codex: None,
         }
     }
 
