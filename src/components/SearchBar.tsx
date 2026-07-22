@@ -57,17 +57,18 @@ export const SearchBar = forwardRef<HTMLInputElement, Props>(
               aria-label="Settings"
             >
               <svg
-                width="16"
-                height="16"
-                viewBox="0 0 16 16"
+                width="15"
+                height="15"
+                viewBox="0 0 24 24"
                 fill="none"
                 stroke="currentColor"
-                strokeWidth="1.5"
+                strokeWidth="2"
                 strokeLinecap="round"
                 strokeLinejoin="round"
               >
-                <path d="M6.86 1.45a1.2 1.2 0 0 1 2.28 0l.2.6a1.2 1.2 0 0 0 1.57.72l.57-.26a1.2 1.2 0 0 1 1.61 1.14l-.02.62a1.2 1.2 0 0 0 1.1 1.22l.62.05a1.2 1.2 0 0 1 .79 1.97l-.42.46a1.2 1.2 0 0 0 .04 1.64l.42.46a1.2 1.2 0 0 1-.79 1.97l-.62.05a1.2 1.2 0 0 0-1.1 1.22l.02.62a1.2 1.2 0 0 1-1.61 1.14l-.57-.26a1.2 1.2 0 0 0-1.57.72l-.2.6a1.2 1.2 0 0 1-2.28 0l-.2-.6a1.2 1.2 0 0 0-1.57-.72l-.57.26a1.2 1.2 0 0 1-1.61-1.14l.02-.62a1.2 1.2 0 0 0-1.1-1.22l-.62-.05a1.2 1.2 0 0 1-.79-1.97l.42-.46a1.2 1.2 0 0 0-.04-1.64l-.42-.46a1.2 1.2 0 0 1 .79-1.97l.62-.05A1.2 1.2 0 0 0 2.93 4.27l-.02-.62A1.2 1.2 0 0 1 4.52 2.51l.57.26a1.2 1.2 0 0 0 1.57-.72l.2-.6Z" />
-                <circle cx="8" cy="8" r="2.5" />
+                <circle cx="12" cy="12" r="1.5" />
+                <circle cx="12" cy="5" r="1.5" />
+                <circle cx="12" cy="19" r="1.5" />
               </svg>
             </button>
           )}

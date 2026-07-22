@@ -44,9 +44,10 @@ export function Editor({ note, saveStatus, onTitleChange, onBodyChange }: Props)
         updateListener,
         EditorView.lineWrapping,
         EditorView.theme({
-          "&": { height: "100%", fontSize: "14px" },
+          "&": { height: "100%", fontSize: "14px", lineHeight: "1.6" },
           ".cm-scroller": { overflow: "auto" },
-          ".cm-content": { padding: "8px 0", fontFamily: "inherit" },
+          ".cm-content": { padding: "8px 0", fontFamily: "inherit", caretColor: "var(--text-primary)" },
+          ".cm-cursor, .cm-dropCursor": { borderLeftColor: "var(--text-primary)" },
           "&.cm-focused": { outline: "none" },
         }),
       ],
