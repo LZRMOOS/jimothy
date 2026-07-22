@@ -1,8 +1,16 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <!-- Background -->
-  <circle cx="256" cy="256" r="240" fill="#1A1A2A"/>
+  <!-- Full square background - macOS applies its own mask -->
+  <rect x="0" y="0" width="512" height="512" fill="#1A1A2A"/>
 
-  <!-- S -->
-  <path d="M310,150 C230,130 160,170 180,220 C200,270 320,260 330,310 C340,370 270,400 200,380"
-        stroke="#F5A623" stroke-width="40" stroke-linecap="round" fill="none"/>
+  <!-- Modern geometric S with gradient -->
+  <defs>
+    <linearGradient id="sGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFD060"/>
+      <stop offset="100%" stop-color="#F5A623"/>
+    </linearGradient>
+  </defs>
+
+  <!-- S as a clean, geometric stroke -->
+  <path d="M320,155 C260,130 175,148 180,200 C185,252 310,245 320,300 C330,360 250,390 190,365"
+        stroke="url(#sGrad)" stroke-width="52" stroke-linecap="round" fill="none"/>
 </svg>
