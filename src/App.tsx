@@ -447,6 +447,7 @@ function App() {
               saveStatus={saveStatus}
               onTitleChange={handleTitleChange}
               onBodyChange={handleBodyChange}
+              searchQuery={query}
             />
           ) : (
             <div className="editor-placeholder">

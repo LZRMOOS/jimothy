@@ -339,6 +339,16 @@ body {
   border: none;
 }
 
+.editor-body .cm-editor .cm-search-highlight {
+  background: rgba(251, 191, 36, 0.3);
+  border-radius: 2px;
+  padding: 1px 0;
+}
+
+[data-theme="dark"] .editor-body .cm-editor .cm-search-highlight {
+  background: rgba(251, 191, 36, 0.25);
+}
+
 .editor-body .cm-editor .cm-codeblock-line {
   background: var(--bg-tertiary);
   border-radius: 0;

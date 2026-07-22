@@ -1,6 +1,6 @@
 import { useEffect, useRef, useCallback } from "react";
 import { EditorView, keymap, placeholder, Decoration, ViewPlugin, ViewUpdate, DecorationSet } from "@codemirror/view";
-import { EditorState, RangeSetBuilder } from "@codemirror/state";
+import { EditorState, RangeSetBuilder, StateEffect, StateField } from "@codemirror/state";
 import { markdown, markdownLanguage } from "@codemirror/lang-markdown";
 import { languages } from "@codemirror/language-data";
 import { Strikethrough } from "@lezer/markdown";
@@ -100,14 +100,69 @@ const codeBlockPlugin = ViewPlugin.fromClass(
   { decorations: (v) => v.decorations }
 );
 
+const setSearchQuery = StateEffect.define<string>();
+
+const searchHighlightMark = Decoration.mark({ class: "cm-search-highlight" });
+
+const searchHighlightField = StateField.define<DecorationSet>({
+  create() {
+    return Decoration.none;
+  },
+  update(decos, tr) {
+    for (const effect of tr.effects) {
+      if (effect.is(setSearchQuery)) {
+        return buildSearchDecos(tr.state, effect.value);
+      }
+    }
+    if (tr.docChanged) {
+      const query = tr.state.field(searchQueryField, false);
+      if (query) return buildSearchDecos(tr.state, query);
+    }
+    return decos;
+  },
+  provide: (f) => EditorView.decorations.from(f),
+});
+
+const searchQueryField = StateField.define<string>({
+  create() {
+    return "";
+  },
+  update(value, tr) {
+    for (const effect of tr.effects) {
+      if (effect.is(setSearchQuery)) return effect.value;
+    }
+    return value;
+  },
+});
+
+function buildSearchDecos(state: EditorState, query: string): DecorationSet {
+  if (!query.trim()) return Decoration.none;
+  const terms = query.trim().split(/\s+/).filter(Boolean);
+  const pattern = terms.map((t) => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|");
+  const regex = new RegExp(pattern, "gi");
+  const builder = new RangeSetBuilder<Decoration>();
+  const doc = state.doc;
+
+  for (let i = 1; i <= doc.lines; i++) {
+    const line = doc.line(i);
+    let match;
+    regex.lastIndex = 0;
+    while ((match = regex.exec(line.text)) !== null) {
+      builder.add(line.from + match.index, line.from + match.index + match[0].length, searchHighlightMark);
+    }
+  }
+  return builder.finish();
+}
+
 type Props = {
   note: Note;
   saveStatus: SaveStatus;
   onTitleChange: (title: string) => void;
   onBodyChange: (body: string) => void;
+  searchQuery?: string;
 };
 
-export function Editor({ note, saveStatus, onTitleChange, onBodyChange }: Props) {
+export function Editor({ note, saveStatus, onTitleChange, onBodyChange, searchQuery = "" }: Props) {
   const editorRef = useRef<HTMLDivElement>(null);
   const viewRef = useRef<EditorView | null>(null);
   const titleRef = useRef<HTMLInputElement>(null);
@@ -142,6 +197,8 @@ export function Editor({ note, saveStatus, onTitleChange, onBodyChange }: Props)
         syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
         syntaxHighlighting(markdownHighlight),
         codeBlockPlugin,
+        searchQueryField,
+        searchHighlightField,
         placeholder("Start writing…"),
         updateListener,
         EditorView.lineWrapping,
@@ -181,6 +238,12 @@ export function Editor({ note, saveStatus, onTitleChange, onBodyChange }: Props)
       });
     }
   }, [note.body, note.id]);
+
+  useEffect(() => {
+    const view = viewRef.current;
+    if (!view) return;
+    view.dispatch({ effects: setSearchQuery.of(searchQuery) });
+  }, [searchQuery]);
 
   const handleTitleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
