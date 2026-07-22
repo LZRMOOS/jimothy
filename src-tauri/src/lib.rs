@@ -1,4 +1,5 @@
 mod commands;
+mod crypto;
 mod notes;
 mod platform;
 mod storage;
@@ -31,6 +32,11 @@ pub fn run() {
             commands::get_default_notes_path,
             commands::get_app_settings,
             commands::save_app_settings,
+            commands::setup_vault,
+            commands::unlock_vault,
+            commands::lock_vault,
+            commands::get_vault_status,
+            commands::change_vault_password,
         ])
         .setup(|app| {
             let handle = app.handle().clone();
