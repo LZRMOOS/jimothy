@@ -234,8 +234,7 @@ pub fn move_to_conflicts(folder: &Path, file_path: &Path) -> Result<PathBuf, Str
     Ok(dest)
 }
 
-/// Save a conflict copy with a timestamped name.
-/// Format: `{slug}--{id}--conflict-{ISO timestamp}.md`
+#[allow(dead_code)]
 pub fn save_conflict_copy(
     folder: &Path,
     note_path: &Path,

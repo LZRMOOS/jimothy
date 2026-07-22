@@ -47,6 +47,7 @@ pub fn run() {
             commands::get_vault_status,
             commands::change_vault_password,
             commands::set_active_note,
+            commands::restore_from_trash,
         ])
         .setup(|app| {
             let handle = app.handle().clone();

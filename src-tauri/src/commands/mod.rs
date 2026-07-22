@@ -104,6 +104,9 @@ pub fn set_notes_folder(
     storage::validate_folder(&folder)?;
     storage::ensure_quicknotes_dirs(&folder)?;
 
+    // Clean up orphaned temp files from previous sessions
+    storage::cleanup_temp_files(&folder);
+
     // Detect vault status
     if load_vault_config(&folder).is_some() {
         // Vault exists but is locked until password is provided
@@ -112,8 +115,11 @@ pub fn set_notes_folder(
         *state.notes.lock().unwrap() = Vec::new();
     } else {
         *state.vault_status.lock().unwrap() = VaultStatus::Plaintext;
-        let notes = storage::load_notes_from_folder(&folder);
+        let (notes, dropbox_conflicts) = storage::load_notes_deduped(&folder);
         *state.notes.lock().unwrap() = notes;
+        if !dropbox_conflicts.is_empty() {
+            let _ = app_handle.emit("dropbox-conflict", ());
+        }
     }
 
     *state.notes_folder.lock().unwrap() = Some(folder.clone());
@@ -252,14 +258,18 @@ pub fn delete_note(id: String, state: State<'_, AppState>) -> Result<(), String>
 }
 
 #[tauri::command]
-pub fn reload_notes(state: State<'_, AppState>) -> Vec<NoteDto> {
+pub fn reload_notes(state: State<'_, AppState>, app_handle: AppHandle) -> Result<Vec<NoteDto>, String> {
     let folder = state.notes_folder.lock().unwrap().clone();
     if let Some(folder) = folder {
+        storage::check_folder_available(&folder).map_err(|e| {
+            let _ = app_handle.emit("folder-unavailable", ());
+            e
+        })?;
+
         let vault_status = state.vault_status.lock().unwrap().clone();
         match vault_status {
             VaultStatus::Locked => {
-                // Return empty when locked
-                Vec::new()
+                Ok(Vec::new())
             }
             VaultStatus::Unlocked => {
                 let key = state.vault_key.lock().unwrap().clone();
@@ -267,20 +277,23 @@ pub fn reload_notes(state: State<'_, AppState>) -> Vec<NoteDto> {
                     let notes = storage::load_encrypted_notes_from_folder(&folder, &key);
                     let dtos: Vec<NoteDto> = notes.iter().map(NoteDto::from).collect();
                     *state.notes.lock().unwrap() = notes;
-                    dtos
+                    Ok(dtos)
                 } else {
-                    Vec::new()
+                    Ok(Vec::new())
                 }
             }
             VaultStatus::Plaintext => {
-                let notes = storage::load_notes_from_folder(&folder);
+                let (notes, dropbox_conflicts) = storage::load_notes_deduped(&folder);
+                if !dropbox_conflicts.is_empty() {
+                    let _ = app_handle.emit("dropbox-conflict", ());
+                }
                 let dtos: Vec<NoteDto> = notes.iter().map(NoteDto::from).collect();
                 *state.notes.lock().unwrap() = notes;
-                dtos
+                Ok(dtos)
             }
         }
     } else {
-        Vec::new()
+        Ok(Vec::new())
     }
 }
 
@@ -481,4 +494,19 @@ pub fn change_vault_password(
     *state.notes.lock().unwrap() = re_encrypted_notes;
 
     Ok(())
+}
+
+#[tauri::command]
+pub fn restore_from_trash(filename: String, state: State<'_, AppState>) -> Result<NoteDto, String> {
+    let folder = state
+        .notes_folder
+        .lock()
+        .unwrap()
+        .clone()
+        .ok_or("No notes folder set")?;
+
+    let note = storage::restore_note_from_trash(&folder, &filename)?;
+    let dto = NoteDto::from(&note);
+    state.notes.lock().unwrap().push(note);
+    Ok(dto)
 }
