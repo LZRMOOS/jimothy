@@ -2,8 +2,36 @@ import { useEffect, useRef, useCallback } from "react";
 import { EditorView, keymap, placeholder } from "@codemirror/view";
 import { EditorState } from "@codemirror/state";
 import { markdown } from "@codemirror/lang-markdown";
+import { languages } from "@codemirror/language-data";
+import { syntaxHighlighting, HighlightStyle } from "@codemirror/language";
+import { tags } from "@lezer/highlight";
 import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
 import type { Note, SaveStatus } from "../types";
+
+const markdownHighlight = HighlightStyle.define([
+  { tag: tags.heading1, fontSize: "1.4em", fontWeight: "700" },
+  { tag: tags.heading2, fontSize: "1.25em", fontWeight: "700" },
+  { tag: tags.heading3, fontSize: "1.1em", fontWeight: "600" },
+  { tag: tags.heading4, fontSize: "1em", fontWeight: "600" },
+  { tag: tags.strong, fontWeight: "700" },
+  { tag: tags.emphasis, fontStyle: "italic" },
+  { tag: tags.strikethrough, textDecoration: "line-through", color: "var(--text-hint)" },
+  { tag: tags.link, color: "var(--accent)", textDecoration: "underline" },
+  { tag: tags.url, color: "var(--accent)", opacity: "0.7" },
+  { tag: tags.monospace, fontFamily: "'JetBrains Mono', monospace", background: "var(--bg-tertiary)", borderRadius: "3px", padding: "1px 4px" },
+  { tag: tags.processingInstruction, color: "var(--text-hint)" },
+  { tag: tags.quote, color: "var(--text-secondary)", fontStyle: "italic" },
+  { tag: tags.keyword, color: "var(--accent)" },
+  { tag: tags.atom, color: "#e879f9" },
+  { tag: tags.number, color: "#f59e0b" },
+  { tag: tags.string, color: "#10b981" },
+  { tag: tags.comment, color: "var(--text-hint)", fontStyle: "italic" },
+  { tag: tags.variableName, color: "#60a5fa" },
+  { tag: tags.typeName, color: "#f472b6" },
+  { tag: tags.definition(tags.variableName), color: "#818cf8" },
+  { tag: tags.function(tags.variableName), color: "#c084fc" },
+  { tag: tags.propertyName, color: "#34d399" },
+]);
 
 type Props = {
   note: Note;
@@ -39,7 +67,8 @@ export function Editor({ note, saveStatus, onTitleChange, onBodyChange }: Props)
       extensions: [
         keymap.of([...defaultKeymap, ...historyKeymap]),
         history(),
-        markdown(),
+        markdown({ codeLanguages: languages }),
+        syntaxHighlighting(markdownHighlight),
         placeholder("Start writing…"),
         updateListener,
         EditorView.lineWrapping,
@@ -49,6 +78,7 @@ export function Editor({ note, saveStatus, onTitleChange, onBodyChange }: Props)
           ".cm-content": { padding: "8px 0", fontFamily: "'JetBrains Mono', monospace", caretColor: "var(--text-primary)" },
           ".cm-cursor, .cm-dropCursor": { borderLeftColor: "var(--text-primary)" },
           "&.cm-focused": { outline: "none" },
+          ".cm-line:has(.tok-processingInstruction)": { background: "var(--bg-tertiary)", borderRadius: "4px" },
         }),
       ],
     });

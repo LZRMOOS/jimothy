@@ -328,6 +328,17 @@ body {
   border: none;
 }
 
+.editor-body .cm-editor .cm-line .tok-processingInstruction {
+  color: var(--text-hint);
+  font-size: 0.9em;
+}
+
+.editor-body .cm-editor .cm-line .tok-monospace {
+  background: var(--bg-tertiary);
+  border-radius: 3px;
+  padding: 1px 5px;
+}
+
 .editor-footer {
   display: flex;
   justify-content: space-between;
