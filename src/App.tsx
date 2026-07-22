@@ -12,6 +12,7 @@ import type { ConflictChoice } from "./components/ConflictDialog";
 import { Settings } from "./components/Settings";
 import { useNotes } from "./hooks/useNotes";
 import { useVault } from "./hooks/useVault";
+import { useIdleLock } from "./hooks/useIdleLock";
 import type { Note, AppSettings } from "./types";
 
 function App() {
@@ -54,6 +55,12 @@ function App() {
     confirmDelete: true,
   });
   const [notesFolder, setNotesFolder] = useState<string | null>(null);
+
+  useIdleLock(
+    vaultStatus === "unlocked" && (appSettings.idleLockMinutes ?? 0) > 0,
+    appSettings.idleLockMinutes ?? 0,
+    lockVault
+  );
 
   useEffect(() => {
     async function init() {
@@ -135,6 +142,36 @@ function App() {
       unlisten.then((fn) => fn());
     };
   }, []);
+
+  // Tray menu: lock vault
+  useEffect(() => {
+    const unlisten = listen("lock-vault", () => {
+      if (vaultStatus === "unlocked") lockVault();
+    });
+    return () => {
+      unlisten.then((fn) => fn());
+    };
+  }, [vaultStatus, lockVault]);
+
+  // Tray menu: open settings
+  useEffect(() => {
+    const unlisten = listen("open-settings", () => {
+      setShowSettings(true);
+    });
+    return () => {
+      unlisten.then((fn) => fn());
+    };
+  }, []);
+
+  // Lock vault on system sleep/screen lock
+  useEffect(() => {
+    const unlisten = listen("system-sleep", () => {
+      if (vaultStatus === "unlocked") lockVault();
+    });
+    return () => {
+      unlisten.then((fn) => fn());
+    };
+  }, [vaultStatus, lockVault]);
 
   useEffect(() => {
     const unlistenConflict = listen("note-conflict", () => {

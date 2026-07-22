@@ -24,4 +24,5 @@ export type AppSettings = {
   notesFolder?: string;
   theme?: "system" | "light" | "dark";
   confirmDelete?: boolean;
+  idleLockMinutes?: number;
 };

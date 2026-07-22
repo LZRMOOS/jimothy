@@ -218,6 +218,31 @@ export function Settings({
 
             {activeTab === "security" && (
               <div className="settings-section">
+                <h3>Auto-Lock</h3>
+                <div className="settings-row">
+                  <label>Lock after idle</label>
+                  <select
+                    value={settings.idleLockMinutes ?? 0}
+                    onChange={(e) =>
+                      onSettingsChange({
+                        ...settings,
+                        idleLockMinutes: Number(e.target.value),
+                      })
+                    }
+                  >
+                    <option value={0}>Never</option>
+                    <option value={1}>1 minute</option>
+                    <option value={5}>5 minutes</option>
+                    <option value={15}>15 minutes</option>
+                    <option value={30}>30 minutes</option>
+                    <option value={60}>1 hour</option>
+                  </select>
+                </div>
+                <p className="settings-hint">
+                  Vault also locks automatically when the system sleeps or the
+                  screen locks.
+                </p>
+
                 <h3>Encryption</h3>
 
                 {vaultStatus === "plaintext" && !showSetupForm && (

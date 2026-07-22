@@ -13,6 +13,9 @@ use tauri::{
 };
 use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut, ShortcutState};
 
+#[cfg(target_os = "macos")]
+mod power_events;
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
@@ -48,7 +51,10 @@ pub fn run() {
             let show = MenuItem::with_id(app, "show", "Open Notes", true, None::<&str>)?;
             let new_note =
                 MenuItem::with_id(app, "new_note", "New Note", true, None::<&str>)?;
-            let menu = Menu::with_items(app, &[&show, &new_note, &quit])?;
+            let lock = MenuItem::with_id(app, "lock", "Lock Vault", true, None::<&str>)?;
+            let settings =
+                MenuItem::with_id(app, "settings", "Settings", true, None::<&str>)?;
+            let menu = Menu::with_items(app, &[&show, &new_note, &lock, &settings, &quit])?;
 
             TrayIconBuilder::new()
                 .menu(&menu)
@@ -70,9 +76,30 @@ pub fn run() {
                             let _ = window.emit("create-new-note", ());
                         }
                     }
+                    "lock" => {
+                        if let Some(window) = app.get_webview_window("main") {
+                            let _ = window.emit("lock-vault", ());
+                        }
+                    }
+                    "settings" => {
+                        if let Some(window) = app.get_webview_window("main") {
+                            let _ = window.show();
+                            let _ = window.set_focus();
+                            let _ = window.emit("open-settings", ());
+                        }
+                    }
                     _ => {}
                 })
                 .build(app)?;
+
+            // Listen for system sleep/screen lock to auto-lock vault
+            #[cfg(target_os = "macos")]
+            {
+                let sleep_handle = handle.clone();
+                std::thread::spawn(move || {
+                    power_events::listen_for_sleep(sleep_handle);
+                });
+            }
 
             // Register global shortcut
             let shortcut_str = platform::default_shortcut();
