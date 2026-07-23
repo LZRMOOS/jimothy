@@ -8,6 +8,9 @@ import type { AppSettings, VaultStatus } from "../types";
 
 type SettingsTab = "general" | "keyboard" | "storage" | "security" | "markdown";
 
+const isMac = navigator.platform.toUpperCase().includes("MAC");
+const mod = isMac ? "Cmd" : "Ctrl";
+
 type Props = {
   settings: AppSettings;
   onSettingsChange: (settings: AppSettings) => void;
@@ -251,14 +254,14 @@ export function Settings({
                 <h3>Global</h3>
                 <div className="settings-row">
                   <label>Toggle window</label>
-                  <kbd className="shortcut-display">Cmd+Shift+Space</kbd>
+                  <kbd className="shortcut-display">{mod}+Shift+Space</kbd>
                 </div>
                 <h3>Navigation</h3>
                 <div className="settings-row">
                   <label>Search / Find</label>
                   <span>
-                    <kbd className="shortcut-display">Cmd+F</kbd>{" "}
-                    <kbd className="shortcut-display">Cmd+L</kbd>
+                    <kbd className="shortcut-display">{mod}+F</kbd>{" "}
+                    <kbd className="shortcut-display">{mod}+L</kbd>
                   </span>
                 </div>
                 <div className="settings-row">
@@ -272,29 +275,29 @@ export function Settings({
                 <h3>Notes</h3>
                 <div className="settings-row">
                   <label>New note</label>
-                  <kbd className="shortcut-display">Cmd+N</kbd>
+                  <kbd className="shortcut-display">{mod}+N</kbd>
                 </div>
                 <div className="settings-row">
                   <label>Delete note</label>
-                  <kbd className="shortcut-display">Cmd+Delete</kbd>
+                  <kbd className="shortcut-display">{mod}+{isMac ? "Delete" : "Backspace"}</kbd>
                 </div>
                 <h3>Codex</h3>
                 <div className="settings-row">
                   <label>Toggle sidebar</label>
-                  <kbd className="shortcut-display">Cmd+/</kbd>
+                  <kbd className="shortcut-display">{mod}+/</kbd>
                 </div>
                 <div className="settings-row">
                   <label>Switch codex</label>
-                  <kbd className="shortcut-display">Cmd+1–9</kbd>
+                  <kbd className="shortcut-display">{mod}+1–9</kbd>
                 </div>
                 <h3>App</h3>
                 <div className="settings-row">
                   <label>Open settings</label>
-                  <kbd className="shortcut-display">Cmd+,</kbd>
+                  <kbd className="shortcut-display">{mod}+,</kbd>
                 </div>
                 <div className="settings-row">
                   <label>Lock vault</label>
-                  <kbd className="shortcut-display">Cmd+Shift+L</kbd>
+                  <kbd className="shortcut-display">{mod}+Shift+L</kbd>
                 </div>
                 <div className="settings-row">
                   <label>Hide window</label>
