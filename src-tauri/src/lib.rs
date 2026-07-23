@@ -7,6 +7,7 @@ mod watcher;
 
 use commands::AppState;
 use tauri::{
+    image::Image,
     menu::{Menu, MenuItem, Submenu},
     tray::{TrayIconBuilder, TrayIconId},
     Emitter, Manager, WindowEvent,
@@ -150,8 +151,9 @@ pub fn run() {
                 MenuItem::with_id(app, "settings", "Settings", true, None::<&str>)?;
             let menu = Menu::with_items(app, &[&show, &new_note, &lock, &settings, &quit])?;
 
+            let tray_icon = Image::from_bytes(include_bytes!("../icons/tray-icon.png")).unwrap();
             TrayIconBuilder::with_id("main-tray")
-                .icon(app.default_window_icon().cloned().unwrap())
+                .icon(tray_icon)
                 .menu(&menu)
                 .tooltip("Scratch")
                 .on_menu_event(move |app, event| match event.id.as_ref() {
