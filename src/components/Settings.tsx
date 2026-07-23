@@ -334,10 +334,6 @@ export function Settings({
 
             {activeTab === "security" && (
               <div className="settings-section">
-                <div className="settings-note">
-                  <p>Encryption protects your notes with a password. When locked, notes are unreadable without re-entering the password.</p>
-                  <p>Your key is only held in memory, never saved to disk.</p>
-                </div>
                 <h3>Auto-Lock</h3>
                 <div className="settings-row">
                   <label>Lock after idle</label>
@@ -364,7 +360,17 @@ export function Settings({
                   screen locks.
                 </p>
 
-                <h3>Encryption</h3>
+                <h3>
+                  Encryption
+                  <span className="settings-tooltip-wrapper">
+                    <svg className="settings-tooltip-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <circle cx="12" cy="12" r="10"/>
+                      <path d="M12 16v-4"/>
+                      <path d="M12 8h.01"/>
+                    </svg>
+                    <span className="settings-tooltip">Encryption protects your notes with a password. When locked, notes are unreadable without re-entering the password. Your key is only held in memory, never saved to disk.</span>
+                  </span>
+                </h3>
 
                 {vaultStatus === "plaintext" && !showSetupForm && (
                   <div className="settings-actions">

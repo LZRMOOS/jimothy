@@ -1125,23 +1125,45 @@ body {
   line-height: 1.4;
 }
 
-.settings-note {
-  font-size: 12px;
+.settings-tooltip-wrapper {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  margin-left: 6px;
+  cursor: help;
+}
+
+.settings-tooltip-icon {
+  color: var(--text-hint);
+  transition: color var(--transition);
+}
+
+.settings-tooltip-wrapper:hover .settings-tooltip-icon {
   color: var(--text-secondary);
-  background: var(--bg-tertiary);
-  border: 1px solid var(--border);
+}
+
+.settings-tooltip {
+  display: none;
+  position: absolute;
+  left: 50%;
+  top: calc(100% + 8px);
+  transform: translateX(-50%);
+  background: var(--bg-primary);
+  border: 1px solid var(--border-strong);
   border-radius: var(--radius);
-  padding: 12px 14px;
-  margin-bottom: 16px;
+  box-shadow: var(--shadow-lg);
+  padding: 10px 12px;
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--text-secondary);
   line-height: 1.5;
+  width: 240px;
+  white-space: normal;
+  z-index: 200;
 }
 
-.settings-note p {
-  margin: 0;
-}
-
-.settings-note p + p {
-  margin-top: 6px;
+.settings-tooltip-wrapper:hover .settings-tooltip {
+  display: block;
 }
 
 .settings-warning {
