@@ -8,7 +8,9 @@ type Props = {
   onSelect: (id: string) => void;
   onDelete: (id: string) => void;
   onTogglePin: (id: string) => void;
+  onToggleSensitive?: (id: string) => void;
   pinnedIds: string[];
+  sensitiveIds: string[];
   searchQuery?: string;
 };
 
@@ -55,7 +57,7 @@ function highlightMatches(text: string, query: string): React.ReactNode {
   );
 }
 
-export function NotesList({ notes, selectedId, onSelect, onDelete, onTogglePin, pinnedIds, searchQuery = "" }: Props) {
+export function NotesList({ notes, selectedId, onSelect, onDelete, onTogglePin, onToggleSensitive, pinnedIds, sensitiveIds, searchQuery = "" }: Props) {
   const [contextMenu, setContextMenu] = useState<ContextMenuState>(null);
 
   const handleContextMenu = (e: React.MouseEvent, noteId: string) => {
@@ -81,7 +83,7 @@ export function NotesList({ notes, selectedId, onSelect, onDelete, onTogglePin, 
 
   return (
     <div className="notes-list" onClick={closeContextMenu}>
-      {sorted.map((note, i) => (
+      {sorted.map((note) => (
         <div
           key={note.id}
           className={`note-item ${note.id === selectedId ? "selected" : ""} ${pinnedIds.includes(note.id) ? "pinned" : ""}`}
@@ -90,6 +92,12 @@ export function NotesList({ notes, selectedId, onSelect, onDelete, onTogglePin, 
         >
           <div className="note-item-header">
             <div className="note-item-title">
+              {sensitiveIds.includes(note.id) && (
+                <svg className="sensitive-icon" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                  <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                  <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                </svg>
+              )}
               {highlightMatches(note.title || "Untitled", searchQuery)}
             </div>
             <div className="note-item-actions">
@@ -104,11 +112,10 @@ export function NotesList({ notes, selectedId, onSelect, onDelete, onTogglePin, 
               </button>
             </div>
           </div>
-          <div className="note-item-preview">{highlightMatches(getPreview(note.body), searchQuery)}</div>
+          <div className="note-item-preview">
+            {sensitiveIds.includes(note.id) && !note.body ? "Protected note" : highlightMatches(getPreview(note.body), searchQuery)}
+          </div>
           <div className="note-item-date">{formatDate(note.updated_at)}</div>
-          {pinnedIds.includes(note.id) && i === pinned.length - 1 && unpinned.length > 0 && (
-            <div className="pin-divider" />
-          )}
         </div>
       ))}
       {contextMenu && (
@@ -125,6 +132,18 @@ export function NotesList({ notes, selectedId, onSelect, onDelete, onTogglePin, 
           >
             {pinnedIds.includes(contextMenu.noteId) ? "Unpin Note" : "Pin Note"}
           </button>
+          {onToggleSensitive && (
+            <button
+              className="context-menu-item"
+              onClick={() => {
+                onToggleSensitive(contextMenu.noteId);
+                closeContextMenu();
+              }}
+            >
+              {sensitiveIds.includes(contextMenu.noteId)
+                ? "Remove File Protection" : "Protect File"}
+            </button>
+          )}
           <button
             className="context-menu-item danger"
             onClick={() => {

@@ -20,7 +20,9 @@ const defaultProps = {
   onSelect: () => {},
   onDelete: () => {},
   onTogglePin: () => {},
+  onToggleSensitive: () => {},
   pinnedIds: [] as string[],
+  sensitiveIds: [] as string[],
 };
 
 describe("NotesList", () => {

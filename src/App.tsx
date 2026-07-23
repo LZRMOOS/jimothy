@@ -1,6 +1,7 @@
-import { useState, useRef, useEffect, useCallback } from "react";
+import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
+import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { ask } from "@tauri-apps/plugin-dialog";
 import { useEventListener } from "./hooks/useEventListener";
 import { SearchBar } from "./components/SearchBar";
@@ -9,11 +10,16 @@ import { Editor } from "./components/Editor";
 import { Dropdown } from "./components/Dropdown";
 import { FolderSetup } from "./components/FolderSetup";
 import { UnlockScreen } from "./components/UnlockScreen";
+import { CommandPalette } from "./components/CommandPalette";
+import type { Command } from "./components/CommandPalette";
+import { SensitivePrompt } from "./components/SensitivePrompt";
+import { ProtectionSetup } from "./components/ProtectionSetup";
 import { ConflictDialog } from "./components/ConflictDialog";
 import type { ConflictChoice } from "./components/ConflictDialog";
 import { Settings } from "./components/Settings";
 import { useNotes } from "./hooks/useNotes";
 import { useVault } from "./hooks/useVault";
+import { useProtection } from "./hooks/useProtection";
 import { useIdleLock } from "./hooks/useIdleLock";
 import type { Note, AppSettings } from "./types";
 
@@ -32,6 +38,7 @@ function App() {
     deleteNote,
     search,
     loadNotes,
+    updateNoteLocally,
   } = useNotes();
 
   const {
@@ -46,6 +53,21 @@ function App() {
     disableVault,
   } = useVault();
 
+  const {
+    protectionStatus,
+    protectionError,
+    protectionLoading,
+    checkProtectionStatus,
+    setupProtection,
+    unlockProtection,
+    verifyProtectionPassword,
+    protectNote,
+    unprotectNote,
+    getProtectedNoteBody,
+    changeProtectionPassword,
+    disableProtection,
+  } = useProtection();
+
   const [query, setQuery] = useState("");
   const [filteredNotes, setFilteredNotes] = useState<Note[]>([]);
   const [activeCodex, setActiveCodex] = useState<string | null>(null);
@@ -56,6 +78,9 @@ function App() {
   const [notification, setNotification] = useState<string | null>(null);
   const [conflictNoteId, setConflictNoteId] = useState<string | null>(null);
   const [showSettings, setShowSettings] = useState(false);
+  const [showCommandPalette, setShowCommandPalette] = useState(false);
+  const [sensitivePromptId, setSensitivePromptId] = useState<string | null>(null);
+  const sensitiveUnlockTime = useRef<Record<string, number>>({});
   const [appSettings, setAppSettings] = useState<AppSettings>({
     theme: "system",
     confirmDelete: true,
@@ -87,12 +112,13 @@ function App() {
       }
       await checkExistingFolder();
       await checkVaultStatus();
+      await checkProtectionStatus();
       const folder = (await invoke("get_notes_folder")) as string | null;
       if (folder) setNotesFolder(folder);
       setInitialized(true);
     }
     init();
-  }, [initFolder, checkExistingFolder, checkVaultStatus]);
+  }, [initFolder, checkExistingFolder, checkVaultStatus, checkProtectionStatus]);
 
   // Tray icon visibility
   useEffect(() => {
@@ -121,6 +147,12 @@ function App() {
       document.documentElement.setAttribute("data-theme", theme);
     }
   }, [appSettings.theme]);
+
+  // Zoom level
+  useEffect(() => {
+    const zoom = appSettings.zoomLevel ?? 100;
+    getCurrentWebview().setZoom(zoom / 100);
+  }, [appSettings.zoomLevel]);
 
   useEffect(() => {
     let results = search(query);
@@ -214,6 +246,7 @@ function App() {
 
   const handleLock = useCallback(async () => {
     await lockVault();
+    sensitiveUnlockTime.current = {};
   }, [lockVault]);
 
   const handleSettingsChange = useCallback(
@@ -249,6 +282,99 @@ function App() {
   );
 
 
+
+  const handleSelectNote = useCallback(
+    (id: string) => {
+      const note = notes.find((n) => n.id === id);
+      // Per-file protection in plaintext mode
+      const isFileProtected = note?.encrypted && vaultStatus === "plaintext";
+      // Re-auth gate in vault mode
+      const isVaultProtected = vaultStatus === "unlocked" && (appSettings.protectedNotes || []).includes(id);
+
+      if (isFileProtected || isVaultProtected) {
+        const unlockedAt = sensitiveUnlockTime.current[id];
+        const expired = !unlockedAt || Date.now() - unlockedAt > 5 * 60 * 1000;
+        if (expired) {
+          if (isFileProtected) {
+            setDecryptedBodies((prev) => {
+              const next = { ...prev };
+              delete next[id];
+              return next;
+            });
+          }
+          setSensitivePromptId(id);
+          return;
+        }
+      }
+      setSensitivePromptId(null);
+      setSelectedId(id);
+    },
+    [notes, vaultStatus, setSelectedId, appSettings.protectedNotes]
+  );
+
+  const [decryptedBodies, setDecryptedBodies] = useState<Record<string, string>>({});
+
+  const handleSensitiveUnlock = useCallback(
+    async (id: string) => {
+      sensitiveUnlockTime.current[id] = Date.now();
+      setSensitivePromptId(null);
+      // In plaintext mode, decrypt the protected note body
+      if (vaultStatus === "plaintext") {
+        try {
+          const body = await getProtectedNoteBody(id);
+          setDecryptedBodies((prev) => ({ ...prev, [id]: body }));
+        } catch {
+          // If decryption fails, body stays empty
+        }
+      }
+      setSelectedId(id);
+    },
+    [setSelectedId, vaultStatus, getProtectedNoteBody]
+  );
+
+  const [protectionSetupPending, setProtectionSetupPending] = useState<string | null>(null);
+  const [protectionUnlockPending, setProtectionUnlockPending] = useState<string | null>(null);
+
+  const handleToggleSensitive = useCallback(
+    async (id: string) => {
+      const note = notes.find((n) => n.id === id);
+      if (!note) return;
+
+      if (vaultStatus === "unlocked") {
+        // Vault mode: toggle re-auth gate in settings (no file-level encryption)
+        const protected_ = appSettings.protectedNotes || [];
+        const next = protected_.includes(id)
+          ? protected_.filter((p) => p !== id)
+          : [...protected_, id];
+        handleSettingsChange({ ...appSettings, protectedNotes: next });
+        return;
+      }
+
+      // Plaintext mode: actual per-file encryption
+      if (note.encrypted) {
+        // Always require re-auth to remove protection
+        setProtectionUnlockPending(`unprotect:${id}`);
+        return;
+      } else {
+        if (protectionStatus === "none") {
+          setProtectionSetupPending(id);
+          return;
+        }
+        if (protectionStatus === "locked") {
+          setProtectionUnlockPending(`protect:${id}`);
+          return;
+        }
+        try {
+          await protectNote(id);
+          await loadNotes();
+        } catch (e) {
+          setNotification(`Failed to protect note: ${e}`);
+        }
+      }
+    },
+    [notes, vaultStatus, appSettings, handleSettingsChange, protectionStatus, protectNote, unprotectNote, loadNotes]
+  );
+
   const handleSearchSubmit = useCallback(async () => {
     if (!query.trim()) return;
 
@@ -269,11 +395,20 @@ function App() {
     if (list.length === 0) return;
     const idx = list.findIndex((n) => n.id === selectedId);
     const next = Math.max(0, Math.min(idx + direction, list.length - 1));
-    setSelectedId(list[next].id);
-  }, [filteredNotes, notes, selectedId, setSelectedId]);
+    handleSelectNote(list[next].id);
+  }, [filteredNotes, notes, selectedId, handleSelectNote]);
 
   const handleArrowDown = useCallback(() => navigateNote(1), [navigateNote]);
   const handleArrowUp = useCallback(() => navigateNote(-1), [navigateNote]);
+
+  const handleZoom = useCallback(
+    (delta: number) => {
+      const current = appSettings.zoomLevel ?? 100;
+      const next = Math.max(70, Math.min(150, current + delta));
+      if (next !== current) handleSettingsChange({ ...appSettings, zoomLevel: next });
+    },
+    [appSettings, handleSettingsChange]
+  );
 
   const handleEscape = useCallback(async () => {
     if (showSettings) {
@@ -284,28 +419,65 @@ function App() {
     await appWindow.hide();
   }, [showSettings]);
 
+  const saveProtectedDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const saveProtectedNote = useCallback(
+    (id: string, title: string, body: string, codex: string | null) => {
+      if (saveProtectedDebounceRef.current) {
+        clearTimeout(saveProtectedDebounceRef.current);
+      }
+      saveProtectedDebounceRef.current = setTimeout(async () => {
+        try {
+          await invoke("save_protected_note", { id, title, body, codex });
+        } catch {
+          // silently fail — same as regular save
+        }
+      }, 400);
+    },
+    []
+  );
+
+  const isSelectedProtected = selectedNote?.encrypted && vaultStatus === "plaintext";
+
   const handleTitleChange = useCallback(
     (title: string) => {
       if (!selectedNote) return;
-      debouncedSave(selectedNote.id, title, selectedNote.body, selectedNote.codex);
+      updateNoteLocally(selectedNote.id, { title });
+      const body = decryptedBodies[selectedNote.id] ?? selectedNote.body;
+      if (isSelectedProtected) {
+        setDecryptedBodies((prev) => ({ ...prev, [selectedNote.id]: body }));
+        saveProtectedNote(selectedNote.id, title, body, selectedNote.codex ?? null);
+      } else {
+        debouncedSave(selectedNote.id, title, selectedNote.body, selectedNote.codex);
+      }
     },
-    [selectedNote, debouncedSave]
+    [selectedNote, debouncedSave, saveProtectedNote, isSelectedProtected, decryptedBodies, updateNoteLocally]
   );
 
   const handleBodyChange = useCallback(
     (body: string) => {
       if (!selectedNote) return;
-      debouncedSave(selectedNote.id, selectedNote.title, body, selectedNote.codex);
+      if (isSelectedProtected) {
+        setDecryptedBodies((prev) => ({ ...prev, [selectedNote.id]: body }));
+        saveProtectedNote(selectedNote.id, selectedNote.title, body, selectedNote.codex ?? null);
+      } else {
+        debouncedSave(selectedNote.id, selectedNote.title, body, selectedNote.codex);
+      }
     },
-    [selectedNote, debouncedSave]
+    [selectedNote, debouncedSave, saveProtectedNote, isSelectedProtected]
   );
 
   const handleCodexChange = useCallback(
     (codex: string | null) => {
       if (!selectedNote) return;
-      debouncedSave(selectedNote.id, selectedNote.title, selectedNote.body, codex);
+      const body = decryptedBodies[selectedNote.id] ?? selectedNote.body;
+      if (isSelectedProtected) {
+        saveProtectedNote(selectedNote.id, selectedNote.title, body, codex);
+      } else {
+        debouncedSave(selectedNote.id, selectedNote.title, selectedNote.body, codex);
+      }
     },
-    [selectedNote, debouncedSave]
+    [selectedNote, debouncedSave, saveProtectedNote, isSelectedProtected, decryptedBodies]
   );
 
   const handleDeleteById = useCallback(
@@ -329,21 +501,22 @@ function App() {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       const mod = e.metaKey || e.ctrlKey;
-      if (mod && e.shiftKey && e.key === "L") {
-        e.preventDefault();
-        handleLock();
-      } else if (mod && e.key === "n") {
+      const key = e.key.toLowerCase();
+      if (mod && key === "n" && !e.shiftKey) {
         e.preventDefault();
         searchInputRef.current?.focus();
         setQuery("");
-      } else if (mod && e.key === "f") {
+      } else if (mod && !e.shiftKey && key === "f") {
         e.preventDefault();
         searchInputRef.current?.focus();
         searchInputRef.current?.select();
-      } else if (mod && e.key === "l") {
+      } else if (mod && !e.shiftKey && key === "l") {
         e.preventDefault();
         searchInputRef.current?.focus();
         searchInputRef.current?.select();
+      } else if (mod && !e.shiftKey && key === "k") {
+        e.preventDefault();
+        setShowCommandPalette((s) => !s);
       } else if (mod && e.key === ",") {
         e.preventDefault();
         setShowSettings((s) => !s);
@@ -353,6 +526,15 @@ function App() {
       } else if (mod && e.key === "/") {
         e.preventDefault();
         setSidebarCollapsed((s) => !s);
+      } else if (mod && (e.key === "=" || e.key === "+")) {
+        e.preventDefault();
+        handleZoom(10);
+      } else if (mod && e.key === "-") {
+        e.preventDefault();
+        handleZoom(-10);
+      } else if (mod && e.key === "0") {
+        e.preventDefault();
+        handleSettingsChange({ ...appSettings, zoomLevel: 100 });
       } else if (mod && e.key >= "1" && e.key <= "9") {
         e.preventDefault();
         const idx = parseInt(e.key) - 1;
@@ -365,7 +547,38 @@ function App() {
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [handleDelete, handleLock, codexList]);
+  }, [handleDelete, handleLock, handleZoom, handleSettingsChange, appSettings, codexList]);
+
+  const commands: Command[] = useMemo(() => [
+    { id: "new-note", label: "New Note", shortcut: "⌘N", action: () => { searchInputRef.current?.focus(); setQuery(""); } },
+    { id: "search", label: "Search Notes", shortcut: "⌘F", action: () => { searchInputRef.current?.focus(); searchInputRef.current?.select(); } },
+    { id: "delete-note", label: "Delete Note", shortcut: "⌘⌫", action: handleDelete },
+    { id: "settings", label: "Open Settings", shortcut: "⌘,", action: () => setShowSettings(true) },
+    { id: "lock-vault", label: "Lock Vault", action: handleLock },
+    { id: "toggle-sidebar", label: "Toggle Sidebar", shortcut: "⌘/", action: () => setSidebarCollapsed((s) => !s) },
+    { id: "zoom-in", label: "Zoom In", shortcut: "⌘+", action: () => handleZoom(10) },
+    { id: "zoom-out", label: "Zoom Out", shortcut: "⌘-", action: () => handleZoom(-10) },
+    { id: "zoom-reset", label: "Reset Zoom", shortcut: "⌘0", action: () => handleSettingsChange({ ...appSettings, zoomLevel: 100 }) },
+    ...(selectedId && (vaultStatus === "plaintext" || vaultStatus === "unlocked") ? [{
+      id: "toggle-sensitive",
+      label: (() => {
+        if (vaultStatus === "plaintext") {
+          return notes.find(n => n.id === selectedId)?.encrypted
+            ? "Remove File Protection" : "Protect File";
+        }
+        return (appSettings.protectedNotes || []).includes(selectedId)
+          ? "Remove Protection" : "Mark as Protected";
+      })(),
+      action: () => handleToggleSensitive(selectedId),
+    }] : []),
+    { id: "all-notes", label: "All Notes", shortcut: "⌘1", action: () => setActiveCodex(null) },
+    ...codexList.map((c, i) => ({
+      id: `codex-${c}`,
+      label: `Codex: ${c}`,
+      shortcut: i < 8 ? `⌘${i + 2}` : undefined,
+      action: () => setActiveCodex(c),
+    })),
+  ], [handleDelete, handleLock, handleZoom, handleSettingsChange, handleToggleSensitive, appSettings, selectedId, codexList, notes, vaultStatus]);
 
   if (!initialized) {
     return <div className="loading">Loading…</div>;
@@ -412,6 +625,12 @@ function App() {
           </button>
         </div>
       )}
+      {showCommandPalette && (
+        <CommandPalette
+          commands={commands}
+          onClose={() => setShowCommandPalette(false)}
+        />
+      )}
       <SearchBar
         ref={searchInputRef}
         value={query}
@@ -437,6 +656,11 @@ function App() {
           onChangeFolder={handleChangeFolder}
           vaultError={vaultError}
           vaultLoading={vaultLoading}
+          protectionStatus={protectionStatus}
+          onChangeProtectionPassword={changeProtectionPassword}
+          onDisableProtection={disableProtection}
+          protectionError={protectionError}
+          protectionLoading={protectionLoading}
         />
       ) : (
         <div className="main-content">
@@ -526,23 +750,99 @@ function App() {
               <NotesList
                 notes={displayNotes}
                 selectedId={selectedId}
-                onSelect={setSelectedId}
+                onSelect={handleSelectNote}
                 onDelete={handleDeleteById}
                 onTogglePin={handleTogglePin}
+                onToggleSensitive={vaultStatus === "plaintext" || vaultStatus === "unlocked" ? handleToggleSensitive : undefined}
                 pinnedIds={appSettings.pinnedNotes || []}
+                sensitiveIds={
+                  vaultStatus === "plaintext"
+                    ? notes.filter(n => n.encrypted).map(n => n.id)
+                    : appSettings.protectedNotes || []
+                }
                 searchQuery={query}
               />
             </div>
           )}
-          {selectedNote ? (
+          {protectionSetupPending ? (
+            <ProtectionSetup
+              onSetup={async (pw) => {
+                const ok = await setupProtection(pw);
+                if (ok) {
+                  try {
+                    await protectNote(protectionSetupPending);
+                    await loadNotes();
+                  } catch (e) {
+                    setNotification(`Failed to protect note: ${e}`);
+                  }
+                  setProtectionSetupPending(null);
+                }
+                return ok;
+              }}
+            />
+          ) : protectionUnlockPending ? (
+            <SensitivePrompt
+              title={protectionUnlockPending.startsWith("unprotect:") ? "Remove file protection" : "Authenticate"}
+              hint={protectionUnlockPending.startsWith("unprotect:")
+                ? "Enter your protection password to decrypt this note and convert it back to a regular file."
+                : "Enter your protection password to encrypt this note."}
+              onUnlock={async () => {
+                const action = protectionUnlockPending;
+                setProtectionUnlockPending(null);
+                if (action.startsWith("protect:")) {
+                  const noteId = action.slice(8);
+                  try {
+                    await protectNote(noteId);
+                    await loadNotes();
+                  } catch (e) {
+                    setNotification(`Failed to protect note: ${e}`);
+                  }
+                } else if (action.startsWith("unprotect:")) {
+                  const noteId = action.slice(10);
+                  try {
+                    await unprotectNote(noteId);
+                    await loadNotes();
+                  } catch (e) {
+                    setNotification(`Failed to unprotect note: ${e}`);
+                  }
+                }
+              }}
+              onVerify={async (pw) => {
+                if (protectionStatus !== "unlocked") {
+                  return await unlockProtection(pw);
+                }
+                return await verifyProtectionPassword(pw);
+              }}
+            />
+          ) : sensitivePromptId ? (
+            <SensitivePrompt
+              onUnlock={() => handleSensitiveUnlock(sensitivePromptId)}
+              onVerify={vaultStatus === "plaintext" ? async (pw) => {
+                if (protectionStatus !== "unlocked") {
+                  return await unlockProtection(pw);
+                }
+                return await verifyProtectionPassword(pw);
+              } : undefined}
+              verifyCommand={vaultStatus !== "plaintext" ? "verify_password" : undefined}
+            />
+          ) : selectedNote ? (
             <Editor
-              note={selectedNote}
+              note={
+                selectedNote.encrypted && vaultStatus === "plaintext" && decryptedBodies[selectedNote.id] !== undefined
+                  ? { ...selectedNote, body: decryptedBodies[selectedNote.id] }
+                  : selectedNote
+              }
               saveStatus={saveStatus}
               onTitleChange={handleTitleChange}
               onBodyChange={handleBodyChange}
               onCodexChange={handleCodexChange}
               searchQuery={query}
               codexList={codexList}
+              isSensitive={
+                vaultStatus === "plaintext"
+                  ? selectedNote.encrypted
+                  : (appSettings.protectedNotes || []).includes(selectedNote.id)
+              }
             />
           ) : (
             <div className="editor-placeholder">

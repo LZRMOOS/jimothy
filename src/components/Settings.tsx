@@ -8,6 +8,169 @@ import type { AppSettings, VaultStatus } from "../types";
 
 type SettingsTab = "general" | "keyboard" | "storage" | "security" | "markdown";
 
+function NoteProtectionSection({
+  protectionStatus,
+  onChangeProtectionPassword,
+  onDisableProtection,
+  protectionError,
+  protectionLoading,
+  onReloadNotes,
+  showToast,
+}: {
+  protectionStatus: ProtectionStatus;
+  onChangeProtectionPassword: (current: string, newPassword: string) => Promise<boolean>;
+  onDisableProtection: (password: string) => Promise<boolean>;
+  protectionError: string | null;
+  protectionLoading: boolean;
+  onReloadNotes: () => Promise<void>;
+  showToast: (msg: string) => void;
+}) {
+  const [showDisable, setShowDisable] = useState(false);
+  const [showChange, setShowChange] = useState(false);
+  const [disablePw, setDisablePw] = useState("");
+  const [disableErr, setDisableErr] = useState<string | null>(null);
+  const [currentPw, setCurrentPw] = useState("");
+  const [newPw, setNewPw] = useState("");
+  const [newConfirm, setNewConfirm] = useState("");
+  const [changeErr, setChangeErr] = useState<string | null>(null);
+
+  const handleDisable = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setDisableErr(null);
+    const ok = await onDisableProtection(disablePw);
+    if (ok) {
+      setShowDisable(false);
+      setDisablePw("");
+      await onReloadNotes();
+      showToast("File protection disabled");
+    } else {
+      setDisableErr(protectionError || "Failed to disable protection.");
+    }
+  };
+
+  const handleChange = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setChangeErr(null);
+    if (!newPw.trim()) {
+      setChangeErr("New password cannot be empty.");
+      return;
+    }
+    if (newPw !== newConfirm) {
+      setChangeErr("New passwords do not match.");
+      return;
+    }
+    const ok = await onChangeProtectionPassword(currentPw, newPw);
+    if (ok) {
+      setShowChange(false);
+      setCurrentPw("");
+      setNewPw("");
+      setNewConfirm("");
+      showToast("Protection password changed");
+    } else {
+      setChangeErr(protectionError || "Failed to change password.");
+    }
+  };
+
+  return (
+    <>
+      <h3>File Protection<InfoTooltip text="Encrypt individual notes while keeping the rest as plaintext Markdown. All protected files share a single password. Protected files are stored as .pnote files with an encrypted body." /></h3>
+      {protectionStatus === "none" && (
+        <p className="settings-hint">
+          No protection password set. Right-click a note and select &ldquo;Protect
+          File&rdquo; to set up per-file encryption.
+        </p>
+      )}
+      {(protectionStatus === "locked" || protectionStatus === "unlocked") && !showDisable && !showChange && (
+        <>
+          <p className="settings-hint">
+            File protection is active. Protected files are individually encrypted
+            on disk.
+          </p>
+          <div className="settings-actions">
+            <button
+              className="btn secondary"
+              onClick={() => { setShowChange(true); setShowDisable(false); }}
+            >
+              Change Password
+            </button>
+            <button
+              className="btn danger-outline"
+              onClick={() => { setShowDisable(true); setShowChange(false); }}
+            >
+              Disable File Protection
+            </button>
+          </div>
+        </>
+      )}
+      {showChange && (
+        <form className="settings-form" onSubmit={handleChange}>
+          <PasswordInput
+            placeholder="Current password"
+            value={currentPw}
+            onChange={setCurrentPw}
+          />
+          <PasswordInput
+            placeholder="New password"
+            value={newPw}
+            onChange={setNewPw}
+          />
+          <PasswordInput
+            placeholder="Confirm new password"
+            value={newConfirm}
+            onChange={setNewConfirm}
+          />
+          {changeErr && <p className="error">{changeErr}</p>}
+          <div className="settings-actions">
+            <button
+              type="submit"
+              className="btn primary"
+              disabled={protectionLoading}
+            >
+              {protectionLoading ? "Changing..." : "Update Password"}
+            </button>
+            <button
+              type="button"
+              className="btn secondary"
+              onClick={() => { setShowChange(false); setChangeErr(null); setCurrentPw(""); setNewPw(""); setNewConfirm(""); }}
+            >
+              Cancel
+            </button>
+          </div>
+        </form>
+      )}
+      {showDisable && (
+        <form className="settings-form" onSubmit={handleDisable}>
+          <p className="settings-warning">
+            This will decrypt all protected files back to plaintext.
+          </p>
+          <PasswordInput
+            placeholder="Protection password"
+            value={disablePw}
+            onChange={setDisablePw}
+          />
+          {disableErr && <p className="error">{disableErr}</p>}
+          <div className="settings-actions">
+            <button
+              type="submit"
+              className="btn danger"
+              disabled={protectionLoading}
+            >
+              {protectionLoading ? "Decrypting..." : "Confirm Disable"}
+            </button>
+            <button
+              type="button"
+              className="btn secondary"
+              onClick={() => { setShowDisable(false); setDisablePw(""); setDisableErr(null); }}
+            >
+              Cancel
+            </button>
+          </div>
+        </form>
+      )}
+    </>
+  );
+}
+
 const isMac = navigator.platform.toUpperCase().includes("MAC");
 const mod = isMac ? "Cmd" : "Ctrl";
 
@@ -62,6 +225,8 @@ function InfoTooltip({ text }: { text: string }) {
   );
 }
 
+type ProtectionStatus = "none" | "locked" | "unlocked";
+
 type Props = {
   settings: AppSettings;
   onSettingsChange: (settings: AppSettings) => void;
@@ -76,6 +241,11 @@ type Props = {
   onChangeFolder: (path: string) => Promise<void>;
   vaultError: string | null;
   vaultLoading: boolean;
+  protectionStatus: ProtectionStatus;
+  onChangeProtectionPassword: (current: string, newPassword: string) => Promise<boolean>;
+  onDisableProtection: (password: string) => Promise<boolean>;
+  protectionError: string | null;
+  protectionLoading: boolean;
 };
 
 export function Settings({
@@ -92,6 +262,11 @@ export function Settings({
   onChangeFolder,
   vaultError,
   vaultLoading,
+  protectionStatus,
+  onChangeProtectionPassword,
+  onDisableProtection,
+  protectionError,
+  protectionLoading,
 }: Props) {
   const [activeTab, setActiveTab] = useState<SettingsTab>("general");
   const { updateState, updateVersion, checkForUpdate, installUpdate } =
@@ -151,8 +326,8 @@ export function Settings({
   const handleSetupVault = async (e: React.FormEvent) => {
     e.preventDefault();
     setSetupError(null);
-    if (setupPassword.length < 8) {
-      setSetupError("Password must be at least 8 characters.");
+    if (!setupPassword.trim()) {
+      setSetupError("Password cannot be empty.");
       return;
     }
     if (setupPassword !== setupConfirm) {
@@ -164,7 +339,7 @@ export function Settings({
       setShowSetupForm(false);
       setSetupPassword("");
       setSetupConfirm("");
-      showToast("Encryption enabled");
+      showToast("Vault encryption enabled");
     } else {
       setSetupError(vaultError || "Failed to set up encryption.");
     }
@@ -173,8 +348,8 @@ export function Settings({
   const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault();
     setChangeError(null);
-    if (newPassword.length < 8) {
-      setChangeError("New password must be at least 8 characters.");
+    if (!newPassword.trim()) {
+      setChangeError("New password cannot be empty.");
       return;
     }
     if (newPassword !== newConfirm) {
@@ -201,7 +376,7 @@ export function Settings({
       setShowDisableForm(false);
       setDisablePassword("");
       await onReloadNotes();
-      showToast("Encryption disabled");
+      showToast("Vault encryption disabled");
     } else {
       setDisableError(vaultError || "Failed to disable encryption.");
     }
@@ -352,12 +527,15 @@ export function Settings({
                   </span>
                 </div>
                 <div className="settings-row">
-                  <label>Navigate notes up</label>
-                  <kbd className="shortcut-display">↑</kbd>
+                  <label>Navigate notes</label>
+                  <span>
+                    <kbd className="shortcut-display">↑</kbd>{" "}
+                    <kbd className="shortcut-display">↓</kbd>
+                  </span>
                 </div>
                 <div className="settings-row">
-                  <label>Navigate notes down</label>
-                  <kbd className="shortcut-display">↓</kbd>
+                  <label>Command palette</label>
+                  <kbd className="shortcut-display">{mod}+K</kbd>
                 </div>
                 <h3>Notes</h3>
                 <div className="settings-row">
@@ -368,7 +546,7 @@ export function Settings({
                   <label>Delete note</label>
                   <kbd className="shortcut-display">{mod}+{isMac ? "Delete" : "Backspace"}</kbd>
                 </div>
-                <h3>Codex</h3>
+                <h3>View</h3>
                 <div className="settings-row">
                   <label>Toggle sidebar</label>
                   <kbd className="shortcut-display">{mod}+/</kbd>
@@ -377,14 +555,22 @@ export function Settings({
                   <label>Switch codex</label>
                   <kbd className="shortcut-display">{mod}+1–9</kbd>
                 </div>
+                <div className="settings-row">
+                  <label>Zoom in</label>
+                  <kbd className="shortcut-display">{mod}+=</kbd>
+                </div>
+                <div className="settings-row">
+                  <label>Zoom out</label>
+                  <kbd className="shortcut-display">{mod}+-</kbd>
+                </div>
+                <div className="settings-row">
+                  <label>Reset zoom</label>
+                  <kbd className="shortcut-display">{mod}+0</kbd>
+                </div>
                 <h3>App</h3>
                 <div className="settings-row">
                   <label>Open settings</label>
                   <kbd className="shortcut-display">{mod}+,</kbd>
-                </div>
-                <div className="settings-row">
-                  <label>Lock vault</label>
-                  <kbd className="shortcut-display">{mod}+Shift+L</kbd>
                 </div>
                 <div className="settings-row">
                   <label>Hide window</label>
@@ -424,7 +610,7 @@ export function Settings({
                 {successToast && (
                   <span className="update-toast success">{successToast}</span>
                 )}
-                <h3>Auto-Lock<InfoTooltip text="Automatically locks the vault after a period of inactivity, requiring your password to access notes again." /></h3>
+                <h3>Auto-Lock<InfoTooltip text="Automatically locks the vault after inactivity. When locked, all notes are inaccessible until you re-enter your password. Also locks on system sleep and screen lock." /></h3>
                 <div className="settings-row">
                   <label>Lock after idle</label>
                   <Dropdown
@@ -446,25 +632,22 @@ export function Settings({
                   />
                 </div>
                 <p className="settings-hint">
-                  Vault also locks automatically when the system sleeps or the
-                  screen locks.
+                  Also locks on system sleep and screen lock.
                 </p>
 
-                <h3>Encryption<InfoTooltip text="Protects your notes with a password. When locked, notes are unreadable without re-entering the password. Your key is only held in memory, never saved to disk." /></h3>
+                <h3>Vault Encryption<InfoTooltip text="Encrypts all notes on disk. When locked, every note file is unreadable without the password. Uses XChaCha20-Poly1305 with a key derived via Argon2id, held only in memory." /></h3>
 
                 {vaultStatus === "plaintext" && !showSetupForm && (
                   <div className="settings-actions">
                     <p className="settings-warning">
-                      If you forget your password, your notes cannot be recovered.
-                      Notes remain encrypted on disk even if the app is
-                      uninstalled, but reinstalling with the correct password will
-                      restore access.
+                      Vault encryption protects all notes with a single password.
+                      If you forget it, your notes cannot be recovered.
                     </p>
                     <button
                       className="btn primary"
                       onClick={() => setShowSetupForm(true)}
                     >
-                      Enable Encryption
+                      Enable Vault Encryption
                     </button>
                   </div>
                 )}
@@ -475,11 +658,11 @@ export function Settings({
                     onSubmit={handleSetupVault}
                   >
                     <p className="settings-warning">
-                      If you forget this password, your encrypted notes cannot
-                      be recovered.
+                      This will encrypt all notes. If you forget this password,
+                      your notes cannot be recovered.
                     </p>
                     <PasswordInput
-                      placeholder="Password (min 8 characters)"
+                      placeholder="Password"
                       value={setupPassword}
                       onChange={setSetupPassword}
                     />
@@ -497,7 +680,7 @@ export function Settings({
                         className="btn primary"
                         disabled={vaultLoading}
                       >
-                        {vaultLoading ? "Encrypting..." : "Set Up Encryption"}
+                        {vaultLoading ? "Encrypting..." : "Enable Vault"}
                       </button>
                       <button
                         type="button"
@@ -516,7 +699,7 @@ export function Settings({
                 {vaultStatus === "unlocked" && (
                   <>
                     <p className="settings-hint">
-                      Your notes are encrypted. The vault is currently unlocked.
+                      Vault encryption is enabled. All notes are encrypted on disk.
                     </p>
                     <div className="settings-actions">
                       <button className="btn secondary" onClick={onLockVault}>
@@ -532,7 +715,7 @@ export function Settings({
                         className="btn danger-outline"
                         onClick={() => { setShowDisableForm(true); setShowChangeForm(false); }}
                       >
-                        Disable Encryption
+                        Disable Vault
                       </button>
                     </div>
 
@@ -547,7 +730,7 @@ export function Settings({
                           onChange={setCurrentPassword}
                         />
                         <PasswordInput
-                          placeholder="New password (min 8 characters)"
+                          placeholder="New password"
                           value={newPassword}
                           onChange={setNewPassword}
                         />
@@ -589,8 +772,8 @@ export function Settings({
                         onSubmit={handleDisableVault}
                       >
                         <p className="settings-warning">
-                          This will decrypt all notes and remove encryption.
-                          Enter your password to confirm.
+                          This will decrypt all notes and disable vault encryption.
+                          Notes will be stored as plaintext.
                         </p>
                         <PasswordInput
                           placeholder="Current password"
@@ -629,9 +812,20 @@ export function Settings({
 
                 {vaultStatus === "locked" && (
                   <p className="settings-hint">
-                    Your vault is locked. Unlock from the main screen to manage
-                    encryption settings.
+                    Vault is locked. Unlock to manage encryption settings.
                   </p>
+                )}
+
+                {vaultStatus === "plaintext" && (
+                  <NoteProtectionSection
+                    protectionStatus={protectionStatus}
+                    onChangeProtectionPassword={onChangeProtectionPassword}
+                    onDisableProtection={onDisableProtection}
+                    protectionError={protectionError}
+                    protectionLoading={protectionLoading}
+                    onReloadNotes={onReloadNotes}
+                    showToast={showToast}
+                  />
                 )}
               </div>
             )}
