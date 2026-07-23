@@ -1148,8 +1148,8 @@ body {
   left: 50%;
   top: calc(100% + 8px);
   transform: translateX(-50%);
-  background: var(--bg-primary);
-  border: 1px solid var(--border-strong);
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border);
   border-radius: var(--radius);
   box-shadow: var(--shadow-lg);
   padding: 10px 12px;
@@ -1159,6 +1159,8 @@ body {
   line-height: 1.5;
   width: 240px;
   white-space: normal;
+  text-transform: none;
+  letter-spacing: normal;
   z-index: 200;
 }
 
