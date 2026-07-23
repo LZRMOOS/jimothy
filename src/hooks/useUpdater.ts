@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useCallback } from "react";
 import { check } from "@tauri-apps/plugin-updater";
 
 type UpdateState = "idle" | "checking" | "up-to-date" | "available" | "downloading" | "ready" | "error";
@@ -36,12 +36,6 @@ export function useUpdater() {
       setUpdateState("error");
     }
   }, []);
-
-  useEffect(() => {
-    checkForUpdate();
-    const interval = setInterval(checkForUpdate, 60 * 60 * 1000);
-    return () => clearInterval(interval);
-  }, [checkForUpdate]);
 
   return { updateState, updateVersion, checkForUpdate, installUpdate };
 }

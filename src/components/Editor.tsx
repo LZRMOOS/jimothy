@@ -11,16 +11,15 @@ import { Extension } from "@tiptap/core";
 import { Plugin, PluginKey } from "@tiptap/pm/state";
 import { Decoration, DecorationSet } from "@tiptap/pm/view";
 import type { Note, SaveStatus } from "../types";
+import { buildSearchPattern } from "../utils/search";
 
 const lowlight = createLowlight(common);
 
 const searchHighlightKey = new PluginKey("searchHighlight");
 
 function buildDecorations(doc: any, query: string): DecorationSet {
-  if (!query.trim()) return DecorationSet.empty;
-  const terms = query.trim().split(/\s+/).filter(Boolean);
-  const pattern = terms.map((t) => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|");
-  const regex = new RegExp(pattern, "gi");
+  const regex = buildSearchPattern(query);
+  if (!regex) return DecorationSet.empty;
   const decorations: Decoration[] = [];
 
   doc.descendants((node: any, pos: number) => {

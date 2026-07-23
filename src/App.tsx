@@ -1,8 +1,8 @@
 import { useState, useRef, useEffect, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { ask } from "@tauri-apps/plugin-dialog";
+import { useEventListener } from "./hooks/useEventListener";
 import { SearchBar } from "./components/SearchBar";
 import { NotesList } from "./components/NotesList";
 import { Editor } from "./components/Editor";
@@ -152,73 +152,42 @@ function App() {
     };
   }, [vaultStatus]);
 
-  useEffect(() => {
-    const unlisten = listen("create-new-note", () => {
-      searchInputRef.current?.focus();
-      setQuery("");
-    });
-    return () => {
-      unlisten.then((fn) => fn());
-    };
-  }, []);
+  useEventListener("create-new-note", () => {
+    searchInputRef.current?.focus();
+    setQuery("");
+  });
 
-  // Tray menu: lock vault
-  useEffect(() => {
-    const unlisten = listen("lock-vault", () => {
-      if (vaultStatus === "unlocked") lockVault();
-    });
-    return () => {
-      unlisten.then((fn) => fn());
-    };
+  useEventListener("lock-vault", () => {
+    if (vaultStatus === "unlocked") lockVault();
   }, [vaultStatus, lockVault]);
 
-  // Tray menu: open settings
-  useEffect(() => {
-    const unlisten = listen("open-settings", () => {
-      setShowSettings(true);
-    });
-    return () => {
-      unlisten.then((fn) => fn());
-    };
-  }, []);
+  useEventListener("open-settings", () => {
+    setShowSettings(true);
+  });
 
-  // Lock vault on system sleep/screen lock
-  useEffect(() => {
-    const unlisten = listen("system-sleep", () => {
-      if (vaultStatus === "unlocked") lockVault();
-    });
-    return () => {
-      unlisten.then((fn) => fn());
-    };
+  useEventListener("system-sleep", () => {
+    if (vaultStatus === "unlocked") lockVault();
   }, [vaultStatus, lockVault]);
 
-  useEffect(() => {
-    const unlistenConflict = listen("note-conflict", () => {
-      setNotification(
-        "A note was modified externally while you were editing. Both versions were preserved."
-      );
-    });
-    const unlistenDropbox = listen("dropbox-conflict", () => {
-      setNotification(
-        "A Dropbox sync conflict was detected and preserved in the conflicts folder."
-      );
-    });
-    const unlistenFolder = listen("folder-unavailable", () => {
-      setNotification("Notes folder is no longer accessible.");
-    });
-    const unlistenActiveConflict = listen<{ id: string }>(
-      "note-conflict-active",
-      (event) => {
-        setConflictNoteId(event.payload.id);
-      }
+  useEventListener("note-conflict", () => {
+    setNotification(
+      "A note was modified externally while you were editing. Both versions were preserved."
     );
-    return () => {
-      unlistenConflict.then((fn) => fn());
-      unlistenDropbox.then((fn) => fn());
-      unlistenFolder.then((fn) => fn());
-      unlistenActiveConflict.then((fn) => fn());
-    };
-  }, []);
+  });
+
+  useEventListener("dropbox-conflict", () => {
+    setNotification(
+      "A Dropbox sync conflict was detected and preserved in the conflicts folder."
+    );
+  });
+
+  useEventListener("folder-unavailable", () => {
+    setNotification("Notes folder is no longer accessible.");
+  });
+
+  useEventListener<{ id: string }>("note-conflict-active", (payload) => {
+    setConflictNoteId(payload.id);
+  });
 
   const handleConflictChoice = useCallback(
     async (choice: ConflictChoice) => {
@@ -268,9 +237,6 @@ function App() {
     [initFolder, appSettings]
   );
 
-  const handleReloadNotes = useCallback(async () => {
-    await loadNotes();
-  }, [loadNotes]);
 
   const handleSearchSubmit = useCallback(async () => {
     if (!query.trim()) return;
@@ -287,21 +253,16 @@ function App() {
     }
   }, [query, notes, setSelectedId, createNote]);
 
-  const handleArrowDown = useCallback(() => {
+  const navigateNote = useCallback((direction: 1 | -1) => {
     const list = filteredNotes.length > 0 ? filteredNotes : notes;
     if (list.length === 0) return;
     const idx = list.findIndex((n) => n.id === selectedId);
-    const next = Math.min(idx + 1, list.length - 1);
+    const next = Math.max(0, Math.min(idx + direction, list.length - 1));
     setSelectedId(list[next].id);
   }, [filteredNotes, notes, selectedId, setSelectedId]);
 
-  const handleArrowUp = useCallback(() => {
-    const list = filteredNotes.length > 0 ? filteredNotes : notes;
-    if (list.length === 0) return;
-    const idx = list.findIndex((n) => n.id === selectedId);
-    const prev = Math.max(idx - 1, 0);
-    setSelectedId(list[prev].id);
-  }, [filteredNotes, notes, selectedId, setSelectedId]);
+  const handleArrowDown = useCallback(() => navigateNote(1), [navigateNote]);
+  const handleArrowUp = useCallback(() => navigateNote(-1), [navigateNote]);
 
   const handleEscape = useCallback(async () => {
     if (showSettings) {
@@ -336,18 +297,6 @@ function App() {
     [selectedNote, debouncedSave]
   );
 
-  const handleDelete = useCallback(async () => {
-    if (!selectedId) return;
-    if (appSettings.confirmDelete !== false) {
-      const confirmed = await ask("Delete this note? This cannot be undone.", {
-        title: "Delete Note",
-        kind: "warning",
-      });
-      if (!confirmed) return;
-    }
-    await deleteNote(selectedId);
-  }, [selectedId, deleteNote, appSettings.confirmDelete]);
-
   const handleDeleteById = useCallback(
     async (id: string) => {
       if (appSettings.confirmDelete !== false) {
@@ -361,6 +310,10 @@ function App() {
     },
     [deleteNote, appSettings.confirmDelete]
   );
+
+  const handleDelete = useCallback(async () => {
+    if (selectedId) await handleDeleteById(selectedId);
+  }, [selectedId, handleDeleteById]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -469,7 +422,7 @@ function App() {
           onLockVault={handleLock}
           onChangePassword={changePassword}
           onDisableVault={disableVault}
-          onReloadNotes={handleReloadNotes}
+          onReloadNotes={loadNotes}
           onChangeFolder={handleChangeFolder}
           vaultError={vaultError}
           vaultLoading={vaultLoading}

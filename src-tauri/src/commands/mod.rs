@@ -42,6 +42,14 @@ impl AppState {
             active_note_id: Mutex::new(None),
         }
     }
+
+    pub fn folder(&self) -> Result<PathBuf, String> {
+        self.notes_folder
+            .lock()
+            .unwrap()
+            .clone()
+            .ok_or_else(|| "No notes folder set".to_string())
+    }
 }
 
 /// Get the path to vault.json in the notes folder
@@ -156,12 +164,7 @@ pub fn get_notes(state: State<'_, AppState>) -> Vec<NoteDto> {
 
 #[tauri::command]
 pub fn create_note(title: String, state: State<'_, AppState>) -> Result<NoteDto, String> {
-    let folder = state
-        .notes_folder
-        .lock()
-        .unwrap()
-        .clone()
-        .ok_or("No notes folder set")?;
+    let folder = state.folder()?;
 
     let vault_status = state.vault_status.lock().unwrap().clone();
 
@@ -195,12 +198,7 @@ pub fn save_note(
     codex: Option<String>,
     state: State<'_, AppState>,
 ) -> Result<NoteDto, String> {
-    let folder = state
-        .notes_folder
-        .lock()
-        .unwrap()
-        .clone()
-        .ok_or("No notes folder set")?;
+    let folder = state.folder()?;
 
     let vault_status = state.vault_status.lock().unwrap().clone();
 
@@ -241,12 +239,7 @@ pub fn save_note(
 
 #[tauri::command]
 pub fn delete_note(id: String, state: State<'_, AppState>) -> Result<(), String> {
-    let folder = state
-        .notes_folder
-        .lock()
-        .unwrap()
-        .clone()
-        .ok_or("No notes folder set")?;
+    let folder = state.folder()?;
 
     let mut notes = state.notes.lock().unwrap();
     let idx = notes
@@ -343,12 +336,7 @@ pub fn save_app_settings(settings_json: String) -> Result<(), String> {
 
 #[tauri::command]
 pub fn setup_vault(password: String, state: State<'_, AppState>) -> Result<(), String> {
-    let folder = state
-        .notes_folder
-        .lock()
-        .unwrap()
-        .clone()
-        .ok_or("No notes folder set")?;
+    let folder = state.folder()?;
 
     // Check if vault already exists
     if load_vault_config(&folder).is_some() {
@@ -389,12 +377,7 @@ pub fn setup_vault(password: String, state: State<'_, AppState>) -> Result<(), S
 
 #[tauri::command]
 pub fn unlock_vault(password: String, state: State<'_, AppState>) -> Result<(), String> {
-    let folder = state
-        .notes_folder
-        .lock()
-        .unwrap()
-        .clone()
-        .ok_or("No notes folder set")?;
+    let folder = state.folder()?;
 
     let config = load_vault_config(&folder).ok_or("No vault configured")?;
 
@@ -453,12 +436,7 @@ pub fn change_vault_password(
     new_password: String,
     state: State<'_, AppState>,
 ) -> Result<(), String> {
-    let folder = state
-        .notes_folder
-        .lock()
-        .unwrap()
-        .clone()
-        .ok_or("No notes folder set")?;
+    let folder = state.folder()?;
 
     let config = load_vault_config(&folder).ok_or("No vault configured")?;
 
@@ -502,12 +480,7 @@ pub fn change_vault_password(
 
 #[tauri::command]
 pub fn disable_vault(password: String, state: State<'_, AppState>) -> Result<(), String> {
-    let folder = state
-        .notes_folder
-        .lock()
-        .unwrap()
-        .clone()
-        .ok_or("No notes folder set")?;
+    let folder = state.folder()?;
 
     let config = load_vault_config(&folder).ok_or("No vault configured")?;
 
@@ -552,12 +525,7 @@ pub fn disable_vault(password: String, state: State<'_, AppState>) -> Result<(),
 
 #[tauri::command]
 pub fn restore_from_trash(filename: String, state: State<'_, AppState>) -> Result<NoteDto, String> {
-    let folder = state
-        .notes_folder
-        .lock()
-        .unwrap()
-        .clone()
-        .ok_or("No notes folder set")?;
+    let folder = state.folder()?;
 
     let note = storage::restore_note_from_trash(&folder, &filename)?;
     let dto = NoteDto::from(&note);

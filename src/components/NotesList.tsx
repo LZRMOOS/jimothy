@@ -1,5 +1,6 @@
 import { useState } from "react";
 import type { Note } from "../types";
+import { buildSearchPattern } from "../utils/search";
 
 type Props = {
   notes: Note[];
@@ -38,11 +39,10 @@ type ContextMenuState = {
 } | null;
 
 function highlightMatches(text: string, query: string): React.ReactNode {
-  if (!query.trim()) return text;
-  const terms = query.trim().split(/\s+/).filter(Boolean);
-  const pattern = terms.map((t) => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|");
-  const regex = new RegExp(`(${pattern})`, "gi");
-  const parts = text.split(regex);
+  const regex = buildSearchPattern(query);
+  if (!regex) return text;
+  const splitter = new RegExp(`(${regex.source})`, "gi");
+  const parts = text.split(splitter);
   if (parts.length === 1) return text;
   return parts.map((part, i) =>
     regex.test(part) ? (
