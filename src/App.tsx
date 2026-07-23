@@ -74,6 +74,8 @@ function App() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [editingCodexIcon, setEditingCodexIcon] = useState<string | null>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const [isEditingNote, setIsEditingNote] = useState(false);
+  const [editorFocusTrigger, setEditorFocusTrigger] = useState(0);
   const [initialized, setInitialized] = useState(false);
   const [notification, setNotification] = useState<string | null>(null);
   const [conflictNoteId, setConflictNoteId] = useState<string | null>(null);
@@ -304,6 +306,7 @@ function App() {
             });
           }
           setSensitivePromptId(id);
+          setSelectedId(id); // Highlight the protected note
           return;
         }
       }
@@ -392,12 +395,24 @@ function App() {
   }, [query, notes, setSelectedId, createNote]);
 
   const navigateNote = useCallback((direction: 1 | -1) => {
-    const list = filteredNotes.length > 0 ? filteredNotes : notes;
+    // Use the same list that's displayed on screen
+    let list = query || activeCodex ? filteredNotes : notes;
     if (list.length === 0) return;
+
+    // Sort by pinned first, then unpinned (same as NotesList)
+    const pinnedIds = appSettings.pinnedNotes || [];
+    const pinned = list.filter((n) => pinnedIds.includes(n.id));
+    const unpinned = list.filter((n) => !pinnedIds.includes(n.id));
+    list = [...pinned, ...unpinned];
+
     const idx = list.findIndex((n) => n.id === selectedId);
     const next = Math.max(0, Math.min(idx + direction, list.length - 1));
+
+    // Exit edit mode when navigating and reset focus trigger
+    setIsEditingNote(false);
+    setEditorFocusTrigger(0);
     handleSelectNote(list[next].id);
-  }, [filteredNotes, notes, selectedId, handleSelectNote]);
+  }, [query, activeCodex, filteredNotes, notes, selectedId, appSettings.pinnedNotes, handleSelectNote]);
 
   const handleArrowDown = useCallback(() => navigateNote(1), [navigateNote]);
   const handleArrowUp = useCallback(() => navigateNote(-1), [navigateNote]);
@@ -416,9 +431,15 @@ function App() {
       setShowSettings(false);
       return;
     }
+    // If there's a query, clear it first
+    if (query) {
+      setQuery("");
+      return;
+    }
+    // Otherwise hide the window
     const appWindow = getCurrentWindow();
     await appWindow.hide();
-  }, [showSettings]);
+  }, [showSettings, query]);
 
   const saveProtectedDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -556,6 +577,51 @@ function App() {
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [handleDelete, handleLock, handleZoom, handleSettingsChange, appSettings, codexList]);
+
+  // Browse mode keyboard navigation
+  useEffect(() => {
+    const handleBrowseKeys = (e: KeyboardEvent) => {
+      // Skip if in a modal, editing codex icon, or typing in an input/textarea
+      if (showSettings || showCommandPalette || sensitivePromptId || editingCodexIcon) return;
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+
+      // Check if we're in the editor (tiptap)
+      const target = e.target as HTMLElement;
+      const inEditor = target.closest('.ProseMirror') || target.closest('.editor-title');
+
+      if (inEditor || isEditingNote) {
+        // In edit mode - only handle Escape
+        if (e.key === "Escape") {
+          e.preventDefault();
+          setIsEditingNote(false);
+          // Blur any focused element
+          if (document.activeElement instanceof HTMLElement) {
+            document.activeElement.blur();
+          }
+        }
+        return;
+      }
+
+      // Browse mode: note selected but not editing
+      if (selectedId) {
+        if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+          e.preventDefault();
+          navigateNote(e.key === "ArrowDown" ? 1 : -1);
+        } else if (e.key === "Enter" || e.key === "ArrowRight") {
+          e.preventDefault();
+          setIsEditingNote(true);
+          // Trigger editor focus
+          setEditorFocusTrigger(prev => prev + 1);
+        } else if (e.key === "ArrowLeft" || e.key === "Escape") {
+          e.preventDefault();
+          searchInputRef.current?.focus();
+        }
+      }
+    };
+
+    window.addEventListener("keydown", handleBrowseKeys);
+    return () => window.removeEventListener("keydown", handleBrowseKeys);
+  }, [showSettings, showCommandPalette, sensitivePromptId, editingCodexIcon, selectedId, isEditingNote, navigateNote]);
 
   const commands: Command[] = useMemo(() => [
     { id: "new-note", label: "New Note", shortcut: "⌘N", action: () => { searchInputRef.current?.focus(); setQuery(""); } },
@@ -823,6 +889,7 @@ function App() {
             <SensitivePrompt
               onUnlock={() => handleSensitiveUnlock(sensitivePromptId)}
               onCancel={() => setSensitivePromptId(null)}
+              onNavigate={navigateNote}
               onVerify={vaultStatus === "plaintext" ? verifyProtection : undefined}
               verifyCommand={vaultStatus !== "plaintext" ? "verify_password" : undefined}
             />
@@ -837,6 +904,8 @@ function App() {
               onTitleChange={handleTitleChange}
               onBodyChange={handleBodyChange}
               onCodexChange={handleCodexChange}
+              onEditingChange={setIsEditingNote}
+              focusTrigger={editorFocusTrigger}
               searchQuery={query}
               codexList={codexList}
               isSensitive={

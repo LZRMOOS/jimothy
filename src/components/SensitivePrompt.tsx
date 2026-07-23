@@ -5,6 +5,7 @@ import { PasswordInput } from "./PasswordInput";
 type Props = {
   onUnlock: () => void;
   onCancel?: () => void;
+  onNavigate?: (direction: 1 | -1) => void;
   onVerify?: (password: string) => Promise<boolean>;
   verifyCommand?: string;
   title?: string;
@@ -14,6 +15,7 @@ type Props = {
 export function SensitivePrompt({
   onUnlock,
   onCancel,
+  onNavigate,
   onVerify,
   verifyCommand = "verify_password",
   title = "This note is protected",
@@ -32,11 +34,17 @@ export function SensitivePrompt({
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape" && onCancel) {
         onCancel();
+      } else if (e.key === "ArrowDown" && onNavigate) {
+        e.preventDefault();
+        onNavigate(1);
+      } else if (e.key === "ArrowUp" && onNavigate) {
+        e.preventDefault();
+        onNavigate(-1);
       }
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [onCancel]);
+  }, [onCancel, onNavigate]);
 
   useEffect(() => {
     if (errorCount > 0) {

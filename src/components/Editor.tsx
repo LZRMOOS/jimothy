@@ -147,18 +147,21 @@ type Props = {
   onTitleChange: (title: string) => void;
   onBodyChange: (body: string) => void;
   onCodexChange: (codex: string | null) => void;
+  onEditingChange?: (editing: boolean) => void;
+  focusTrigger?: number;
   searchQuery?: string;
   codexList: string[];
   isSensitive?: boolean;
 };
 
-export function Editor({ note, saveStatus, onTitleChange, onBodyChange, onCodexChange, searchQuery = "", codexList, isSensitive }: Props) {
+export function Editor({ note, saveStatus, onTitleChange, onBodyChange, onCodexChange, onEditingChange, focusTrigger, searchQuery = "", codexList, isSensitive }: Props) {
   const [showCharCount, setShowCharCount] = useState(false);
   const noteIdRef = useRef(note.id);
   const onBodyChangeRef = useRef(onBodyChange);
   onBodyChangeRef.current = onBodyChange;
   const searchQueryRef = useRef(searchQuery);
   searchQueryRef.current = searchQuery;
+  const titleInputRef = useRef<HTMLInputElement>(null);
 
   const [searchExt] = useState(() => createSearchHighlightExtension(searchQueryRef));
   const suppressUpdate = useRef(false);
@@ -198,6 +201,15 @@ export function Editor({ note, saveStatus, onTitleChange, onBodyChange, onCodexC
     const tr = editor.state.tr.setMeta(searchHighlightKey, true);
     editor.view.dispatch(tr);
   }, [searchQuery, editor]);
+
+  // Focus editor body when focusTrigger increases
+  const prevFocusTriggerRef = useRef(0);
+  useEffect(() => {
+    if (focusTrigger && focusTrigger > prevFocusTriggerRef.current && editor) {
+      editor.commands.focus('start');
+      prevFocusTriggerRef.current = focusTrigger;
+    }
+  }, [focusTrigger, editor]);
 
   useEffect(() => {
     if (!editor) return;
@@ -256,6 +268,7 @@ export function Editor({ note, saveStatus, onTitleChange, onBodyChange, onCodexC
       <div className="editor-header">
         <div className="editor-title-wrapper">
           <input
+            ref={titleInputRef}
             type="text"
             className="editor-title"
             value={note.title}
