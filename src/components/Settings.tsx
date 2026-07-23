@@ -30,10 +30,18 @@ function NoteProtectionSection({
   const [showChange, setShowChange] = useState(false);
   const [disablePw, setDisablePw] = useState("");
   const [disableErr, setDisableErr] = useState<string | null>(null);
+  const [disableShake, setDisableShake] = useState(false);
   const [currentPw, setCurrentPw] = useState("");
   const [newPw, setNewPw] = useState("");
   const [newConfirm, setNewConfirm] = useState("");
   const [changeErr, setChangeErr] = useState<string | null>(null);
+  const [changeErrField, setChangeErrField] = useState<"current" | "new" | "confirm" | null>(null);
+  const [changeShake, setChangeShake] = useState(false);
+
+  const triggerShake = (setter: (v: boolean) => void) => {
+    setter(true);
+    setTimeout(() => setter(false), 500);
+  };
 
   const handleDisable = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -46,18 +54,25 @@ function NoteProtectionSection({
       showToast("File protection disabled");
     } else {
       setDisableErr(protectionError || "Failed to disable protection.");
+      triggerShake(setDisableShake);
+      setDisablePw("");
     }
   };
 
   const handleChange = async (e: React.FormEvent) => {
     e.preventDefault();
     setChangeErr(null);
+    setChangeErrField(null);
     if (!newPw.trim()) {
       setChangeErr("New password cannot be empty.");
+      setChangeErrField("new");
+      triggerShake(setChangeShake);
       return;
     }
     if (newPw !== newConfirm) {
-      setChangeErr("New passwords do not match.");
+      setChangeErr("Passwords do not match.");
+      setChangeErrField("confirm");
+      triggerShake(setChangeShake);
       return;
     }
     const ok = await onChangeProtectionPassword(currentPw, newPw);
@@ -68,13 +83,16 @@ function NoteProtectionSection({
       setNewConfirm("");
       showToast("Protection password changed");
     } else {
-      setChangeErr(protectionError || "Failed to change password.");
+      setChangeErr(protectionError || "Invalid current password.");
+      setChangeErrField("current");
+      triggerShake(setChangeShake);
+      setCurrentPw("");
     }
   };
 
   return (
     <>
-      <h3>File Protection<InfoTooltip text="Encrypt individual notes while keeping the rest as plaintext Markdown. All protected files share a single password. Protected files are stored as .pnote files with an encrypted body." /></h3>
+      <h3>File Protection<InfoTooltip><ul><li>Encrypt individual notes while keeping the rest as plaintext</li><li>All protected files share a single password</li><li>Protected files are stored as .pnote files on disk</li><li>When vault is also enabled, file protection adds a re-authentication gate for marked notes</li></ul></InfoTooltip></h3>
       {protectionStatus === "none" && (
         <p className="settings-hint">
           No protection password set. Right-click a note and select &ldquo;Protect
@@ -104,21 +122,24 @@ function NoteProtectionSection({
         </>
       )}
       {showChange && (
-        <form className="settings-form" onSubmit={handleChange}>
+        <form className={`settings-form ${changeShake ? "shake" : ""}`} onSubmit={handleChange}>
           <PasswordInput
             placeholder="Current password"
             value={currentPw}
             onChange={setCurrentPw}
+            error={changeErrField === "current"}
           />
           <PasswordInput
             placeholder="New password"
             value={newPw}
             onChange={setNewPw}
+            error={changeErrField === "new"}
           />
           <PasswordInput
             placeholder="Confirm new password"
             value={newConfirm}
             onChange={setNewConfirm}
+            error={changeErrField === "confirm"}
           />
           {changeErr && <p className="error">{changeErr}</p>}
           <div className="settings-actions">
@@ -140,7 +161,7 @@ function NoteProtectionSection({
         </form>
       )}
       {showDisable && (
-        <form className="settings-form" onSubmit={handleDisable}>
+        <form className={`settings-form ${disableShake ? "shake" : ""}`} onSubmit={handleDisable}>
           <p className="settings-warning">
             This will decrypt all protected files back to plaintext.
           </p>
@@ -148,6 +169,7 @@ function NoteProtectionSection({
             placeholder="Protection password"
             value={disablePw}
             onChange={setDisablePw}
+            error={!!disableErr}
           />
           {disableErr && <p className="error">{disableErr}</p>}
           <div className="settings-actions">
@@ -176,7 +198,7 @@ const isMac = navigator.platform.toUpperCase().includes("MAC");
 const mod = isMac ? "Cmd" : "Ctrl";
 
 
-function InfoTooltip({ text }: { text: string }) {
+function InfoTooltip({ text, children }: { text?: string; children?: React.ReactNode }) {
   return (
     <span className="settings-tooltip-wrapper">
       <svg className="settings-tooltip-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -184,7 +206,7 @@ function InfoTooltip({ text }: { text: string }) {
         <path d="M12 16v-4"/>
         <path d="M12 8h.01"/>
       </svg>
-      <span className="settings-tooltip">{text}</span>
+      <span className="settings-tooltip">{children || text}</span>
     </span>
   );
 }
@@ -253,11 +275,17 @@ export function Settings({
   const [newPassword, setNewPassword] = useState("");
   const [newConfirm, setNewConfirm] = useState("");
   const [changeError, setChangeError] = useState<string | null>(null);
+  const [changeErrField, setChangeErrField] = useState<"current" | "new" | "confirm" | null>(null);
+  const [vaultChangeShake, setVaultChangeShake] = useState(false);
 
   // Disable encryption form
   const [showDisableForm, setShowDisableForm] = useState(false);
   const [disablePassword, setDisablePassword] = useState("");
   const [disableError, setDisableError] = useState<string | null>(null);
+  const [vaultDisableShake, setVaultDisableShake] = useState(false);
+  // Setup form shake
+  const [setupShake, setSetupShake] = useState(false);
+  const [setupErrField, setSetupErrField] = useState<"password" | "confirm" | null>(null);
 
   // Success toast
   const [successToast, setSuccessToast] = useState<string | null>(null);
@@ -287,15 +315,25 @@ export function Settings({
     }
   };
 
+  const shake = (setter: (v: boolean) => void) => {
+    setter(true);
+    setTimeout(() => setter(false), 500);
+  };
+
   const handleSetupVault = async (e: React.FormEvent) => {
     e.preventDefault();
     setSetupError(null);
+    setSetupErrField(null);
     if (!setupPassword.trim()) {
       setSetupError("Password cannot be empty.");
+      setSetupErrField("password");
+      shake(setSetupShake);
       return;
     }
     if (setupPassword !== setupConfirm) {
       setSetupError("Passwords do not match.");
+      setSetupErrField("confirm");
+      shake(setSetupShake);
       return;
     }
     const success = await onSetupVault(setupPassword);
@@ -306,18 +344,24 @@ export function Settings({
       showToast("Vault encryption enabled");
     } else {
       setSetupError(vaultError || "Failed to set up encryption.");
+      shake(setSetupShake);
     }
   };
 
   const handleChangePassword = async (e: React.FormEvent) => {
     e.preventDefault();
     setChangeError(null);
+    setChangeErrField(null);
     if (!newPassword.trim()) {
       setChangeError("New password cannot be empty.");
+      setChangeErrField("new");
+      shake(setVaultChangeShake);
       return;
     }
     if (newPassword !== newConfirm) {
-      setChangeError("New passwords do not match.");
+      setChangeError("Passwords do not match.");
+      setChangeErrField("confirm");
+      shake(setVaultChangeShake);
       return;
     }
     const success = await onChangePassword(currentPassword, newPassword);
@@ -328,7 +372,10 @@ export function Settings({
       setNewConfirm("");
       showToast("Password changed");
     } else {
-      setChangeError(vaultError || "Failed to change password.");
+      setChangeError(vaultError || "Invalid current password.");
+      setChangeErrField("current");
+      shake(setVaultChangeShake);
+      setCurrentPassword("");
     }
   };
 
@@ -342,7 +389,9 @@ export function Settings({
       await onReloadNotes();
       showToast("Vault encryption disabled");
     } else {
-      setDisableError(vaultError || "Failed to disable encryption.");
+      setDisableError(vaultError || "Invalid password.");
+      shake(setVaultDisableShake);
+      setDisablePassword("");
     }
   };
 
@@ -378,7 +427,7 @@ export function Settings({
           <div className="settings-content">
             {activeTab === "general" && (
               <div className="settings-section">
-                <h3>Updates<InfoTooltip text="Checks for new versions from GitHub releases. Updates are downloaded and applied on restart." /></h3>
+                <h3>Updates<InfoTooltip><ul><li>Checks for new versions from GitHub releases</li><li>Updates are downloaded and applied on restart</li></ul></InfoTooltip></h3>
                 <div className="settings-row">
                   <label>Version 0.1.0</label>
                   {updateState === "idle" && (
@@ -545,7 +594,7 @@ export function Settings({
 
             {activeTab === "storage" && (
               <div className="settings-section">
-                <h3>Notes Folder<InfoTooltip text="Where your notes are stored as Markdown files. Use a synced folder (Dropbox, iCloud) to access notes across devices." /></h3>
+                <h3>Notes Folder<InfoTooltip><ul><li>Where your notes are stored as Markdown files</li><li>Use a synced folder (Dropbox, iCloud) to access notes across devices</li></ul></InfoTooltip></h3>
                 <div className="settings-row">
                   <span className="folder-path">
                     {notesFolder || "Not set"}
@@ -574,7 +623,7 @@ export function Settings({
                 {successToast && (
                   <span className="update-toast success">{successToast}</span>
                 )}
-                <h3>Auto-Lock<InfoTooltip text="Automatically locks the vault after inactivity. When locked, all notes are inaccessible until you re-enter your password. Also locks on system sleep and screen lock." /></h3>
+                <h3>Auto-Lock<InfoTooltip><ul><li>Automatically locks the vault after inactivity</li><li>Also locks on system sleep and screen lock</li><li>Requires vault encryption to be enabled</li></ul></InfoTooltip></h3>
                 <div className="settings-row">
                   <label>Lock after idle</label>
                   <Dropdown
@@ -599,7 +648,7 @@ export function Settings({
                   Also locks on system sleep and screen lock.
                 </p>
 
-                <h3>Vault Encryption<InfoTooltip text="Encrypts all notes on disk. When locked, every note file is unreadable without the password. Uses XChaCha20-Poly1305 with a key derived via Argon2id, held only in memory." /></h3>
+                <h3>Vault Encryption<InfoTooltip><ul><li>Encrypts all notes on disk with one password</li><li>When locked, all files are unreadable without the password</li><li>Can be used alongside file protection — vault encrypts everything, while file protection adds re-authentication for individual notes</li></ul></InfoTooltip></h3>
 
                 {vaultStatus === "plaintext" && !showSetupForm && (
                   <div className="settings-actions">
@@ -618,7 +667,7 @@ export function Settings({
 
                 {vaultStatus === "plaintext" && showSetupForm && (
                   <form
-                    className="settings-form"
+                    className={`settings-form ${setupShake ? "shake" : ""}`}
                     onSubmit={handleSetupVault}
                   >
                     <p className="settings-warning">
@@ -629,11 +678,13 @@ export function Settings({
                       placeholder="Password"
                       value={setupPassword}
                       onChange={setSetupPassword}
+                      error={setupErrField === "password"}
                     />
                     <PasswordInput
                       placeholder="Confirm password"
                       value={setupConfirm}
                       onChange={setSetupConfirm}
+                      error={setupErrField === "confirm"}
                     />
                     {setupError && (
                       <p className="error">{setupError}</p>
@@ -685,23 +736,26 @@ export function Settings({
 
                     {showChangeForm && (
                       <form
-                        className="settings-form"
+                        className={`settings-form ${vaultChangeShake ? "shake" : ""}`}
                         onSubmit={handleChangePassword}
                       >
                         <PasswordInput
                           placeholder="Current password"
                           value={currentPassword}
                           onChange={setCurrentPassword}
+                          error={changeErrField === "current"}
                         />
                         <PasswordInput
                           placeholder="New password"
                           value={newPassword}
                           onChange={setNewPassword}
+                          error={changeErrField === "new"}
                         />
                         <PasswordInput
                           placeholder="Confirm new password"
                           value={newConfirm}
                           onChange={setNewConfirm}
+                          error={changeErrField === "confirm"}
                         />
                         {changeError && (
                           <p className="error">{changeError}</p>
@@ -732,7 +786,7 @@ export function Settings({
 
                     {showDisableForm && (
                       <form
-                        className="settings-form"
+                        className={`settings-form ${vaultDisableShake ? "shake" : ""}`}
                         onSubmit={handleDisableVault}
                       >
                         <p className="settings-warning">
@@ -743,6 +797,7 @@ export function Settings({
                           placeholder="Current password"
                           value={disablePassword}
                           onChange={setDisablePassword}
+                          error={!!disableError}
                         />
                         {disableError && (
                           <p className="error">{disableError}</p>

@@ -973,7 +973,8 @@ body {
 }
 
 .unlock-content.shake,
-.sensitive-prompt-content.shake {
+.sensitive-prompt-content.shake,
+.settings-form.shake {
   animation: shake 0.4s ease;
 }
 
@@ -1309,16 +1310,27 @@ body {
   border: 1px solid var(--border);
   border-radius: var(--radius);
   box-shadow: var(--shadow-lg);
-  padding: 10px 12px;
+  padding: 10px 14px;
   font-size: 12px;
   font-weight: 400;
   color: var(--text-secondary);
-  line-height: 1.5;
-  width: 240px;
+  line-height: 1.6;
+  width: 300px;
   white-space: normal;
   text-transform: none;
   letter-spacing: normal;
   z-index: 200;
+  text-align: left;
+}
+
+.settings-tooltip ul {
+  margin: 4px 0 0;
+  padding-left: 16px;
+  list-style: disc;
+}
+
+.settings-tooltip li {
+  margin: 2px 0;
 }
 
 .settings-tooltip-wrapper:hover .settings-tooltip {
