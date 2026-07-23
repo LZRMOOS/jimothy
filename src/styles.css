@@ -754,15 +754,31 @@ body {
 
 .editor-body .tiptap ul[data-type="taskList"] li {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 10px;
   margin: 0.3em 0;
 }
 
 .editor-body .tiptap ul[data-type="taskList"] li label {
-  display: flex;
-  align-items: center;
+  display: block;
   flex-shrink: 0;
+  height: 16px;
+  line-height: 1;
+}
+
+.editor-body .tiptap ul[data-type="taskList"] ul[data-type="taskList"] {
+  padding-left: 8px;
+  margin-top: 0.2em;
+}
+
+.editor-body .tiptap ul[data-type="taskList"] li > div {
+  flex: 1;
+  min-width: 0;
+}
+
+.editor-body .tiptap ul[data-type="taskList"] li > div > p {
+  margin: 0;
+  line-height: 1.5;
 }
 
 .editor-body .tiptap ul[data-type="taskList"] li input[type="checkbox"] {
@@ -770,12 +786,16 @@ body {
   appearance: none;
   width: 16px;
   height: 16px;
+  min-width: 16px;
+  min-height: 16px;
   border: 1.5px solid var(--border-strong);
   border-radius: 4px;
   background: var(--bg-tertiary);
   cursor: pointer;
   transition: all var(--transition);
   position: relative;
+  margin: 0;
+  flex-shrink: 0;
 }
 
 .editor-body .tiptap ul[data-type="taskList"] li input[type="checkbox"]:hover {
