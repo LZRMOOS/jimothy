@@ -22,6 +22,7 @@ export const PasswordInput = forwardRef<HTMLInputElement, Props>(
           onChange={(e) => onChange(e.target.value)}
           className={`${className}${error ? " unlock-input-error" : ""}`}
           disabled={disabled}
+          autoComplete="off"
           autoCapitalize="off"
           autoCorrect="off"
           spellCheck={false}

@@ -72,6 +72,10 @@ export function CommandPalette({ commands, onClose }: Props) {
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           onKeyDown={handleKeyDown}
+          autoComplete="off"
+          autoCorrect="off"
+          autoCapitalize="off"
+          spellCheck="false"
         />
         <div className="command-palette-list" ref={listRef}>
           {filtered.map((cmd, i) => (

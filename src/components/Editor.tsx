@@ -100,6 +100,10 @@ function CodexPicker({ value, codexList, onChange }: {
           value={inputValue}
           list="codex-options"
           onChange={(e) => setInputValue(e.target.value)}
+          autoComplete="off"
+          autoCorrect="off"
+          autoCapitalize="off"
+          spellCheck="false"
           onBlur={() => {
             const trimmed = inputValue.trim();
             onChange(trimmed || null);
@@ -258,6 +262,10 @@ export function Editor({ note, saveStatus, onTitleChange, onBodyChange, onCodexC
             onChange={(e) => onTitleChange(e.target.value)}
             onKeyDown={handleTitleKeyDown}
             placeholder="Note title"
+            autoComplete="off"
+            autoCorrect="off"
+            autoCapitalize="off"
+            spellCheck="false"
           />
           {titleHasMatch && (
             <div className="editor-title-overlay" aria-hidden="true">

@@ -36,9 +36,13 @@ export const SearchBar = forwardRef<HTMLInputElement, Props>(
               type="text"
               className="search-input"
               placeholder="Search notes or type a title to create..."
-            value={value}
-            onChange={(e) => onChange(e.target.value)}
-            onKeyDown={(e) => {
+              value={value}
+              onChange={(e) => onChange(e.target.value)}
+              autoComplete="off"
+              autoCorrect="off"
+              autoCapitalize="off"
+              spellCheck="false"
+              onKeyDown={(e) => {
               if (e.key === "Enter") {
                 e.preventDefault();
                 onSubmit();
