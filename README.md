@@ -125,7 +125,7 @@ Settings stored at `~/Library/Application Support/scratch/settings.json` (macOS)
 | Cmd+Delete | Delete note |
 | Cmd+= / Cmd+- | Zoom in/out |
 | Cmd+0 | Reset zoom |
-| Escape | Hide window |
+| Escape | Close settings / hide window |
 
 ## Releasing
 

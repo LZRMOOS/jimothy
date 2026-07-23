@@ -254,6 +254,14 @@ export function Settings({
   protectionError,
   protectionLoading,
 }: Props) {
+  useEffect(() => {
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    };
+    window.addEventListener("keydown", handleKey);
+    return () => window.removeEventListener("keydown", handleKey);
+  }, [onClose]);
+
   const [activeTab, setActiveTab] = useState<SettingsTab>("general");
   const { updateState, updateVersion, checkForUpdate, installUpdate } =
     useUpdater();

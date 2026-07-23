@@ -9,6 +9,8 @@ export function ProtectionSetup({ onSetup }: Props) {
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [errField, setErrField] = useState<"password" | "confirm" | null>(null);
+  const [shake, setShake] = useState(false);
   const [loading, setLoading] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -16,14 +18,24 @@ export function ProtectionSetup({ onSetup }: Props) {
     inputRef.current?.focus();
   }, []);
 
+  const triggerShake = () => {
+    setShake(true);
+    setTimeout(() => setShake(false), 500);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setErrField(null);
     if (!password.trim()) {
       setError("Password cannot be empty");
+      setErrField("password");
+      triggerShake();
       return;
     }
     if (password !== confirm) {
       setError("Passwords do not match");
+      setErrField("confirm");
+      triggerShake();
       return;
     }
     setError(null);
@@ -32,12 +44,13 @@ export function ProtectionSetup({ onSetup }: Props) {
     setLoading(false);
     if (!ok) {
       setError("Failed to set up protection");
+      triggerShake();
     }
   };
 
   return (
     <div className="sensitive-prompt">
-      <div className="sensitive-prompt-content">
+      <div className={`sensitive-prompt-content ${shake ? "shake" : ""}`}>
         <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
           <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
         </svg>
@@ -53,12 +66,14 @@ export function ProtectionSetup({ onSetup }: Props) {
             placeholder="Password"
             value={password}
             onChange={setPassword}
+            error={errField === "password"}
           />
           <PasswordInput
             className="unlock-input"
             placeholder="Confirm password"
             value={confirm}
             onChange={setConfirm}
+            error={errField === "confirm"}
           />
           {error && <p className="unlock-error">{error}</p>}
           <button
