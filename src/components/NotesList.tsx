@@ -84,7 +84,6 @@ export function NotesList({ notes, selectedId, onSelect, onDelete, searchQuery =
         >
           <div className="note-item-title">
             {highlightMatches(note.title || "Untitled", searchQuery)}
-            {note.encrypted && <span className="encrypted-badge">&#128274;</span>}
           </div>
           <div className="note-item-preview">{highlightMatches(getPreview(note.body), searchQuery)}</div>
           <div className="note-item-date">{formatDate(note.updated_at)}</div>

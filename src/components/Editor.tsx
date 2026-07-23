@@ -142,6 +142,7 @@ export function Editor({ note, saveStatus, onTitleChange, onBodyChange, onCodexC
   searchQueryRef.current = searchQuery;
 
   const [searchExt] = useState(() => createSearchHighlightExtension(searchQueryRef));
+  const suppressUpdate = useRef(false);
 
   const editor = useEditor({
     extensions: [
@@ -167,6 +168,7 @@ export function Editor({ note, saveStatus, onTitleChange, onBodyChange, onCodexC
     ],
     content: note.body,
     onUpdate: ({ editor }) => {
+      if (suppressUpdate.current) return;
       const md = (editor.storage as any).markdown.getMarkdown();
       onBodyChangeRef.current(md);
     },
@@ -182,12 +184,16 @@ export function Editor({ note, saveStatus, onTitleChange, onBodyChange, onCodexC
     if (!editor) return;
     if (noteIdRef.current !== note.id) {
       noteIdRef.current = note.id;
+      suppressUpdate.current = true;
       editor.commands.setContent(note.body);
+      suppressUpdate.current = false;
       return;
     }
     const currentMd = (editor.storage as any).markdown.getMarkdown();
     if (currentMd !== note.body && !editor.isFocused) {
+      suppressUpdate.current = true;
       editor.commands.setContent(note.body);
+      suppressUpdate.current = false;
     }
   }, [note.id, note.body, editor]);
 
@@ -235,7 +241,10 @@ export function Editor({ note, saveStatus, onTitleChange, onBodyChange, onCodexC
           onKeyDown={handleTitleKeyDown}
           placeholder="Note title"
         />
-        <span className={`save-status ${saveStatus}`}>{statusLabel}</span>
+        <div className="editor-status">
+          {note.encrypted && <span className="encrypted-status">Encrypted</span>}
+          <span className={`save-status ${saveStatus}`}>{statusLabel}</span>
+        </div>
       </div>
       <div className="editor-body">
         <EditorContent editor={editor} />
