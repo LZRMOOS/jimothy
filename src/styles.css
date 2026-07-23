@@ -422,8 +422,6 @@ body {
 }
 
 .note-item-title {
-  display: flex;
-  align-items: center;
   font-size: 13px;
   font-weight: 600;
   margin-bottom: 3px;
@@ -448,10 +446,48 @@ body {
   color: var(--text-hint);
 }
 
-.pin-icon {
-  color: var(--text-hint);
-  margin-right: 4px;
+.note-item-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 4px;
+}
+
+.note-item-actions {
+  display: flex;
+  align-items: center;
+  gap: 2px;
   flex-shrink: 0;
+}
+
+.note-action-btn {
+  opacity: 0;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 2px;
+  color: var(--text-hint);
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  transition: opacity var(--transition), color var(--transition);
+}
+
+.note-action-btn:hover {
+  color: var(--text-primary);
+}
+
+.note-action-btn.active {
+  opacity: 1;
+  color: var(--accent);
+}
+
+.note-action-btn.delete:hover {
+  color: var(--danger);
+}
+
+.note-item:hover .note-action-btn {
+  opacity: 1;
 }
 
 .pin-divider {

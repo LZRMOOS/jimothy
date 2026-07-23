@@ -88,13 +88,21 @@ export function NotesList({ notes, selectedId, onSelect, onDelete, onTogglePin, 
           onClick={() => onSelect(note.id)}
           onContextMenu={(e) => handleContextMenu(e, note.id)}
         >
-          <div className="note-item-title">
-            {pinnedIds.includes(note.id) && (
-              <svg className="pin-icon" width="10" height="10" viewBox="0 0 24 24" fill="currentColor" stroke="none">
-                <path d="M16 2l-4 4-4-1-4 4 5 5-7 7h2l5-5 5 5 4-4-1-4 4-4z"/>
-              </svg>
-            )}
-            {highlightMatches(note.title || "Untitled", searchQuery)}
+          <div className="note-item-header">
+            <div className="note-item-title">
+              {highlightMatches(note.title || "Untitled", searchQuery)}
+            </div>
+            <div className="note-item-actions">
+              <button
+                className={`note-action-btn ${pinnedIds.includes(note.id) ? "active" : ""}`}
+                onClick={(e) => { e.stopPropagation(); onTogglePin(note.id); }}
+                title={pinnedIds.includes(note.id) ? "Unpin" : "Pin"}
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill={pinnedIds.includes(note.id) ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+                </svg>
+              </button>
+            </div>
           </div>
           <div className="note-item-preview">{highlightMatches(getPreview(note.body), searchQuery)}</div>
           <div className="note-item-date">{formatDate(note.updated_at)}</div>
