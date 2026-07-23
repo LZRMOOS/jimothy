@@ -446,11 +446,6 @@ body {
   color: var(--text-hint);
 }
 
-.encrypted-badge {
-  font-size: 10px;
-  margin-left: 4px;
-  opacity: 0.7;
-}
 
 .search-highlight {
   background: rgba(251, 191, 36, 0.3);
@@ -494,6 +489,21 @@ body {
 .editor-title::placeholder {
   color: var(--text-hint);
   font-weight: 500;
+}
+
+.editor-status {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.encrypted-status {
+  font-size: 11px;
+  color: var(--accent);
+  white-space: nowrap;
+  padding: 3px 8px;
+  border-radius: 4px;
+  background: var(--accent-subtle);
 }
 
 .save-status {
@@ -854,6 +864,27 @@ body {
   border-color: var(--border-strong);
 }
 
+.btn.danger {
+  background: var(--danger);
+  color: #fff;
+  border: none;
+}
+
+.btn.danger:hover {
+  opacity: 0.9;
+}
+
+.btn.danger-outline {
+  background: transparent;
+  color: var(--danger);
+  border: 1px solid var(--danger);
+}
+
+.btn.danger-outline:hover {
+  background: var(--danger);
+  color: #fff;
+}
+
 .error {
   color: var(--danger);
   font-size: 13px;
@@ -872,43 +903,56 @@ body {
 
 .unlock-content {
   text-align: center;
-  max-width: 340px;
+  max-width: 300px;
+  width: 100%;
+}
+
+.unlock-content.shake {
+  animation: shake 0.4s ease;
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-8px); }
+  40% { transform: translateX(8px); }
+  60% { transform: translateX(-5px); }
+  80% { transform: translateX(5px); }
 }
 
 .unlock-icon {
-  font-size: 44px;
-  margin-bottom: 16px;
+  margin-bottom: 20px;
+  color: var(--text-hint);
 }
 
 .unlock-content h2 {
-  font-size: 22px;
-  font-weight: 700;
-  margin-bottom: 8px;
+  font-size: 20px;
+  font-weight: 600;
+  margin-bottom: 6px;
   letter-spacing: -0.02em;
 }
 
 .unlock-content p {
-  color: var(--text-secondary);
-  margin-bottom: 24px;
-  font-size: 14px;
+  color: var(--text-hint);
+  margin-bottom: 28px;
+  font-size: 13px;
   line-height: 1.5;
 }
 
 .unlock-content form {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  align-items: center;
+  gap: 10px;
+  align-items: stretch;
 }
 
 .unlock-input {
   width: 100%;
-  padding: 11px 14px;
+  padding: 10px 14px;
   border: 1px solid var(--border-strong);
-  border-radius: var(--radius);
-  background: var(--bg-primary);
+  border-radius: var(--radius-sm);
+  background: var(--bg-secondary);
   color: var(--text-primary);
-  font-size: 15px;
+  font-size: 14px;
   outline: none;
   text-align: center;
   transition: border-color var(--transition), box-shadow var(--transition);
@@ -917,6 +961,34 @@ body {
 .unlock-input:focus {
   border-color: var(--accent);
   box-shadow: 0 0 0 3px var(--accent-subtle);
+}
+
+.unlock-input-error {
+  border-color: var(--danger);
+}
+
+.unlock-input-error:focus {
+  border-color: var(--danger);
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.15);
+}
+
+.unlock-btn {
+  width: 100%;
+  padding: 10px;
+  font-size: 14px;
+  border-radius: var(--radius-sm);
+}
+
+.unlock-error {
+  margin-top: 14px;
+  font-size: 13px;
+  color: var(--danger);
+  animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 
 /* Notification Bar */
@@ -1082,6 +1154,8 @@ body {
 }
 
 .settings-section h3 {
+  display: flex;
+  align-items: center;
   font-size: 12px;
   font-weight: 600;
   color: var(--text-hint);
@@ -1211,6 +1285,34 @@ body {
   gap: 10px;
   margin-top: 16px;
   max-width: 300px;
+}
+
+.password-input-wrapper {
+  position: relative;
+  width: 100%;
+}
+
+.password-input-wrapper .settings-input {
+  padding-right: 38px;
+}
+
+.password-toggle {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px;
+  color: var(--text-hint);
+  display: flex;
+  align-items: center;
+  border-radius: 4px;
+}
+
+.password-toggle:hover {
+  color: var(--text-secondary);
 }
 
 .settings-input {

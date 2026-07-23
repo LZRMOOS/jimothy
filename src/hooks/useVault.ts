@@ -14,10 +14,10 @@ export function useVault() {
   }, []);
 
   const unlockVault = useCallback(async (password: string) => {
-    setVaultError(null);
     setVaultLoading(true);
     try {
       await invoke("unlock_vault", { password });
+      setVaultError(null);
       setVaultStatus("unlocked");
       return true;
     } catch (e) {
@@ -68,6 +68,21 @@ export function useVault() {
     []
   );
 
+  const disableVault = useCallback(async (password: string) => {
+    setVaultError(null);
+    setVaultLoading(true);
+    try {
+      await invoke("disable_vault", { password });
+      setVaultStatus("plaintext");
+      return true;
+    } catch (e) {
+      setVaultError(String(e));
+      return false;
+    } finally {
+      setVaultLoading(false);
+    }
+  }, []);
+
   return {
     vaultStatus,
     vaultError,
@@ -77,5 +92,6 @@ export function useVault() {
     lockVault,
     setupVault,
     changePassword,
+    disableVault,
   };
 }

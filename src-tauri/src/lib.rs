@@ -55,6 +55,7 @@ pub fn run() {
             commands::lock_vault,
             commands::get_vault_status,
             commands::change_vault_password,
+            commands::disable_vault,
             commands::set_active_note,
             commands::restore_from_trash,
             set_tray_visible,

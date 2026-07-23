@@ -43,6 +43,7 @@ function App() {
     lockVault,
     setupVault,
     changePassword,
+    disableVault,
   } = useVault();
 
   const [query, setQuery] = useState("");
@@ -467,6 +468,7 @@ function App() {
           onSetupVault={setupVault}
           onLockVault={handleLock}
           onChangePassword={changePassword}
+          onDisableVault={disableVault}
           onReloadNotes={handleReloadNotes}
           onChangeFolder={handleChangeFolder}
           vaultError={vaultError}

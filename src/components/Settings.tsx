@@ -11,10 +11,48 @@ type SettingsTab = "general" | "keyboard" | "storage" | "security" | "markdown";
 const isMac = navigator.platform.toUpperCase().includes("MAC");
 const mod = isMac ? "Cmd" : "Ctrl";
 
+function PasswordInput({ placeholder, value, onChange }: { placeholder: string; value: string; onChange: (v: string) => void }) {
+  const [visible, setVisible] = useState(false);
+  return (
+    <div className="password-input-wrapper">
+      <input
+        type={visible ? "text" : "password"}
+        placeholder={placeholder}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="settings-input"
+        autoCapitalize="off"
+        autoCorrect="off"
+        spellCheck={false}
+      />
+      <button
+        type="button"
+        className="password-toggle"
+        onClick={() => setVisible(!visible)}
+        tabIndex={-1}
+      >
+        {visible ? (
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/>
+            <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/>
+            <path d="M14.12 14.12a3 3 0 1 1-4.24-4.24"/>
+            <line x1="1" y1="1" x2="23" y2="23"/>
+          </svg>
+        ) : (
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+            <circle cx="12" cy="12" r="3"/>
+          </svg>
+        )}
+      </button>
+    </div>
+  );
+}
+
 function InfoTooltip({ text }: { text: string }) {
   return (
     <span className="settings-tooltip-wrapper">
-      <svg className="settings-tooltip-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <svg className="settings-tooltip-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <circle cx="12" cy="12" r="10"/>
         <path d="M12 16v-4"/>
         <path d="M12 8h.01"/>
@@ -33,6 +71,7 @@ type Props = {
   onSetupVault: (password: string) => Promise<boolean>;
   onLockVault: () => Promise<void>;
   onChangePassword: (current: string, newPassword: string) => Promise<boolean>;
+  onDisableVault: (password: string) => Promise<boolean>;
   onReloadNotes: () => Promise<void>;
   onChangeFolder: (path: string) => Promise<void>;
   vaultError: string | null;
@@ -48,6 +87,7 @@ export function Settings({
   onSetupVault,
   onLockVault,
   onChangePassword,
+  onDisableVault,
   onReloadNotes,
   onChangeFolder,
   vaultError,
@@ -74,6 +114,11 @@ export function Settings({
   const [newPassword, setNewPassword] = useState("");
   const [newConfirm, setNewConfirm] = useState("");
   const [changeError, setChangeError] = useState<string | null>(null);
+
+  // Disable encryption form
+  const [showDisableForm, setShowDisableForm] = useState(false);
+  const [disablePassword, setDisablePassword] = useState("");
+  const [disableError, setDisableError] = useState<string | null>(null);
 
   const handleThemeChange = (theme: "system" | "light" | "dark") => {
     onSettingsChange({ ...settings, theme });
@@ -136,6 +181,19 @@ export function Settings({
       setNewConfirm("");
     } else {
       setChangeError(vaultError || "Failed to change password.");
+    }
+  };
+
+  const handleDisableVault = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setDisableError(null);
+    const success = await onDisableVault(disablePassword);
+    if (success) {
+      setShowDisableForm(false);
+      setDisablePassword("");
+      await onReloadNotes();
+    } else {
+      setDisableError(vaultError || "Failed to disable encryption.");
     }
   };
 
@@ -377,6 +435,12 @@ export function Settings({
 
                 {vaultStatus === "plaintext" && !showSetupForm && (
                   <div className="settings-actions">
+                    <p className="settings-warning">
+                      If you forget your password, your notes cannot be recovered.
+                      Notes remain encrypted on disk even if the app is
+                      uninstalled, but reinstalling with the correct password will
+                      restore access.
+                    </p>
                     <button
                       className="btn primary"
                       onClick={() => setShowSetupForm(true)}
@@ -395,19 +459,15 @@ export function Settings({
                       If you forget this password, your encrypted notes cannot
                       be recovered.
                     </p>
-                    <input
-                      type="password"
+                    <PasswordInput
                       placeholder="Password (min 8 characters)"
                       value={setupPassword}
-                      onChange={(e) => setSetupPassword(e.target.value)}
-                      className="settings-input"
+                      onChange={setSetupPassword}
                     />
-                    <input
-                      type="password"
+                    <PasswordInput
                       placeholder="Confirm password"
                       value={setupConfirm}
-                      onChange={(e) => setSetupConfirm(e.target.value)}
-                      className="settings-input"
+                      onChange={setSetupConfirm}
                     />
                     {setupError && (
                       <p className="error">{setupError}</p>
@@ -445,10 +505,15 @@ export function Settings({
                       </button>
                       <button
                         className="btn secondary"
-                        onClick={() => setShowChangeForm(true)}
-                        disabled={showChangeForm}
+                        onClick={() => { setShowChangeForm(true); setShowDisableForm(false); }}
                       >
                         Change Password
+                      </button>
+                      <button
+                        className="btn danger-outline"
+                        onClick={() => { setShowDisableForm(true); setShowChangeForm(false); }}
+                      >
+                        Disable Encryption
                       </button>
                     </div>
 
@@ -457,26 +522,20 @@ export function Settings({
                         className="settings-form"
                         onSubmit={handleChangePassword}
                       >
-                        <input
-                          type="password"
+                        <PasswordInput
                           placeholder="Current password"
                           value={currentPassword}
-                          onChange={(e) => setCurrentPassword(e.target.value)}
-                          className="settings-input"
+                          onChange={setCurrentPassword}
                         />
-                        <input
-                          type="password"
+                        <PasswordInput
                           placeholder="New password (min 8 characters)"
                           value={newPassword}
-                          onChange={(e) => setNewPassword(e.target.value)}
-                          className="settings-input"
+                          onChange={setNewPassword}
                         />
-                        <input
-                          type="password"
+                        <PasswordInput
                           placeholder="Confirm new password"
                           value={newConfirm}
-                          onChange={(e) => setNewConfirm(e.target.value)}
-                          className="settings-input"
+                          onChange={setNewConfirm}
                         />
                         {changeError && (
                           <p className="error">{changeError}</p>
@@ -497,6 +556,48 @@ export function Settings({
                             onClick={() => {
                               setShowChangeForm(false);
                               setChangeError(null);
+                            }}
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </form>
+                    )}
+
+                    {showDisableForm && (
+                      <form
+                        className="settings-form"
+                        onSubmit={handleDisableVault}
+                      >
+                        <p className="settings-warning">
+                          This will decrypt all notes and remove encryption.
+                          Enter your password to confirm.
+                        </p>
+                        <PasswordInput
+                          placeholder="Current password"
+                          value={disablePassword}
+                          onChange={setDisablePassword}
+                        />
+                        {disableError && (
+                          <p className="error">{disableError}</p>
+                        )}
+                        <div className="settings-actions">
+                          <button
+                            type="submit"
+                            className="btn danger"
+                            disabled={vaultLoading}
+                          >
+                            {vaultLoading
+                              ? "Decrypting..."
+                              : "Confirm Disable"}
+                          </button>
+                          <button
+                            type="button"
+                            className="btn secondary"
+                            onClick={() => {
+                              setShowDisableForm(false);
+                              setDisablePassword("");
+                              setDisableError(null);
                             }}
                           >
                             Cancel

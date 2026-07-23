@@ -501,6 +501,56 @@ pub fn change_vault_password(
 }
 
 #[tauri::command]
+pub fn disable_vault(password: String, state: State<'_, AppState>) -> Result<(), String> {
+    let folder = state
+        .notes_folder
+        .lock()
+        .unwrap()
+        .clone()
+        .ok_or("No notes folder set")?;
+
+    let config = load_vault_config(&folder).ok_or("No vault configured")?;
+
+    // Verify password
+    let key = crypto::derive_key(&password, &config.kdf)?;
+    if !crypto::verify_key(&key, &config.verification_record)? {
+        return Err("Invalid password".to_string());
+    }
+
+    // Load and decrypt all notes
+    let notes = storage::load_encrypted_notes_from_folder(&folder, &key);
+    let mut plaintext_notes = Vec::new();
+
+    for mut note in notes {
+        // Remove old encrypted file
+        if !note.file_path.is_empty() {
+            let old_path = PathBuf::from(&note.file_path);
+            if old_path.exists() {
+                let _ = fs::remove_file(&old_path);
+            }
+        }
+        // Write as plaintext markdown
+        note.encrypted = false;
+        let path = storage::write_note_atomic(&folder, &note)?;
+        note.file_path = path.to_string_lossy().to_string();
+        plaintext_notes.push(note);
+    }
+
+    // Remove vault config
+    let config_path = vault_config_path(&folder);
+    if config_path.exists() {
+        let _ = fs::remove_file(&config_path);
+    }
+
+    // Update state
+    *state.vault_key.lock().unwrap() = None;
+    *state.vault_status.lock().unwrap() = VaultStatus::Plaintext;
+    *state.notes.lock().unwrap() = plaintext_notes;
+
+    Ok(())
+}
+
+#[tauri::command]
 pub fn restore_from_trash(filename: String, state: State<'_, AppState>) -> Result<NoteDto, String> {
     let folder = state
         .notes_folder
