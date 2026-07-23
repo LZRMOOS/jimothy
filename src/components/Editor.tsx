@@ -13,6 +13,21 @@ import { Decoration, DecorationSet } from "@tiptap/pm/view";
 import type { Note, SaveStatus } from "../types";
 import { buildSearchPattern } from "../utils/search";
 
+function highlightMatches(text: string, query: string): React.ReactNode {
+  const regex = buildSearchPattern(query);
+  if (!regex) return text;
+  const splitter = new RegExp(`(${regex.source})`, "gi");
+  const parts = text.split(splitter);
+  if (parts.length === 1) return text;
+  return parts.map((part, i) =>
+    regex.test(part) ? (
+      <mark key={i} className="search-highlight">{part}</mark>
+    ) : (
+      part
+    )
+  );
+}
+
 const lowlight = createLowlight(common);
 
 const searchHighlightKey = new PluginKey("searchHighlight");
@@ -230,17 +245,26 @@ export function Editor({ note, saveStatus, onTitleChange, onBodyChange, onCodexC
     minute: "2-digit",
   });
 
+  const titleHasMatch = searchQuery && buildSearchPattern(searchQuery)?.test(note.title);
+
   return (
     <div className="editor">
       <div className="editor-header">
-        <input
-          type="text"
-          className="editor-title"
-          value={note.title}
-          onChange={(e) => onTitleChange(e.target.value)}
-          onKeyDown={handleTitleKeyDown}
-          placeholder="Note title"
-        />
+        <div className="editor-title-wrapper">
+          <input
+            type="text"
+            className="editor-title"
+            value={note.title}
+            onChange={(e) => onTitleChange(e.target.value)}
+            onKeyDown={handleTitleKeyDown}
+            placeholder="Note title"
+          />
+          {titleHasMatch && (
+            <div className="editor-title-overlay" aria-hidden="true">
+              {highlightMatches(note.title, searchQuery)}
+            </div>
+          )}
+        </div>
         <div className="editor-status">
           {isSensitive && <span className="sensitive-status">Protected</span>}
           {note.encrypted && <span className="encrypted-status">Encrypted</span>}

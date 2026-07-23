@@ -822,6 +822,7 @@ function App() {
           ) : sensitivePromptId ? (
             <SensitivePrompt
               onUnlock={() => handleSensitiveUnlock(sensitivePromptId)}
+              onCancel={() => setSensitivePromptId(null)}
               onVerify={vaultStatus === "plaintext" ? verifyProtection : undefined}
               verifyCommand={vaultStatus !== "plaintext" ? "verify_password" : undefined}
             />

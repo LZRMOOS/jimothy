@@ -571,8 +571,13 @@ body {
   gap: 12px;
 }
 
-.editor-title {
+.editor-title-wrapper {
   flex: 1;
+  position: relative;
+}
+
+.editor-title {
+  width: 100%;
   border: none;
   background: transparent;
   font-size: 18px;
@@ -585,6 +590,20 @@ body {
 .editor-title::placeholder {
   color: var(--text-hint);
   font-weight: 500;
+}
+
+.editor-title-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  pointer-events: none;
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: transparent;
+  white-space: pre;
+  overflow: hidden;
 }
 
 .editor-status {
