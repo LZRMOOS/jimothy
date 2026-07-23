@@ -24,13 +24,18 @@ export const SearchBar = forwardRef<HTMLInputElement, Props>(
     ref
   ) => {
     return (
-      <div className="search-bar">
+      <div className="search-bar" data-tauri-drag-region>
         <div className="search-bar-inner">
-          <input
-            ref={ref}
-            type="text"
-            className="search-input"
-            placeholder="Search notes or type a title to create..."
+          <div className="search-input-wrapper">
+            <svg className="search-icon" width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <circle cx="11" cy="11" r="8" />
+              <line x1="21" y1="21" x2="16.65" y2="16.65" />
+            </svg>
+            <input
+              ref={ref}
+              type="text"
+              className="search-input"
+              placeholder="Search notes or type a title to create..."
             value={value}
             onChange={(e) => onChange(e.target.value)}
             onKeyDown={(e) => {
@@ -49,6 +54,7 @@ export const SearchBar = forwardRef<HTMLInputElement, Props>(
               }
             }}
           />
+          </div>
           {onSettingsClick && (
             <button
               className="settings-gear-btn"

@@ -154,6 +154,7 @@ function App() {
     getCurrentWebview().setZoom(zoom / 100);
   }, [appSettings.zoomLevel]);
 
+
   useEffect(() => {
     let results = search(query);
     if (activeCodex) {
@@ -617,7 +618,7 @@ function App() {
   const displayNotes = query || activeCodex ? filteredNotes : notes;
 
   return (
-    <div className="app">
+    <div className={`app${sidebarCollapsed ? " sidebar-collapsed" : ""}`}>
       {conflictNoteId && (
         <ConflictDialog
           noteId={conflictNoteId}
@@ -651,6 +652,79 @@ function App() {
         onEscape={handleEscape}
         onSettingsClick={() => setShowSettings(true)}
       />
+      <div className="app-body">
+      {!sidebarCollapsed && (
+        <div className="codex-sidebar">
+          <button
+            className={`codex-sidebar-item ${activeCodex === null ? "active" : ""}`}
+            onClick={() => setActiveCodex(null)}
+            title="All Notes"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="3" y="3" width="7" height="7" rx="1" />
+              <rect x="14" y="3" width="7" height="7" rx="1" />
+              <rect x="3" y="14" width="7" height="7" rx="1" />
+              <rect x="14" y="14" width="7" height="7" rx="1" />
+            </svg>
+          </button>
+          {codexList.map((codex) => (
+            editingCodexIcon === codex ? (
+              <input
+                key={codex}
+                className="codex-sidebar-item codex-icon-input"
+                autoFocus
+                maxLength={2}
+                defaultValue={appSettings.codexIcons?.[codex] || ""}
+                onBlur={(e) => {
+                  const emoji = e.target.value.trim();
+                  const newIcons = { ...appSettings.codexIcons, [codex]: emoji };
+                  if (!emoji) delete newIcons[codex];
+                  handleSettingsChange({ ...appSettings, codexIcons: newIcons });
+                  setEditingCodexIcon(null);
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === "Escape") {
+                    (e.target as HTMLInputElement).blur();
+                  }
+                }}
+              />
+            ) : (
+              <button
+                key={codex}
+                className={`codex-sidebar-item ${activeCodex === codex ? "active" : ""}`}
+                onClick={() => setActiveCodex(activeCodex === codex ? null : codex)}
+                onDoubleClick={() => setEditingCodexIcon(codex)}
+                title={`${codex} (double-click to set icon)`}
+              >
+                <span className="codex-sidebar-letter">
+                  {appSettings.codexIcons?.[codex] || codex[0].toUpperCase()}
+                </span>
+              </button>
+            )
+          ))}
+          <button
+            className="codex-sidebar-item codex-sidebar-toggle"
+            onClick={() => setSidebarCollapsed(true)}
+            title="Collapse sidebar"
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <polyline points="15 18 9 12 15 6" />
+            </svg>
+          </button>
+        </div>
+      )}
+      {sidebarCollapsed && (
+        <button
+          className="codex-sidebar-expand"
+          onClick={() => setSidebarCollapsed(false)}
+          title="Expand sidebar"
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="9 18 15 12 9 6" />
+          </svg>
+        </button>
+      )}
+      <div className="app-main">
       {showSettings ? (
         <Settings
           settings={appSettings}
@@ -674,77 +748,6 @@ function App() {
         />
       ) : (
         <div className="main-content">
-          {!sidebarCollapsed && (
-            <div className="codex-sidebar">
-              <button
-                className={`codex-sidebar-item ${activeCodex === null ? "active" : ""}`}
-                onClick={() => setActiveCodex(null)}
-                title="All Notes"
-              >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <rect x="3" y="3" width="7" height="7" rx="1" />
-                  <rect x="14" y="3" width="7" height="7" rx="1" />
-                  <rect x="3" y="14" width="7" height="7" rx="1" />
-                  <rect x="14" y="14" width="7" height="7" rx="1" />
-                </svg>
-              </button>
-              {codexList.map((codex) => (
-                editingCodexIcon === codex ? (
-                  <input
-                    key={codex}
-                    className="codex-sidebar-item codex-icon-input"
-                    autoFocus
-                    maxLength={2}
-                    defaultValue={appSettings.codexIcons?.[codex] || ""}
-                    onBlur={(e) => {
-                      const emoji = e.target.value.trim();
-                      const newIcons = { ...appSettings.codexIcons, [codex]: emoji };
-                      if (!emoji) delete newIcons[codex];
-                      handleSettingsChange({ ...appSettings, codexIcons: newIcons });
-                      setEditingCodexIcon(null);
-                    }}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" || e.key === "Escape") {
-                        (e.target as HTMLInputElement).blur();
-                      }
-                    }}
-                  />
-                ) : (
-                  <button
-                    key={codex}
-                    className={`codex-sidebar-item ${activeCodex === codex ? "active" : ""}`}
-                    onClick={() => setActiveCodex(activeCodex === codex ? null : codex)}
-                    onDoubleClick={() => setEditingCodexIcon(codex)}
-                    title={`${codex} (double-click to set icon)`}
-                  >
-                    <span className="codex-sidebar-letter">
-                      {appSettings.codexIcons?.[codex] || codex[0].toUpperCase()}
-                    </span>
-                  </button>
-                )
-              ))}
-              <button
-                className="codex-sidebar-item codex-sidebar-toggle"
-                onClick={() => setSidebarCollapsed(true)}
-                title="Collapse sidebar"
-              >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <polyline points="15 18 9 12 15 6" />
-                </svg>
-              </button>
-            </div>
-          )}
-          {sidebarCollapsed && (
-            <button
-              className="codex-sidebar-expand"
-              onClick={() => setSidebarCollapsed(false)}
-              title="Expand sidebar"
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <polyline points="9 18 15 12 9 6" />
-              </svg>
-            </button>
-          )}
           {!sidebarCollapsed && (
             <div className="notes-panel">
               <div className="codex-dropdown">
@@ -851,6 +854,8 @@ function App() {
           )}
         </div>
       )}
+      </div>
+      </div>
     </div>
   );
 }

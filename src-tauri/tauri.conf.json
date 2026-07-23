@@ -20,6 +20,8 @@
         "center": true,
         "visible": true,
         "decorations": true,
+        "titleBarStyle": "Overlay",
+        "hiddenTitle": true,
         "resizable": true,
         "zoomHotkeysEnabled": false
       }
