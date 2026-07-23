@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import { PasswordInput } from "./PasswordInput";
 
 type Props = {
   onUnlock: (password: string) => Promise<boolean>;
@@ -45,17 +46,14 @@ export function UnlockScreen({ onUnlock, error, loading }: Props) {
         <h2>Notes Locked</h2>
         <p>Enter your password to unlock your notes.</p>
         <form onSubmit={handleSubmit}>
-          <input
+          <PasswordInput
             ref={inputRef}
-            type="password"
-            className={`unlock-input ${error ? "unlock-input-error" : ""}`}
+            className="unlock-input"
             placeholder="Password"
             value={password}
-            onChange={(e) => setPassword(e.target.value)}
+            onChange={setPassword}
+            error={!!error}
             disabled={loading}
-            autoCapitalize="off"
-            autoCorrect="off"
-            spellCheck={false}
           />
           <button className="btn primary unlock-btn" type="submit" disabled={loading}>
             {loading ? "Unlocking…" : "Unlock"}

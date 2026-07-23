@@ -59,31 +59,54 @@ impl AppState {
     }
 }
 
-/// Get the path to vault.json in the notes folder
-fn vault_config_path(folder: &Path) -> PathBuf {
-    folder.join(".scratch").join("vault.json")
+fn config_path(folder: &Path, filename: &str) -> PathBuf {
+    folder.join(".scratch").join(filename)
 }
 
-/// Check if a vault config exists and load it
-fn load_vault_config(folder: &Path) -> Option<VaultConfig> {
-    let path = vault_config_path(folder);
-    if !path.exists() {
-        return None;
-    }
-    let content = fs::read_to_string(&path).ok()?;
+fn load_config(folder: &Path, filename: &str) -> Option<VaultConfig> {
+    let path = config_path(folder, filename);
+    let content = fs::read_to_string(path).ok()?;
     serde_json::from_str(&content).ok()
 }
 
-/// Save vault config to disk
-fn save_vault_config(folder: &Path, config: &VaultConfig) -> Result<(), String> {
+fn save_config(folder: &Path, filename: &str, config: &VaultConfig) -> Result<(), String> {
     let scratch_dir = folder.join(".scratch");
     fs::create_dir_all(&scratch_dir)
         .map_err(|e| format!("Failed to create .scratch dir: {}", e))?;
     let json = serde_json::to_string_pretty(config)
-        .map_err(|e| format!("Failed to serialize vault config: {}", e))?;
-    fs::write(vault_config_path(folder), json)
-        .map_err(|e| format!("Failed to write vault config: {}", e))?;
+        .map_err(|e| format!("Failed to serialize config: {}", e))?;
+    fs::write(config_path(folder, filename), json)
+        .map_err(|e| format!("Failed to write config: {}", e))?;
     Ok(())
+}
+
+fn load_vault_config(folder: &Path) -> Option<VaultConfig> {
+    load_config(folder, "vault.json")
+}
+
+fn save_vault_config(folder: &Path, config: &VaultConfig) -> Result<(), String> {
+    save_config(folder, "vault.json", config)
+}
+
+fn load_protection_config(folder: &Path) -> Option<VaultConfig> {
+    load_config(folder, "protection.json")
+}
+
+fn save_protection_config(folder: &Path, config: &VaultConfig) -> Result<(), String> {
+    save_config(folder, "protection.json", config)
+}
+
+fn verify_and_derive(password: &str, config: &VaultConfig) -> Result<Vec<u8>, String> {
+    let key = crypto::derive_key(password, &config.kdf)?;
+    if !crypto::verify_key(&key, &config.verification_record)? {
+        return Err("Invalid password".to_string());
+    }
+    Ok(key)
+}
+
+fn store_hash(mutex: &Mutex<Option<[u8; 32]>>, password: &str) {
+    let hash: [u8; 32] = Sha256::digest(password.as_bytes()).into();
+    *mutex.lock().unwrap() = Some(hash);
 }
 
 #[derive(serde::Serialize)]
@@ -402,21 +425,12 @@ pub fn unlock_vault(password: String, state: State<'_, AppState>) -> Result<(), 
     let folder = state.folder()?;
 
     let config = load_vault_config(&folder).ok_or("No vault configured")?;
-
-    // Derive key from password
-    let key = crypto::derive_key(&password, &config.kdf)?;
-
-    // Verify password
-    if !crypto::verify_key(&key, &config.verification_record)? {
-        return Err("Invalid password".to_string());
-    }
+    let key = verify_and_derive(&password, &config)?;
 
     // Load and decrypt all notes
     let notes = storage::load_encrypted_notes_from_folder(&folder, &key);
 
-    // Store password hash for fast re-verification (sensitive notes)
-    let hash: [u8; 32] = Sha256::digest(password.as_bytes()).into();
-    *state.password_hash.lock().unwrap() = Some(hash);
+    store_hash(&state.password_hash, &password);
 
     // Update state
     *state.vault_key.lock().unwrap() = Some(key);
@@ -482,11 +496,7 @@ pub fn change_vault_password(
 
     let config = load_vault_config(&folder).ok_or("No vault configured")?;
 
-    // Verify current password
-    let old_key = crypto::derive_key(&current, &config.kdf)?;
-    if !crypto::verify_key(&old_key, &config.verification_record)? {
-        return Err("Invalid current password".to_string());
-    }
+    let old_key = verify_and_derive(&current, &config)?;
 
     // Create new vault config with new password
     let (new_config, new_key) = crypto::create_vault_config(&new_password)?;
@@ -526,11 +536,7 @@ pub fn disable_vault(password: String, state: State<'_, AppState>) -> Result<(),
 
     let config = load_vault_config(&folder).ok_or("No vault configured")?;
 
-    // Verify password
-    let key = crypto::derive_key(&password, &config.kdf)?;
-    if !crypto::verify_key(&key, &config.verification_record)? {
-        return Err("Invalid password".to_string());
-    }
+    let key = verify_and_derive(&password, &config)?;
 
     // Load and decrypt all notes
     let notes = storage::load_encrypted_notes_from_folder(&folder, &key);
@@ -552,7 +558,7 @@ pub fn disable_vault(password: String, state: State<'_, AppState>) -> Result<(),
     }
 
     // Remove vault config
-    let config_path = vault_config_path(&folder);
+    let config_path = config_path(&folder, "vault.json");
     if config_path.exists() {
         let _ = fs::remove_file(&config_path);
     }
@@ -575,31 +581,6 @@ pub fn restore_from_trash(filename: String, state: State<'_, AppState>) -> Resul
     Ok(dto)
 }
 
-/// Get the path to protection.json in the notes folder
-fn protection_config_path(folder: &Path) -> PathBuf {
-    folder.join(".scratch").join("protection.json")
-}
-
-/// Check if protection is configured
-fn load_protection_config(folder: &Path) -> Option<VaultConfig> {
-    let path = protection_config_path(folder);
-    if !path.exists() {
-        return None;
-    }
-    let content = fs::read_to_string(&path).ok()?;
-    serde_json::from_str(&content).ok()
-}
-
-fn save_protection_config(folder: &Path, config: &VaultConfig) -> Result<(), String> {
-    let scratch_dir = folder.join(".scratch");
-    fs::create_dir_all(&scratch_dir)
-        .map_err(|e| format!("Failed to create .scratch dir: {}", e))?;
-    let json = serde_json::to_string_pretty(config)
-        .map_err(|e| format!("Failed to serialize protection config: {}", e))?;
-    fs::write(protection_config_path(folder), json)
-        .map_err(|e| format!("Failed to write protection config: {}", e))?;
-    Ok(())
-}
 
 #[tauri::command]
 pub fn get_protection_status(state: State<'_, AppState>) -> String {
@@ -629,9 +610,8 @@ pub fn setup_protection(password: String, state: State<'_, AppState>) -> Result<
     let (config, key) = crypto::create_vault_config(&password)?;
     save_protection_config(&folder, &config)?;
 
-    let hash: [u8; 32] = Sha256::digest(password.as_bytes()).into();
     *state.protection_key.lock().unwrap() = Some(key);
-    *state.protection_hash.lock().unwrap() = Some(hash);
+    store_hash(&state.protection_hash, &password);
 
     Ok(())
 }
@@ -640,15 +620,10 @@ pub fn setup_protection(password: String, state: State<'_, AppState>) -> Result<
 pub fn unlock_protection(password: String, state: State<'_, AppState>) -> Result<(), String> {
     let folder = state.folder()?;
     let config = load_protection_config(&folder).ok_or("No protection configured")?;
+    let key = verify_and_derive(&password, &config)?;
 
-    let key = crypto::derive_key(&password, &config.kdf)?;
-    if !crypto::verify_key(&key, &config.verification_record)? {
-        return Err("Invalid password".to_string());
-    }
-
-    let hash: [u8; 32] = Sha256::digest(password.as_bytes()).into();
+    store_hash(&state.protection_hash, &password);
     *state.protection_key.lock().unwrap() = Some(key);
-    *state.protection_hash.lock().unwrap() = Some(hash);
 
     // Load protected note stubs and merge with existing notes
     let protected_stubs = storage::load_protected_note_stubs(&folder);
@@ -767,11 +742,7 @@ pub fn save_protected_note(
 pub fn disable_protection(password: String, state: State<'_, AppState>) -> Result<(), String> {
     let folder = state.folder()?;
     let config = load_protection_config(&folder).ok_or("No protection configured")?;
-
-    let key = crypto::derive_key(&password, &config.kdf)?;
-    if !crypto::verify_key(&key, &config.verification_record)? {
-        return Err("Invalid password".to_string());
-    }
+    let key = verify_and_derive(&password, &config)?;
 
     // Decrypt all protected notes back to plaintext
     let mut notes = state.notes.lock().unwrap();
@@ -790,9 +761,9 @@ pub fn disable_protection(password: String, state: State<'_, AppState>) -> Resul
     }
 
     // Remove protection config
-    let config_path = protection_config_path(&folder);
-    if config_path.exists() {
-        let _ = fs::remove_file(&config_path);
+    let cp = config_path(&folder, "protection.json");
+    if cp.exists() {
+        let _ = fs::remove_file(&cp);
     }
 
     *state.protection_key.lock().unwrap() = None;
@@ -810,11 +781,7 @@ pub fn change_protection_password(
     let folder = state.folder()?;
     let config = load_protection_config(&folder).ok_or("No protection configured")?;
 
-    let old_key = crypto::derive_key(&current, &config.kdf)?;
-    if !crypto::verify_key(&old_key, &config.verification_record)? {
-        return Err("Invalid current password".to_string());
-    }
-
+    let old_key = verify_and_derive(&current, &config)?;
     let (new_config, new_key) = crypto::create_vault_config(&new_password)?;
 
     // Re-encrypt all protected notes with new key
@@ -834,9 +801,8 @@ pub fn change_protection_password(
 
     save_protection_config(&folder, &new_config)?;
 
-    let hash: [u8; 32] = Sha256::digest(new_password.as_bytes()).into();
     *state.protection_key.lock().unwrap() = Some(new_key);
-    *state.protection_hash.lock().unwrap() = Some(hash);
+    store_hash(&state.protection_hash, &new_password);
 
     Ok(())
 }

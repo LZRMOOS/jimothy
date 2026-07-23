@@ -439,6 +439,16 @@ function App() {
 
   const isSelectedProtected = selectedNote?.encrypted && vaultStatus === "plaintext";
 
+  const verifyProtection = useCallback(
+    async (pw: string) => {
+      if (protectionStatus !== "unlocked") {
+        return await unlockProtection(pw);
+      }
+      return await verifyProtectionPassword(pw);
+    },
+    [protectionStatus, unlockProtection, verifyProtectionPassword]
+  );
+
   const handleTitleChange = useCallback(
     (title: string) => {
       if (!selectedNote) return;
@@ -807,22 +817,12 @@ function App() {
                   }
                 }
               }}
-              onVerify={async (pw) => {
-                if (protectionStatus !== "unlocked") {
-                  return await unlockProtection(pw);
-                }
-                return await verifyProtectionPassword(pw);
-              }}
+              onVerify={verifyProtection}
             />
           ) : sensitivePromptId ? (
             <SensitivePrompt
               onUnlock={() => handleSensitiveUnlock(sensitivePromptId)}
-              onVerify={vaultStatus === "plaintext" ? async (pw) => {
-                if (protectionStatus !== "unlocked") {
-                  return await unlockProtection(pw);
-                }
-                return await verifyProtectionPassword(pw);
-              } : undefined}
+              onVerify={vaultStatus === "plaintext" ? verifyProtection : undefined}
               verifyCommand={vaultStatus !== "plaintext" ? "verify_password" : undefined}
             />
           ) : selectedNote ? (
