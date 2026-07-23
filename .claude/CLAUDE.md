@@ -213,7 +213,6 @@ All commands defined in `src-tauri/src/commands/mod.rs`:
 
 ### App
 - `Cmd+,` - Settings
-- `Cmd+Delete` - Delete note
 - `Cmd+=` / `Cmd+-` - Zoom in/out
 - `Cmd+0` - Reset zoom
 - `Escape` - Close settings / hide window

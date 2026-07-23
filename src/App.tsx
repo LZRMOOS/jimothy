@@ -531,9 +531,6 @@ function App() {
       } else if (mod && e.key === ",") {
         e.preventDefault();
         setShowSettings((s) => !s);
-      } else if (mod && (e.key === "Backspace" || e.key === "Delete")) {
-        e.preventDefault();
-        handleDelete();
       } else if (mod && e.key === "/") {
         e.preventDefault();
         setSidebarCollapsed((s) => !s);
