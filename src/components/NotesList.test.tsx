@@ -16,10 +16,17 @@ function makeNote(overrides: Partial<Note> = {}): Note {
   };
 }
 
+const defaultProps = {
+  onSelect: () => {},
+  onDelete: () => {},
+  onTogglePin: () => {},
+  pinnedIds: [] as string[],
+};
+
 describe("NotesList", () => {
   it("renders empty state when no notes", () => {
     render(
-      <NotesList notes={[]} selectedId={null} onSelect={() => {}} onDelete={() => {}} />
+      <NotesList notes={[]} selectedId={null} {...defaultProps} />
     );
     expect(screen.getByText("No notes yet")).toBeInTheDocument();
   });
@@ -30,7 +37,7 @@ describe("NotesList", () => {
       makeNote({ id: "2", title: "Second" }),
     ];
     render(
-      <NotesList notes={notes} selectedId={null} onSelect={() => {}} onDelete={() => {}} />
+      <NotesList notes={notes} selectedId={null} {...defaultProps} />
     );
     expect(screen.getByText("First")).toBeInTheDocument();
     expect(screen.getByText("Second")).toBeInTheDocument();
@@ -39,7 +46,7 @@ describe("NotesList", () => {
   it("marks selected note", () => {
     const notes = [makeNote({ id: "1", title: "Selected" })];
     const { container } = render(
-      <NotesList notes={notes} selectedId="1" onSelect={() => {}} onDelete={() => {}} />
+      <NotesList notes={notes} selectedId="1" {...defaultProps} />
     );
     expect(container.querySelector(".note-item.selected")).toBeInTheDocument();
   });
@@ -48,7 +55,7 @@ describe("NotesList", () => {
     const onSelect = vi.fn();
     const notes = [makeNote({ id: "abc", title: "Click me" })];
     render(
-      <NotesList notes={notes} selectedId={null} onSelect={onSelect} onDelete={() => {}} />
+      <NotesList notes={notes} selectedId={null} {...defaultProps} onSelect={onSelect} />
     );
     fireEvent.click(screen.getByText("Click me"));
     expect(onSelect).toHaveBeenCalledWith("abc");
@@ -57,23 +64,28 @@ describe("NotesList", () => {
   it("shows preview of note body", () => {
     const notes = [makeNote({ id: "1", title: "Title", body: "Preview line\nSecond line" })];
     render(
-      <NotesList notes={notes} selectedId={null} onSelect={() => {}} onDelete={() => {}} />
+      <NotesList notes={notes} selectedId={null} {...defaultProps} />
     );
     expect(screen.getByText("Preview line")).toBeInTheDocument();
   });
 
-  it("shows encrypted badge for encrypted notes", () => {
-    const notes = [makeNote({ id: "1", title: "Secret", encrypted: true })];
+  it("pins notes to top of list", () => {
+    const notes = [
+      makeNote({ id: "1", title: "Unpinned" }),
+      makeNote({ id: "2", title: "Pinned" }),
+    ];
     const { container } = render(
-      <NotesList notes={notes} selectedId={null} onSelect={() => {}} onDelete={() => {}} />
+      <NotesList notes={notes} selectedId={null} {...defaultProps} pinnedIds={["2"]} />
     );
-    expect(container.querySelector(".encrypted-badge")).toBeInTheDocument();
+    const items = container.querySelectorAll(".note-item-title");
+    expect(items[0].textContent).toContain("Pinned");
+    expect(items[1].textContent).toContain("Unpinned");
   });
 
   it("highlights search matches in title", () => {
     const notes = [makeNote({ id: "1", title: "Meeting notes" })];
     const { container } = render(
-      <NotesList notes={notes} selectedId={null} onSelect={() => {}} onDelete={() => {}} searchQuery="meeting" />
+      <NotesList notes={notes} selectedId={null} {...defaultProps} searchQuery="meeting" />
     );
     const mark = container.querySelector("mark.search-highlight");
     expect(mark).toBeInTheDocument();

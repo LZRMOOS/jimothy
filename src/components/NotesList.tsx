@@ -7,6 +7,8 @@ type Props = {
   selectedId: string | null;
   onSelect: (id: string) => void;
   onDelete: (id: string) => void;
+  onTogglePin: (id: string) => void;
+  pinnedIds: string[];
   searchQuery?: string;
 };
 
@@ -53,7 +55,7 @@ function highlightMatches(text: string, query: string): React.ReactNode {
   );
 }
 
-export function NotesList({ notes, selectedId, onSelect, onDelete, searchQuery = "" }: Props) {
+export function NotesList({ notes, selectedId, onSelect, onDelete, onTogglePin, pinnedIds, searchQuery = "" }: Props) {
   const [contextMenu, setContextMenu] = useState<ContextMenuState>(null);
 
   const handleContextMenu = (e: React.MouseEvent, noteId: string) => {
@@ -73,20 +75,32 @@ export function NotesList({ notes, selectedId, onSelect, onDelete, searchQuery =
     );
   }
 
+  const pinned = notes.filter((n) => pinnedIds.includes(n.id));
+  const unpinned = notes.filter((n) => !pinnedIds.includes(n.id));
+  const sorted = [...pinned, ...unpinned];
+
   return (
     <div className="notes-list" onClick={closeContextMenu}>
-      {notes.map((note) => (
+      {sorted.map((note, i) => (
         <div
           key={note.id}
-          className={`note-item ${note.id === selectedId ? "selected" : ""}`}
+          className={`note-item ${note.id === selectedId ? "selected" : ""} ${pinnedIds.includes(note.id) ? "pinned" : ""}`}
           onClick={() => onSelect(note.id)}
           onContextMenu={(e) => handleContextMenu(e, note.id)}
         >
           <div className="note-item-title">
+            {pinnedIds.includes(note.id) && (
+              <svg className="pin-icon" width="10" height="10" viewBox="0 0 24 24" fill="currentColor" stroke="none">
+                <path d="M16 2l-4 4-4-1-4 4 5 5-7 7h2l5-5 5 5 4-4-1-4 4-4z"/>
+              </svg>
+            )}
             {highlightMatches(note.title || "Untitled", searchQuery)}
           </div>
           <div className="note-item-preview">{highlightMatches(getPreview(note.body), searchQuery)}</div>
           <div className="note-item-date">{formatDate(note.updated_at)}</div>
+          {pinnedIds.includes(note.id) && i === pinned.length - 1 && unpinned.length > 0 && (
+            <div className="pin-divider" />
+          )}
         </div>
       ))}
       {contextMenu && (
@@ -94,6 +108,15 @@ export function NotesList({ notes, selectedId, onSelect, onDelete, searchQuery =
           className="context-menu"
           style={{ top: contextMenu.y, left: contextMenu.x }}
         >
+          <button
+            className="context-menu-item"
+            onClick={() => {
+              onTogglePin(contextMenu.noteId);
+              closeContextMenu();
+            }}
+          >
+            {pinnedIds.includes(contextMenu.noteId) ? "Unpin Note" : "Pin Note"}
+          </button>
           <button
             className="context-menu-item danger"
             onClick={() => {

@@ -422,6 +422,8 @@ body {
 }
 
 .note-item-title {
+  display: flex;
+  align-items: center;
   font-size: 13px;
   font-weight: 600;
   margin-bottom: 3px;
@@ -446,6 +448,24 @@ body {
   color: var(--text-hint);
 }
 
+.pin-icon {
+  color: var(--text-hint);
+  margin-right: 4px;
+  flex-shrink: 0;
+}
+
+.pin-divider {
+  position: absolute;
+  bottom: 0;
+  left: 12px;
+  right: 12px;
+  height: 1px;
+  background: var(--border-strong);
+}
+
+.note-item.pinned {
+  position: relative;
+}
 
 .search-highlight {
   background: rgba(251, 191, 36, 0.3);

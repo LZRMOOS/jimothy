@@ -28,4 +28,5 @@ export type AppSettings = {
   idleLockMinutes?: number;
   codexIcons?: Record<string, string>;
   showTrayIcon?: boolean;
+  pinnedNotes?: string[];
 };

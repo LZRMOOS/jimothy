@@ -237,6 +237,17 @@ function App() {
     [initFolder, appSettings]
   );
 
+  const handleTogglePin = useCallback(
+    (id: string) => {
+      const pinned = appSettings.pinnedNotes || [];
+      const next = pinned.includes(id)
+        ? pinned.filter((p) => p !== id)
+        : [...pinned, id];
+      handleSettingsChange({ ...appSettings, pinnedNotes: next });
+    },
+    [appSettings, handleSettingsChange]
+  );
+
 
   const handleSearchSubmit = useCallback(async () => {
     if (!query.trim()) return;
@@ -517,6 +528,8 @@ function App() {
                 selectedId={selectedId}
                 onSelect={setSelectedId}
                 onDelete={handleDeleteById}
+                onTogglePin={handleTogglePin}
+                pinnedIds={appSettings.pinnedNotes || []}
                 searchQuery={query}
               />
             </div>
