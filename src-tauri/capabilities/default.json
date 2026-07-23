@@ -12,6 +12,7 @@
     "core:event:default",
     "window-state:default",
     "updater:default",
-    "autostart:default"
+    "autostart:default",
+    "core:webview:allow-set-webview-zoom"
   ]
 }

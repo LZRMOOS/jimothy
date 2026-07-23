@@ -142,6 +142,13 @@ export function useNotes() {
 
   const selectedNote = notes.find((n) => n.id === selectedId) || null;
 
+  const updateNoteLocally = useCallback(
+    (id: string, patch: Partial<Note>) => {
+      setNotes((prev) => prev.map((n) => (n.id === id ? { ...n, ...patch } : n)));
+    },
+    []
+  );
+
   return {
     notes,
     selectedNote,
@@ -157,5 +164,6 @@ export function useNotes() {
     deleteNote,
     search,
     loadNotes,
+    updateNoteLocally,
   };
 }

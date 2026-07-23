@@ -130,9 +130,10 @@ type Props = {
   onCodexChange: (codex: string | null) => void;
   searchQuery?: string;
   codexList: string[];
+  isSensitive?: boolean;
 };
 
-export function Editor({ note, saveStatus, onTitleChange, onBodyChange, onCodexChange, searchQuery = "", codexList }: Props) {
+export function Editor({ note, saveStatus, onTitleChange, onBodyChange, onCodexChange, searchQuery = "", codexList, isSensitive }: Props) {
   const [showCharCount, setShowCharCount] = useState(false);
   const noteIdRef = useRef(note.id);
   const onBodyChangeRef = useRef(onBodyChange);
@@ -241,6 +242,7 @@ export function Editor({ note, saveStatus, onTitleChange, onBodyChange, onCodexC
           placeholder="Note title"
         />
         <div className="editor-status">
+          {isSensitive && <span className="sensitive-status">Protected</span>}
           {note.encrypted && <span className="encrypted-status">Encrypted</span>}
           {statusLabel && <span className={`save-status ${saveStatus}`}>{statusLabel}</span>}
         </div>

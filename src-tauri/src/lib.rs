@@ -7,7 +7,7 @@ mod watcher;
 
 use commands::AppState;
 use tauri::{
-    menu::{Menu, MenuItem},
+    menu::{Menu, MenuItem, Submenu},
     tray::{TrayIconBuilder, TrayIconId},
     Emitter, Manager, WindowEvent,
 };
@@ -38,6 +38,72 @@ pub fn run() {
             tauri_plugin_autostart::MacosLauncher::LaunchAgent,
             None,
         ))
+        .menu(|app| {
+            let app_menu = Submenu::with_items(
+                app,
+                "Scratch",
+                true,
+                &[
+                    &MenuItem::with_id(app, "about", "About Scratch", true, None::<&str>)?,
+                    &tauri::menu::PredefinedMenuItem::separator(app)?,
+                    &MenuItem::with_id(app, "menu_settings", "Settings...", true, Some("CmdOrCtrl+,"))?,
+                    &tauri::menu::PredefinedMenuItem::separator(app)?,
+                    &tauri::menu::PredefinedMenuItem::hide(app, None)?,
+                    &tauri::menu::PredefinedMenuItem::hide_others(app, None)?,
+                    &tauri::menu::PredefinedMenuItem::show_all(app, None)?,
+                    &tauri::menu::PredefinedMenuItem::separator(app)?,
+                    &tauri::menu::PredefinedMenuItem::quit(app, None)?,
+                ],
+            )?;
+            let edit_menu = Submenu::with_items(
+                app,
+                "Edit",
+                true,
+                &[
+                    &tauri::menu::PredefinedMenuItem::undo(app, None)?,
+                    &tauri::menu::PredefinedMenuItem::redo(app, None)?,
+                    &tauri::menu::PredefinedMenuItem::separator(app)?,
+                    &tauri::menu::PredefinedMenuItem::cut(app, None)?,
+                    &tauri::menu::PredefinedMenuItem::copy(app, None)?,
+                    &tauri::menu::PredefinedMenuItem::paste(app, None)?,
+                    &tauri::menu::PredefinedMenuItem::select_all(app, None)?,
+                ],
+            )?;
+            let file_menu = Submenu::with_items(
+                app,
+                "File",
+                true,
+                &[
+                    &MenuItem::with_id(app, "menu_new_note", "New Note", true, Some("CmdOrCtrl+N"))?,
+                    &MenuItem::with_id(app, "menu_lock", "Lock Vault", true, None::<&str>)?,
+                ],
+            )?;
+            Menu::with_items(app, &[&app_menu, &file_menu, &edit_menu])
+        })
+        .on_menu_event(|app, event| {
+            match event.id().as_ref() {
+                "menu_lock" => {
+                    if let Some(window) = app.get_webview_window("main") {
+                        let _ = window.emit("lock-vault", ());
+                    }
+                }
+                "menu_new_note" => {
+                    if let Some(window) = app.get_webview_window("main") {
+                        let _ = window.show();
+                        let _ = window.set_focus();
+                        let _ = window.emit("create-new-note", ());
+                    }
+                }
+                "menu_settings" => {
+                    if let Some(window) = app.get_webview_window("main") {
+                        let _ = window.show();
+                        let _ = window.set_focus();
+                        let _ = window.emit("open-settings", ());
+                    }
+                }
+                _ => {}
+            }
+        })
         .manage(AppState::new())
         .invoke_handler(tauri::generate_handler![
             commands::set_notes_folder,
@@ -56,8 +122,19 @@ pub fn run() {
             commands::get_vault_status,
             commands::change_vault_password,
             commands::disable_vault,
+            commands::verify_password,
             commands::set_active_note,
             commands::restore_from_trash,
+            commands::get_protection_status,
+            commands::setup_protection,
+            commands::unlock_protection,
+            commands::verify_protection_password,
+            commands::protect_note,
+            commands::unprotect_note,
+            commands::get_protected_note_body,
+            commands::save_protected_note,
+            commands::disable_protection,
+            commands::change_protection_password,
             set_tray_visible,
         ])
         .setup(|app| {
