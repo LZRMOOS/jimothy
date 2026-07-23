@@ -212,6 +212,52 @@ pub fn create_vault_config(password: &str) -> Result<(VaultConfig, Vec<u8>), Str
     Ok((config, key))
 }
 
+/// Protected note file format (.pnote) — metadata in clear, body encrypted
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ProtectedNote {
+    pub format: String,
+    pub version: u32,
+    pub note_id: String,
+    pub title: String,
+    pub created_at: String,
+    pub updated_at: String,
+    pub codex: Option<String>,
+    pub body_cipher: CipherBlock,
+}
+
+/// Encrypt only the body of a note, keeping metadata in clear
+pub fn encrypt_note_body(note: &Note, key: &[u8]) -> Result<ProtectedNote, String> {
+    let cipher_block = encrypt_bytes(note.body.as_bytes(), key)?;
+
+    Ok(ProtectedNote {
+        format: "scratch-protected".to_string(),
+        version: 1,
+        note_id: note.id.clone(),
+        title: note.title.clone(),
+        created_at: note.created_at.to_rfc3339(),
+        updated_at: note.updated_at.to_rfc3339(),
+        codex: note.codex.clone(),
+        body_cipher: cipher_block,
+    })
+}
+
+/// Decrypt the body of a protected note
+pub fn decrypt_note_body(protected: &ProtectedNote, key: &[u8]) -> Result<String, String> {
+    let plaintext = decrypt_bytes(&protected.body_cipher, key)?;
+    String::from_utf8(plaintext).map_err(|e| format!("Invalid UTF-8 in decrypted body: {}", e))
+}
+
+/// Serialize a ProtectedNote to JSON string
+pub fn serialize_protected_note(protected: &ProtectedNote) -> Result<String, String> {
+    serde_json::to_string_pretty(protected)
+        .map_err(|e| format!("Failed to serialize protected note: {}", e))
+}
+
+/// Deserialize a ProtectedNote from JSON string
+pub fn parse_protected_note(json: &str) -> Result<ProtectedNote, String> {
+    serde_json::from_str(json).map_err(|e| format!("Failed to parse protected note: {}", e))
+}
+
 /// Serialize an EncryptedNote to JSON string for file storage
 pub fn serialize_encrypted_note(encrypted: &EncryptedNote) -> Result<String, String> {
     serde_json::to_string_pretty(encrypted)

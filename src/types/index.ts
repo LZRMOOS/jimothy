@@ -29,4 +29,6 @@ export type AppSettings = {
   codexIcons?: Record<string, string>;
   showTrayIcon?: boolean;
   pinnedNotes?: string[];
+  protectedNotes?: string[];
+  zoomLevel?: number;
 };

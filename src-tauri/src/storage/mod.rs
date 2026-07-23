@@ -382,6 +382,101 @@ pub fn write_note_encrypted(folder: &Path, note: &Note, key: &[u8]) -> Result<Pa
     Ok(dest)
 }
 
+/// Write a protected note file (.pnote) atomically — metadata in clear, body encrypted
+pub fn write_note_protected(folder: &Path, note: &Note, key: &[u8]) -> Result<PathBuf, String> {
+    let protected = crypto::encrypt_note_body(note, key)?;
+    let json = crypto::serialize_protected_note(&protected)?;
+
+    let filename = format!("{}.pnote", note.id);
+    let dest = folder.join(&filename);
+
+    let temp_name = format!(".scratch-tmp-{}.pnote", ulid::Ulid::new());
+    let temp_path = folder.join(&temp_name);
+
+    fs::write(&temp_path, &json).map_err(|e| format!("Failed to write temp file: {}", e))?;
+
+    fs::rename(&temp_path, &dest).map_err(|e| {
+        let _ = fs::remove_file(&temp_path);
+        format!("Failed to rename temp file: {}", e)
+    })?;
+
+    Ok(dest)
+}
+
+/// Load all .pnote files from a folder (returns notes with empty body — body is encrypted)
+pub fn load_protected_note_stubs(folder: &Path) -> Vec<Note> {
+    let mut notes = Vec::new();
+
+    let entries = match fs::read_dir(folder) {
+        Ok(entries) => entries,
+        Err(_) => return notes,
+    };
+
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if !path.is_file() {
+            continue;
+        }
+        if path.extension().and_then(|e| e.to_str()) != Some("pnote") {
+            continue;
+        }
+        let filename = path.file_name().unwrap_or_default().to_string_lossy();
+        if filename.starts_with('.') {
+            continue;
+        }
+
+        if let Ok(content) = fs::read_to_string(&path) {
+            if let Ok(protected) = crypto::parse_protected_note(&content) {
+                let created_at = chrono::DateTime::parse_from_rfc3339(&protected.created_at)
+                    .map(|dt| dt.with_timezone(&Utc))
+                    .unwrap_or_else(|_| Utc::now());
+                let updated_at = chrono::DateTime::parse_from_rfc3339(&protected.updated_at)
+                    .map(|dt| dt.with_timezone(&Utc))
+                    .unwrap_or_else(|_| Utc::now());
+
+                notes.push(Note {
+                    id: protected.note_id,
+                    title: protected.title,
+                    body: String::new(),
+                    created_at,
+                    updated_at,
+                    encrypted: true,
+                    file_path: path.to_string_lossy().to_string(),
+                    codex: protected.codex,
+                });
+            }
+        }
+    }
+
+    notes.sort_by(|a, b| b.updated_at.cmp(&a.updated_at));
+    notes
+}
+
+/// Decrypt the body of a single .pnote file
+pub fn decrypt_protected_note_body(file_path: &Path, key: &[u8]) -> Result<String, String> {
+    let content = fs::read_to_string(file_path)
+        .map_err(|e| format!("Failed to read protected note: {}", e))?;
+    let protected = crypto::parse_protected_note(&content)?;
+    crypto::decrypt_note_body(&protected, key)
+}
+
+/// Convert a protected note back to plaintext (removes .pnote, writes .md)
+pub fn unprotect_note(folder: &Path, note: &Note, body: &str) -> Result<PathBuf, String> {
+    let mut plain_note = note.clone();
+    plain_note.body = body.to_string();
+    plain_note.encrypted = false;
+
+    let path = write_note_atomic(folder, &plain_note)?;
+
+    // Remove the .pnote file
+    let pnote_path = folder.join(format!("{}.pnote", note.id));
+    if pnote_path.exists() {
+        let _ = fs::remove_file(&pnote_path);
+    }
+
+    Ok(path)
+}
+
 /// Load and decrypt all .snote files from a folder
 pub fn load_encrypted_notes_from_folder(folder: &Path, key: &[u8]) -> Vec<Note> {
     let mut notes = Vec::new();

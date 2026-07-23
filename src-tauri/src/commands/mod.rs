@@ -4,6 +4,7 @@ use std::sync::Mutex;
 
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
+use sha2::{Sha256, Digest};
 use tauri::{AppHandle, Emitter, State};
 
 use crate::crypto::{self, VaultConfig};
@@ -27,6 +28,9 @@ pub struct AppState {
     pub watcher: Mutex<Option<FileWatcher>>,
     pub vault_key: Mutex<Option<Vec<u8>>>,
     pub vault_status: Mutex<VaultStatus>,
+    pub password_hash: Mutex<Option<[u8; 32]>>,
+    pub protection_key: Mutex<Option<Vec<u8>>>,
+    pub protection_hash: Mutex<Option<[u8; 32]>>,
     /// The ID of the note currently being edited in the frontend.
     pub active_note_id: Mutex<Option<String>>,
 }
@@ -39,6 +43,9 @@ impl AppState {
             watcher: Mutex::new(None),
             vault_key: Mutex::new(None),
             vault_status: Mutex::new(VaultStatus::Plaintext),
+            password_hash: Mutex::new(None),
+            protection_key: Mutex::new(None),
+            protection_hash: Mutex::new(None),
             active_note_id: Mutex::new(None),
         }
     }
@@ -125,7 +132,15 @@ pub fn set_notes_folder(
         *state.notes.lock().unwrap() = Vec::new();
     } else {
         *state.vault_status.lock().unwrap() = VaultStatus::Plaintext;
-        let (notes, dropbox_conflicts) = storage::load_notes_deduped(&folder);
+        let (mut notes, dropbox_conflicts) = storage::load_notes_deduped(&folder);
+        // Also load protected note stubs (title visible, body encrypted)
+        let protected_stubs = storage::load_protected_note_stubs(&folder);
+        for stub in protected_stubs {
+            if !notes.iter().any(|n| n.id == stub.id) {
+                notes.push(stub);
+            }
+        }
+        notes.sort_by(|a, b| b.updated_at.cmp(&a.updated_at));
         *state.notes.lock().unwrap() = notes;
         if !dropbox_conflicts.is_empty() {
             let _ = app_handle.emit("dropbox-conflict", ());
@@ -280,10 +295,17 @@ pub fn reload_notes(state: State<'_, AppState>, app_handle: AppHandle) -> Result
                 }
             }
             VaultStatus::Plaintext => {
-                let (notes, dropbox_conflicts) = storage::load_notes_deduped(&folder);
+                let (mut notes, dropbox_conflicts) = storage::load_notes_deduped(&folder);
                 if !dropbox_conflicts.is_empty() {
                     let _ = app_handle.emit("dropbox-conflict", ());
                 }
+                let protected_stubs = storage::load_protected_note_stubs(&folder);
+                for stub in protected_stubs {
+                    if !notes.iter().any(|n| n.id == stub.id) {
+                        notes.push(stub);
+                    }
+                }
+                notes.sort_by(|a, b| b.updated_at.cmp(&a.updated_at));
                 let dtos: Vec<NoteDto> = notes.iter().map(NoteDto::from).collect();
                 *state.notes.lock().unwrap() = notes;
                 Ok(dtos)
@@ -392,6 +414,10 @@ pub fn unlock_vault(password: String, state: State<'_, AppState>) -> Result<(), 
     // Load and decrypt all notes
     let notes = storage::load_encrypted_notes_from_folder(&folder, &key);
 
+    // Store password hash for fast re-verification (sensitive notes)
+    let hash: [u8; 32] = Sha256::digest(password.as_bytes()).into();
+    *state.password_hash.lock().unwrap() = Some(hash);
+
     // Update state
     *state.vault_key.lock().unwrap() = Some(key);
     *state.vault_status.lock().unwrap() = VaultStatus::Unlocked;
@@ -407,8 +433,9 @@ pub fn lock_vault(state: State<'_, AppState>) -> Result<(), String> {
         return Err("No vault to lock".to_string());
     }
 
-    // Clear key and notes from memory
+    // Clear key, password hash, and notes from memory
     *state.vault_key.lock().unwrap() = None;
+    *state.password_hash.lock().unwrap() = None;
     *state.vault_status.lock().unwrap() = VaultStatus::Locked;
     *state.notes.lock().unwrap() = Vec::new();
 
@@ -423,6 +450,21 @@ pub fn get_vault_status(state: State<'_, AppState>) -> String {
         VaultStatus::Locked => "locked".to_string(),
         VaultStatus::Unlocked => "unlocked".to_string(),
     }
+}
+
+#[tauri::command]
+pub fn verify_password(password: String, state: State<'_, AppState>) -> Result<bool, String> {
+    // Fast path: compare SHA-256 hash against stored hash (instant)
+    if let Some(ref stored_hash) = *state.password_hash.lock().unwrap() {
+        let hash: [u8; 32] = Sha256::digest(password.as_bytes()).into();
+        return Ok(hash == *stored_hash);
+    }
+
+    // Slow path: full Argon2 derivation
+    let folder = state.folder()?;
+    let config = load_vault_config(&folder).ok_or("No vault configured")?;
+    let key = crypto::derive_key(&password, &config.kdf)?;
+    crypto::verify_key(&key, &config.verification_record)
 }
 
 #[tauri::command]
@@ -531,4 +573,270 @@ pub fn restore_from_trash(filename: String, state: State<'_, AppState>) -> Resul
     let dto = NoteDto::from(&note);
     state.notes.lock().unwrap().push(note);
     Ok(dto)
+}
+
+/// Get the path to protection.json in the notes folder
+fn protection_config_path(folder: &Path) -> PathBuf {
+    folder.join(".scratch").join("protection.json")
+}
+
+/// Check if protection is configured
+fn load_protection_config(folder: &Path) -> Option<VaultConfig> {
+    let path = protection_config_path(folder);
+    if !path.exists() {
+        return None;
+    }
+    let content = fs::read_to_string(&path).ok()?;
+    serde_json::from_str(&content).ok()
+}
+
+fn save_protection_config(folder: &Path, config: &VaultConfig) -> Result<(), String> {
+    let scratch_dir = folder.join(".scratch");
+    fs::create_dir_all(&scratch_dir)
+        .map_err(|e| format!("Failed to create .scratch dir: {}", e))?;
+    let json = serde_json::to_string_pretty(config)
+        .map_err(|e| format!("Failed to serialize protection config: {}", e))?;
+    fs::write(protection_config_path(folder), json)
+        .map_err(|e| format!("Failed to write protection config: {}", e))?;
+    Ok(())
+}
+
+#[tauri::command]
+pub fn get_protection_status(state: State<'_, AppState>) -> String {
+    let folder = match state.folder() {
+        Ok(f) => f,
+        Err(_) => return "none".to_string(),
+    };
+    if load_protection_config(&folder).is_some() {
+        if state.protection_key.lock().unwrap().is_some() {
+            "unlocked".to_string()
+        } else {
+            "locked".to_string()
+        }
+    } else {
+        "none".to_string()
+    }
+}
+
+#[tauri::command]
+pub fn setup_protection(password: String, state: State<'_, AppState>) -> Result<(), String> {
+    let folder = state.folder()?;
+
+    if load_protection_config(&folder).is_some() {
+        return Err("Protection already configured".to_string());
+    }
+
+    let (config, key) = crypto::create_vault_config(&password)?;
+    save_protection_config(&folder, &config)?;
+
+    let hash: [u8; 32] = Sha256::digest(password.as_bytes()).into();
+    *state.protection_key.lock().unwrap() = Some(key);
+    *state.protection_hash.lock().unwrap() = Some(hash);
+
+    Ok(())
+}
+
+#[tauri::command]
+pub fn unlock_protection(password: String, state: State<'_, AppState>) -> Result<(), String> {
+    let folder = state.folder()?;
+    let config = load_protection_config(&folder).ok_or("No protection configured")?;
+
+    let key = crypto::derive_key(&password, &config.kdf)?;
+    if !crypto::verify_key(&key, &config.verification_record)? {
+        return Err("Invalid password".to_string());
+    }
+
+    let hash: [u8; 32] = Sha256::digest(password.as_bytes()).into();
+    *state.protection_key.lock().unwrap() = Some(key);
+    *state.protection_hash.lock().unwrap() = Some(hash);
+
+    // Load protected note stubs and merge with existing notes
+    let protected_stubs = storage::load_protected_note_stubs(&folder);
+    let mut notes = state.notes.lock().unwrap();
+    for stub in protected_stubs {
+        if !notes.iter().any(|n| n.id == stub.id) {
+            notes.push(stub);
+        }
+    }
+    notes.sort_by(|a, b| b.updated_at.cmp(&a.updated_at));
+
+    Ok(())
+}
+
+#[tauri::command]
+pub fn verify_protection_password(password: String, state: State<'_, AppState>) -> Result<bool, String> {
+    // Fast path: compare SHA-256 hash
+    if let Some(ref stored_hash) = *state.protection_hash.lock().unwrap() {
+        let hash: [u8; 32] = Sha256::digest(password.as_bytes()).into();
+        return Ok(hash == *stored_hash);
+    }
+
+    // Slow path: full Argon2 derivation
+    let folder = state.folder()?;
+    let config = load_protection_config(&folder).ok_or("No protection configured")?;
+    let key = crypto::derive_key(&password, &config.kdf)?;
+    crypto::verify_key(&key, &config.verification_record)
+}
+
+#[tauri::command]
+pub fn protect_note(id: String, state: State<'_, AppState>) -> Result<NoteDto, String> {
+    let folder = state.folder()?;
+    let key = state.protection_key.lock().unwrap().clone()
+        .ok_or("Protection not unlocked")?;
+
+    let mut notes = state.notes.lock().unwrap();
+    let note = notes.iter_mut().find(|n| n.id == id).ok_or("Note not found")?;
+
+    // Write as protected .pnote
+    let path = storage::write_note_protected(&folder, note, &key)?;
+
+    // Remove old plaintext .md file
+    let old_path = PathBuf::from(&note.file_path);
+    if old_path.exists() && old_path.extension().and_then(|e| e.to_str()) == Some("md") {
+        let _ = fs::remove_file(&old_path);
+    }
+
+    note.encrypted = true;
+    note.file_path = path.to_string_lossy().to_string();
+
+    Ok(NoteDto::from(&*note))
+}
+
+#[tauri::command]
+pub fn unprotect_note(id: String, state: State<'_, AppState>) -> Result<NoteDto, String> {
+    let folder = state.folder()?;
+    let key = state.protection_key.lock().unwrap().clone()
+        .ok_or("Protection not unlocked")?;
+
+    let mut notes = state.notes.lock().unwrap();
+    let note = notes.iter_mut().find(|n| n.id == id).ok_or("Note not found")?;
+
+    // Decrypt body
+    let pnote_path = Path::new(&note.file_path);
+    let body = storage::decrypt_protected_note_body(pnote_path, &key)?;
+
+    // Write as plaintext .md
+    note.body = body;
+    note.encrypted = false;
+    let path = storage::unprotect_note(&folder, note, &note.body.clone())?;
+
+    note.file_path = path.to_string_lossy().to_string();
+
+    Ok(NoteDto::from(&*note))
+}
+
+#[tauri::command]
+pub fn get_protected_note_body(id: String, state: State<'_, AppState>) -> Result<String, String> {
+    let key = state.protection_key.lock().unwrap().clone()
+        .ok_or("Protection not unlocked")?;
+
+    let notes = state.notes.lock().unwrap();
+    let note = notes.iter().find(|n| n.id == id).ok_or("Note not found")?;
+
+    let path = Path::new(&note.file_path);
+    storage::decrypt_protected_note_body(path, &key)
+}
+
+#[tauri::command]
+pub fn save_protected_note(
+    id: String,
+    title: String,
+    body: String,
+    codex: Option<String>,
+    state: State<'_, AppState>,
+) -> Result<NoteDto, String> {
+    let folder = state.folder()?;
+    let key = state.protection_key.lock().unwrap().clone()
+        .ok_or("Protection not unlocked")?;
+
+    let mut notes = state.notes.lock().unwrap();
+    let note = notes.iter_mut().find(|n| n.id == id).ok_or("Note not found")?;
+
+    note.title = title;
+    note.body = body;
+    note.codex = codex;
+    note.updated_at = Utc::now();
+
+    let path = storage::write_note_protected(&folder, note, &key)?;
+    note.file_path = path.to_string_lossy().to_string();
+
+    Ok(NoteDto::from(&*note))
+}
+
+#[tauri::command]
+pub fn disable_protection(password: String, state: State<'_, AppState>) -> Result<(), String> {
+    let folder = state.folder()?;
+    let config = load_protection_config(&folder).ok_or("No protection configured")?;
+
+    let key = crypto::derive_key(&password, &config.kdf)?;
+    if !crypto::verify_key(&key, &config.verification_record)? {
+        return Err("Invalid password".to_string());
+    }
+
+    // Decrypt all protected notes back to plaintext
+    let mut notes = state.notes.lock().unwrap();
+    for note in notes.iter_mut() {
+        let path = Path::new(&note.file_path);
+        if path.extension().and_then(|e| e.to_str()) == Some("pnote") {
+            if let Ok(body) = storage::decrypt_protected_note_body(path, &key) {
+                note.body = body;
+                note.encrypted = false;
+                if let Ok(new_path) = storage::write_note_atomic(&folder, note) {
+                    let _ = fs::remove_file(path);
+                    note.file_path = new_path.to_string_lossy().to_string();
+                }
+            }
+        }
+    }
+
+    // Remove protection config
+    let config_path = protection_config_path(&folder);
+    if config_path.exists() {
+        let _ = fs::remove_file(&config_path);
+    }
+
+    *state.protection_key.lock().unwrap() = None;
+    *state.protection_hash.lock().unwrap() = None;
+
+    Ok(())
+}
+
+#[tauri::command]
+pub fn change_protection_password(
+    current: String,
+    new_password: String,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    let folder = state.folder()?;
+    let config = load_protection_config(&folder).ok_or("No protection configured")?;
+
+    let old_key = crypto::derive_key(&current, &config.kdf)?;
+    if !crypto::verify_key(&old_key, &config.verification_record)? {
+        return Err("Invalid current password".to_string());
+    }
+
+    let (new_config, new_key) = crypto::create_vault_config(&new_password)?;
+
+    // Re-encrypt all protected notes with new key
+    let mut notes = state.notes.lock().unwrap();
+    for note in notes.iter_mut() {
+        let path = Path::new(&note.file_path);
+        if path.extension().and_then(|e| e.to_str()) == Some("pnote") {
+            if let Ok(body) = storage::decrypt_protected_note_body(path, &old_key) {
+                note.body = body;
+                if let Ok(new_path) = storage::write_note_protected(&folder, note, &new_key) {
+                    note.file_path = new_path.to_string_lossy().to_string();
+                }
+                note.body = String::new();
+            }
+        }
+    }
+
+    save_protection_config(&folder, &new_config)?;
+
+    let hash: [u8; 32] = Sha256::digest(new_password.as_bytes()).into();
+    *state.protection_key.lock().unwrap() = Some(new_key);
+    *state.protection_hash.lock().unwrap() = Some(hash);
+
+    Ok(())
 }
