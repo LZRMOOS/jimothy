@@ -55,6 +55,7 @@ jobs:
           releaseBody: "See the assets for download links."
           releaseDraft: true
           prerelease: false
-          includeUpdaterJson: true
+          uploadUpdaterJson: true
+          uploadUpdaterSignatures: true
           updaterJsonPreferNsis: true
           args: --target ${{ matrix.target }}
