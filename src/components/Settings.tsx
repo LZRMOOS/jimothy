@@ -11,6 +11,19 @@ type SettingsTab = "general" | "keyboard" | "storage" | "security" | "markdown";
 const isMac = navigator.platform.toUpperCase().includes("MAC");
 const mod = isMac ? "Cmd" : "Ctrl";
 
+function InfoTooltip({ text }: { text: string }) {
+  return (
+    <span className="settings-tooltip-wrapper">
+      <svg className="settings-tooltip-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <circle cx="12" cy="12" r="10"/>
+        <path d="M12 16v-4"/>
+        <path d="M12 8h.01"/>
+      </svg>
+      <span className="settings-tooltip">{text}</span>
+    </span>
+  );
+}
+
 type Props = {
   settings: AppSettings;
   onSettingsChange: (settings: AppSettings) => void;
@@ -158,7 +171,7 @@ export function Settings({
           <div className="settings-content">
             {activeTab === "general" && (
               <div className="settings-section">
-                <h3>Updates</h3>
+                <h3>Updates<InfoTooltip text="Checks for new versions from GitHub releases. Updates are downloaded and applied on restart." /></h3>
                 <div className="settings-row">
                   <label>Version 0.1.0</label>
                   {updateState === "idle" && (
@@ -308,7 +321,7 @@ export function Settings({
 
             {activeTab === "storage" && (
               <div className="settings-section">
-                <h3>Notes Folder</h3>
+                <h3>Notes Folder<InfoTooltip text="Where your notes are stored as Markdown files. Use a synced folder (Dropbox, iCloud) to access notes across devices." /></h3>
                 <div className="settings-row">
                   <span className="folder-path">
                     {notesFolder || "Not set"}
@@ -334,7 +347,7 @@ export function Settings({
 
             {activeTab === "security" && (
               <div className="settings-section">
-                <h3>Auto-Lock</h3>
+                <h3>Auto-Lock<InfoTooltip text="Automatically locks the vault after a period of inactivity, requiring your password to access notes again." /></h3>
                 <div className="settings-row">
                   <label>Lock after idle</label>
                   <Dropdown
@@ -360,17 +373,7 @@ export function Settings({
                   screen locks.
                 </p>
 
-                <h3>
-                  Encryption
-                  <span className="settings-tooltip-wrapper">
-                    <svg className="settings-tooltip-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <circle cx="12" cy="12" r="10"/>
-                      <path d="M12 16v-4"/>
-                      <path d="M12 8h.01"/>
-                    </svg>
-                    <span className="settings-tooltip">Encryption protects your notes with a password. When locked, notes are unreadable without re-entering the password. Your key is only held in memory, never saved to disk.</span>
-                  </span>
-                </h3>
+                <h3>Encryption<InfoTooltip text="Protects your notes with a password. When locked, notes are unreadable without re-entering the password. Your key is only held in memory, never saved to disk." /></h3>
 
                 {vaultStatus === "plaintext" && !showSetupForm && (
                   <div className="settings-actions">
