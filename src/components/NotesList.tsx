@@ -91,7 +91,7 @@ export function NotesList({ notes, selectedId, onSelect, onDelete, onTogglePin, 
           onContextMenu={(e) => handleContextMenu(e, note.id)}
         >
           <div className="note-item-header">
-            <div className="note-item-title">
+            <div className="note-item-title" title={note.title || "Untitled"}>
               {sensitiveIds.includes(note.id) && (
                 <svg className="sensitive-icon" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                   <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
