@@ -1199,6 +1199,23 @@ body {
   line-height: 1.4;
 }
 
+.update-toast {
+  font-size: 12px;
+  padding: 4px 10px;
+  border-radius: var(--radius-sm);
+  animation: fadeIn 0.2s ease;
+}
+
+.update-toast.success {
+  color: var(--success);
+  background: rgba(16, 185, 129, 0.08);
+}
+
+.update-toast.error {
+  color: var(--danger);
+  background: rgba(239, 68, 68, 0.08);
+}
+
 .settings-tooltip-wrapper {
   position: relative;
   display: inline-flex;

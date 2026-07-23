@@ -120,6 +120,13 @@ export function Settings({
   const [disablePassword, setDisablePassword] = useState("");
   const [disableError, setDisableError] = useState<string | null>(null);
 
+  // Success toast
+  const [successToast, setSuccessToast] = useState<string | null>(null);
+  const showToast = (msg: string) => {
+    setSuccessToast(msg);
+    setTimeout(() => setSuccessToast(null), 4000);
+  };
+
   const handleThemeChange = (theme: "system" | "light" | "dark") => {
     onSettingsChange({ ...settings, theme });
   };
@@ -157,6 +164,7 @@ export function Settings({
       setShowSetupForm(false);
       setSetupPassword("");
       setSetupConfirm("");
+      showToast("Encryption enabled");
     } else {
       setSetupError(vaultError || "Failed to set up encryption.");
     }
@@ -179,6 +187,7 @@ export function Settings({
       setCurrentPassword("");
       setNewPassword("");
       setNewConfirm("");
+      showToast("Password changed");
     } else {
       setChangeError(vaultError || "Failed to change password.");
     }
@@ -192,6 +201,7 @@ export function Settings({
       setShowDisableForm(false);
       setDisablePassword("");
       await onReloadNotes();
+      showToast("Encryption disabled");
     } else {
       setDisableError(vaultError || "Failed to disable encryption.");
     }
@@ -237,6 +247,12 @@ export function Settings({
                       Check for Updates
                     </button>
                   )}
+                  {updateState === "checking" && (
+                    <span className="settings-hint">Checking...</span>
+                  )}
+                  {updateState === "up-to-date" && (
+                    <span className="update-toast success">You're up to date</span>
+                  )}
                   {updateState === "available" && (
                     <button className="btn primary" onClick={installUpdate}>
                       Update to {updateVersion}
@@ -246,12 +262,12 @@ export function Settings({
                     <span className="settings-hint">Downloading...</span>
                   )}
                   {updateState === "ready" && (
-                    <span className="settings-hint">
+                    <span className="update-toast success">
                       Restart to finish updating
                     </span>
                   )}
                   {updateState === "error" && (
-                    <span className="settings-hint">Update failed</span>
+                    <span className="update-toast error">Update check failed</span>
                   )}
                 </div>
 
@@ -405,6 +421,9 @@ export function Settings({
 
             {activeTab === "security" && (
               <div className="settings-section">
+                {successToast && (
+                  <span className="update-toast success">{successToast}</span>
+                )}
                 <h3>Auto-Lock<InfoTooltip text="Automatically locks the vault after a period of inactivity, requiring your password to access notes again." /></h3>
                 <div className="settings-row">
                   <label>Lock after idle</label>

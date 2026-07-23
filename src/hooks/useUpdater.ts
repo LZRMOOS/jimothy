@@ -1,13 +1,14 @@
 import { useState, useEffect, useCallback } from "react";
 import { check } from "@tauri-apps/plugin-updater";
 
-type UpdateState = "idle" | "available" | "downloading" | "ready" | "error";
+type UpdateState = "idle" | "checking" | "up-to-date" | "available" | "downloading" | "ready" | "error";
 
 export function useUpdater() {
   const [updateState, setUpdateState] = useState<UpdateState>("idle");
   const [updateVersion, setUpdateVersion] = useState<string | null>(null);
 
   const checkForUpdate = useCallback(async () => {
+    setUpdateState("checking");
     try {
       const update = await check();
       if (update) {
@@ -15,8 +16,11 @@ export function useUpdater() {
         setUpdateState("available");
         return update;
       }
+      setUpdateState("up-to-date");
+      setTimeout(() => setUpdateState((s) => s === "up-to-date" ? "idle" : s), 4000);
     } catch {
-      // Updater not configured or network error — silently ignore
+      setUpdateState("error");
+      setTimeout(() => setUpdateState((s) => s === "error" ? "idle" : s), 4000);
     }
     return null;
   }, []);
