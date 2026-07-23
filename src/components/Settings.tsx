@@ -334,9 +334,10 @@ export function Settings({
 
             {activeTab === "security" && (
               <div className="settings-section">
-                <p className="settings-hint">
-                  Encryption protects your notes with a password. When locked, notes are unreadable without re-entering the password. The key is only held in memory — it's never saved to disk.
-                </p>
+                <div className="settings-note">
+                  <p>Encryption protects your notes with a password. When locked, notes are unreadable without re-entering the password.</p>
+                  <p>Your key is only held in memory, never saved to disk.</p>
+                </div>
                 <h3>Auto-Lock</h3>
                 <div className="settings-row">
                   <label>Lock after idle</label>
