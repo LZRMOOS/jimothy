@@ -113,7 +113,11 @@ export function NotesList({ notes, selectedId, onSelect, onDelete, onTogglePin, 
             </div>
           </div>
           <div className="note-item-preview">
-            {sensitiveIds.includes(note.id) && !note.body ? "Protected note" : highlightMatches(getPreview(note.body), searchQuery)}
+            {sensitiveIds.includes(note.id) && !note.body ? (
+              <span className="protected-placeholder">Protected note</span>
+            ) : (
+              highlightMatches(getPreview(note.body), searchQuery)
+            )}
           </div>
           <div className="note-item-date">{formatDate(note.updated_at)}</div>
         </div>

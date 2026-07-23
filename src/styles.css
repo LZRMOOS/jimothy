@@ -484,6 +484,11 @@ body {
   line-height: 1.4;
 }
 
+.note-item-preview .protected-placeholder {
+  font-style: italic;
+  color: var(--text-hint);
+}
+
 .note-item-date {
   font-size: 11px;
   color: var(--text-hint);
