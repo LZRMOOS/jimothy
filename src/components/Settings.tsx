@@ -1319,8 +1319,16 @@ console.log(hello);
                       <td className="md-ref-syntax">![alt](url)</td>
                       <td className="md-ref-desc">Image</td>
                     </tr>
+                    <tr>
+                      <td className="md-ref-syntax">@note name</td>
+                      <td className="md-ref-desc">Link to another note</td>
+                    </tr>
                   </tbody>
                 </table>
+                <p className="settings-hint">
+                  Type @ in the editor to search and link to other notes. Links
+                  stay valid even if the target note is renamed.
+                </p>
 
                 <h3>Other</h3>
                 <table className="md-ref-table">
