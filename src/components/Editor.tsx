@@ -262,9 +262,11 @@ type Props = {
   macros?: Record<string, string>;
   allNotes?: Note[];
   onNavigateToNote?: (id: string) => void;
+  frozen?: boolean;
+  onToggleFreeze?: () => void;
 };
 
-export function Editor({ note, saveStatus, onTitleChange, onBodyChange, onCodexChange, onEditingChange, searchQuery = "", codexList, isSensitive, editorRef, macros = {}, allNotes = [], onNavigateToNote }: Props) {
+export function Editor({ note, saveStatus, onTitleChange, onBodyChange, onCodexChange, onEditingChange, searchQuery = "", codexList, isSensitive, editorRef, macros = {}, allNotes = [], onNavigateToNote, frozen, onToggleFreeze }: Props) {
   const [showCharCount, setShowCharCount] = useState(false);
   const [isTitleFocused, setIsTitleFocused] = useState(false);
   const [localTitle, setLocalTitle] = useState(note.title);
@@ -301,6 +303,7 @@ export function Editor({ note, saveStatus, onTitleChange, onBodyChange, onCodexC
   const suppressUpdate = useRef(false);
 
   const editor = useEditor({
+    editable: !frozen,
     editorProps: {
       attributes: {
         'data-editor': 'true',
@@ -331,7 +334,7 @@ export function Editor({ note, saveStatus, onTitleChange, onBodyChange, onCodexC
     ],
     content: note.body,
     onUpdate: ({ editor }) => {
-      if (suppressUpdate.current) return;
+      if (suppressUpdate.current || !editor.isEditable) return;
       const md = (editor.storage as any).markdown.getMarkdown();
       onBodyChangeRef.current(md);
     },
@@ -339,6 +342,10 @@ export function Editor({ note, saveStatus, onTitleChange, onBodyChange, onCodexC
       onEditingChange?.(true);
     },
   });
+
+  useEffect(() => {
+    if (editor) editor.setEditable(!frozen);
+  }, [frozen, editor]);
 
   // Update the combined query ref: in-note search takes priority over global search
   searchQueryRef.current = inNoteQuery.trim() ? inNoteQuery : searchQuery;
@@ -579,6 +586,7 @@ export function Editor({ note, saveStatus, onTitleChange, onBodyChange, onCodexC
             className="editor-title"
             value={localTitle}
             onChange={(e) => {
+              if (frozen) return;
               setLocalTitle(e.target.value);
               onTitleChange(e.target.value);
             }}
@@ -589,6 +597,7 @@ export function Editor({ note, saveStatus, onTitleChange, onBodyChange, onCodexC
             }}
             onBlur={() => setIsTitleFocused(false)}
             placeholder="Note title"
+            readOnly={frozen}
             autoComplete="off"
             autoCorrect="off"
             autoCapitalize="off"
@@ -602,10 +611,11 @@ export function Editor({ note, saveStatus, onTitleChange, onBodyChange, onCodexC
           <span className="editor-created">Created {createdStr}</span>
         </div>
         <div className="editor-status">
+          {frozen && <span className="frozen-status" onClick={onToggleFreeze} title="Click to unfreeze">Frozen</span>}
           {note.archived && <span className="archived-status">Archived</span>}
           {isSensitive && <span className="sensitive-status">Protected</span>}
           {note.encrypted && <span className="encrypted-status">Encrypted</span>}
-          {statusLabel && <span className={`save-status ${saveStatus}`}>{statusLabel}</span>}
+          {statusLabel && !frozen && <span className={`save-status ${saveStatus}`}>{statusLabel}</span>}
         </div>
       </div>
       {showInNoteSearch && (

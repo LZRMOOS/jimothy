@@ -1073,6 +1073,13 @@ export function Settings({
                   </span>
                 </div>
                 <div className="settings-row">
+                  <label>Edit note</label>
+                  <span>
+                    <kbd className="shortcut-display">Enter</kbd>{" "}
+                    <kbd className="shortcut-display">→</kbd>
+                  </span>
+                </div>
+                <div className="settings-row">
                   <label>Next note</label>
                   <kbd className="shortcut-display">{mod}+Shift+]</kbd>
                 </div>

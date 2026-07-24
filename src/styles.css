@@ -789,6 +789,20 @@ body {
   background: var(--bg-hover);
 }
 
+.frozen-status {
+  font-size: 11px;
+  color: #3b82f6;
+  white-space: nowrap;
+  padding: 3px 8px;
+  border-radius: 4px;
+  background: rgba(59, 130, 246, 0.08);
+  cursor: pointer;
+}
+
+.frozen-status:hover {
+  background: rgba(59, 130, 246, 0.15);
+}
+
 .save-status {
   font-size: 11px;
   color: var(--text-hint);

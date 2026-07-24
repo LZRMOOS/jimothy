@@ -113,6 +113,7 @@ function ControlsReference() {
           <tr><td className="ref-key">{mod}N</td><td>New note</td></tr>
           <tr><td className="ref-key">{mod}{isMac ? "⌫" : "Bksp"}</td><td>Delete note</td></tr>
           <tr><td className="ref-key">↑ ↓</td><td>Navigate notes</td></tr>
+          <tr><td className="ref-key">Enter / →</td><td>Edit note</td></tr>
           <tr><td className="ref-key">{mod}⇧]</td><td>Next note</td></tr>
           <tr><td className="ref-key">{mod}⇧[</td><td>Previous note</td></tr>
         </tbody>

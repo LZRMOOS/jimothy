@@ -389,8 +389,8 @@ function App() {
       setAppSettings(newSettings);
       const { showTrayIcon, zoomLevel, globalShortcut } = newSettings;
       const local: LocalSettings = { notesFolder: notesFolder || undefined, showTrayIcon, zoomLevel, globalShortcut };
-      const { theme, confirmDelete, idleLockMinutes, defaultCodex, codexIcons, codexColors, pinnedNotes, protectedNotes, macros, colorsLight, colorsDark, colorPresets } = newSettings;
-      const prefs: Preferences = { theme, confirmDelete, idleLockMinutes, defaultCodex, codexIcons, codexColors, pinnedNotes, protectedNotes, macros, colorsLight, colorsDark, colorPresets };
+      const { theme, confirmDelete, idleLockMinutes, defaultCodex, codexIcons, codexColors, pinnedNotes, frozenNotes, protectedNotes, macros, colorsLight, colorsDark, colorPresets } = newSettings;
+      const prefs: Preferences = { theme, confirmDelete, idleLockMinutes, defaultCodex, codexIcons, codexColors, pinnedNotes, frozenNotes, protectedNotes, macros, colorsLight, colorsDark, colorPresets };
       await Promise.all([
         invoke("save_app_settings", { settingsJson: JSON.stringify(local) }),
         invoke("save_preferences", { prefsJson: JSON.stringify(prefs) }),
@@ -424,6 +424,17 @@ function App() {
         ? pinned.filter((p) => p !== id)
         : [...pinned, id];
       handleSettingsChange({ ...appSettings, pinnedNotes: next });
+    },
+    [appSettings, handleSettingsChange]
+  );
+
+  const handleToggleFreeze = useCallback(
+    (id: string) => {
+      const frozen = appSettings.frozenNotes || [];
+      const next = frozen.includes(id)
+        ? frozen.filter((f) => f !== id)
+        : [...frozen, id];
+      handleSettingsChange({ ...appSettings, frozenNotes: next });
     },
     [appSettings, handleSettingsChange]
   );
@@ -683,6 +694,7 @@ function App() {
   const handleTitleChange = useCallback(
     (title: string) => {
       if (!selectedNote) return;
+      if ((appSettings.frozenNotes || []).includes(selectedNote.id)) return;
       updateNoteLocally(selectedNote.id, { title });
       const body = decryptedBodies[selectedNote.id] ?? selectedNote.body;
       if (isSelectedProtected) {
@@ -692,12 +704,13 @@ function App() {
         debouncedSave(selectedNote.id, title, selectedNote.body, selectedNote.codex);
       }
     },
-    [selectedNote, debouncedSave, saveProtectedNote, isSelectedProtected, decryptedBodies, updateNoteLocally]
+    [selectedNote, debouncedSave, saveProtectedNote, isSelectedProtected, decryptedBodies, updateNoteLocally, appSettings.frozenNotes]
   );
 
   const handleBodyChange = useCallback(
     (body: string) => {
       if (!selectedNote) return;
+      if ((appSettings.frozenNotes || []).includes(selectedNote.id)) return;
       if (isSelectedProtected) {
         setDecryptedBodies((prev) => ({ ...prev, [selectedNote.id]: body }));
         saveProtectedNote(selectedNote.id, selectedNote.title, body, selectedNote.codex ?? null);
@@ -705,7 +718,7 @@ function App() {
         debouncedSave(selectedNote.id, selectedNote.title, body, selectedNote.codex);
       }
     },
-    [selectedNote, debouncedSave, saveProtectedNote, isSelectedProtected]
+    [selectedNote, debouncedSave, saveProtectedNote, isSelectedProtected, appSettings.frozenNotes]
   );
 
   const handleCodexChange = useCallback(
@@ -848,10 +861,9 @@ function App() {
           navigateNote(e.key === "ArrowDown" ? 1 : -1);
         } else if (e.key === "Enter" || e.key === "ArrowRight") {
           e.preventDefault();
-          // Directly focus the editor if we have a ref to it
-          if (editorRef.current && editorRef.current.view) {
+          const isFrozen = selectedId && (appSettings.frozenNotes || []).includes(selectedId);
+          if (!isFrozen && editorRef.current && editorRef.current.view) {
             editorRef.current.view.dom.focus();
-            // Set cursor to start
             const tr = editorRef.current.state.tr.setSelection(
               editorRef.current.state.selection.constructor.atStart(editorRef.current.state.doc)
             );
@@ -879,6 +891,11 @@ function App() {
         id: "pin-note",
         label: (appSettings.pinnedNotes || []).includes(selectedId) ? "Unpin Note" : "Pin Note",
         action: () => handleTogglePin(selectedId),
+      },
+      {
+        id: "freeze-note",
+        label: (appSettings.frozenNotes || []).includes(selectedId) ? "Unfreeze Note" : "Freeze Note",
+        action: () => handleToggleFreeze(selectedId),
       },
       {
         id: "archive-note",
@@ -924,7 +941,7 @@ function App() {
       shortcut: i < 8 ? `⌘${i + 2}` : undefined,
       action: () => { setActiveCodex(c); setViewingArchive(false); },
     })),
-  ], [handleDelete, handleLock, handleTogglePin, handleToggleArchive, handleZoom, handleSettingsChange, handleToggleSensitive, navigateNote, appSettings, selectedId, selectedNote, codexList, notes, vaultStatus, referencePanel, viewingArchive]);
+  ], [handleDelete, handleLock, handleTogglePin, handleToggleFreeze, handleToggleArchive, handleZoom, handleSettingsChange, handleToggleSensitive, navigateNote, appSettings, selectedId, selectedNote, codexList, notes, vaultStatus, referencePanel, viewingArchive]);
 
   if (!initialized) {
     return <div className="loading">Loading…</div>;
@@ -1138,7 +1155,9 @@ function App() {
                 onTogglePin={handleTogglePin}
                 onToggleSensitive={vaultStatus === "plaintext" || vaultStatus === "unlocked" ? handleToggleSensitive : undefined}
                 onToggleArchive={handleToggleArchive}
+                onToggleFreeze={handleToggleFreeze}
                 pinnedIds={appSettings.pinnedNotes || []}
+                frozenIds={appSettings.frozenNotes || []}
                 sensitiveIds={
                   vaultStatus === "plaintext"
                     ? notes.filter(n => n.encrypted).map(n => n.id)
@@ -1226,6 +1245,8 @@ function App() {
               macros={appSettings.macros}
               allNotes={notes}
               onNavigateToNote={handleSelectNote}
+              frozen={(appSettings.frozenNotes || []).includes(selectedNote.id)}
+              onToggleFreeze={() => handleToggleFreeze(selectedNote.id)}
             />
           ) : (
             <div className="editor-placeholder">
