@@ -23,6 +23,36 @@ fn set_tray_visible(app: tauri::AppHandle, visible: bool) -> Result<(), String> 
     Ok(())
 }
 
+#[tauri::command]
+fn update_global_shortcut(app: tauri::AppHandle, shortcut: String) -> Result<(), String> {
+    let gs = app.global_shortcut();
+    gs.unregister_all().map_err(|e| e.to_string())?;
+
+    let parsed: Shortcut = shortcut.parse().map_err(|e| format!("{e:?}"))?;
+    let h = app.clone();
+    gs.on_shortcut(parsed, move |_app, _shortcut, event| {
+        if event.state == ShortcutState::Pressed {
+            if let Some(window) = h.get_webview_window("main") {
+                if window.is_minimized().unwrap_or(false) {
+                    let _ = window.unminimize();
+                    let _ = window.set_focus();
+                } else if window.is_visible().unwrap_or(false) {
+                    if window.is_focused().unwrap_or(false) {
+                        let _ = window.hide();
+                    } else {
+                        let _ = window.set_focus();
+                    }
+                } else {
+                    let _ = window.show();
+                    let _ = window.set_focus();
+                }
+            }
+        }
+    }).map_err(|e| e.to_string())?;
+
+    Ok(())
+}
+
 #[cfg(target_os = "macos")]
 mod power_events;
 
@@ -137,6 +167,7 @@ pub fn run() {
             commands::disable_protection,
             commands::change_protection_password,
             set_tray_visible,
+            update_global_shortcut,
         ])
         .setup(|app| {
             let handle = app.handle().clone();
@@ -198,8 +229,18 @@ pub fn run() {
                 });
             }
 
-            // Register global shortcut
-            let shortcut_str = platform::default_shortcut();
+            // Register global shortcut (load from settings or use default)
+            let shortcut_str = {
+                let config_dir = dirs::config_dir().unwrap_or_default();
+                let settings_path = config_dir.join("scratch").join("settings.json");
+                settings_path
+                    .exists()
+                    .then(|| std::fs::read_to_string(&settings_path).ok())
+                    .flatten()
+                    .and_then(|json| serde_json::from_str::<serde_json::Value>(&json).ok())
+                    .and_then(|v| v.get("globalShortcut")?.as_str().map(String::from))
+                    .unwrap_or_else(|| platform::default_shortcut().to_string())
+            };
             if let Ok(shortcut) = shortcut_str.parse::<Shortcut>() {
                 let h = handle.clone();
                 app.global_shortcut().on_shortcut(shortcut, move |_app, _shortcut, event| {

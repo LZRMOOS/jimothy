@@ -1689,6 +1689,57 @@ body {
   color: var(--text-primary);
 }
 
+.shortcut-recorder {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.shortcut-recorder-btn {
+  padding: 4px 10px;
+  background: var(--accent-subtle);
+  border: 1px solid var(--accent);
+  border-radius: 4px;
+  font-size: 12px;
+  font-family: "JetBrains Mono", monospace;
+  color: var(--text-primary);
+  cursor: pointer;
+  text-align: center;
+  transition: border-color var(--transition), box-shadow var(--transition);
+}
+
+.shortcut-recorder-btn:hover {
+  background: var(--accent);
+  color: var(--bg-primary);
+  border-color: var(--accent);
+}
+
+.shortcut-recorder-btn.recording {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-subtle);
+  color: var(--accent);
+  animation: pulse-glow 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse-glow {
+  0%, 100% { box-shadow: 0 0 0 2px var(--accent-subtle); }
+  50% { box-shadow: 0 0 0 4px var(--accent-subtle); }
+}
+
+.shortcut-undo {
+  background: none;
+  border: none;
+  color: var(--text-hint);
+  font-size: 11px;
+  cursor: pointer;
+  text-decoration: underline;
+  transition: color var(--transition);
+}
+
+.shortcut-undo:hover {
+  color: var(--text-secondary);
+}
+
 .folder-path {
   font-size: 13px;
   color: var(--text-secondary);

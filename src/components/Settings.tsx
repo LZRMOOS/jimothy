@@ -1,7 +1,8 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { open } from "@tauri-apps/plugin-dialog";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
 import { enable, disable, isEnabled } from "@tauri-apps/plugin-autostart";
+import { invoke } from "@tauri-apps/api/core";
 import { useUpdater } from "../hooks/useUpdater";
 import { Dropdown } from "./Dropdown";
 import { PasswordInput } from "./PasswordInput";
@@ -196,6 +197,119 @@ function NoteProtectionSection({
 
 const isMac = navigator.platform.toUpperCase().includes("MAC");
 const mod = isMac ? "Cmd" : "Ctrl";
+
+function keyToTauriToken(_key: string, code: string): string | null {
+  if (code.startsWith("Key")) return code.slice(3);
+  if (code.startsWith("Digit")) return code.slice(5);
+  const map: Record<string, string> = {
+    Space: "Space", Backslash: "Backslash", Slash: "Slash",
+    BracketLeft: "BracketLeft", BracketRight: "BracketRight",
+    Semicolon: "Semicolon", Quote: "Quote", Comma: "Comma",
+    Period: "Period", Minus: "Minus", Equal: "Equal",
+    Backquote: "Backquote", Enter: "Enter", Backspace: "Backspace",
+    Tab: "Tab", Escape: "Escape", ArrowUp: "Up", ArrowDown: "Down",
+    ArrowLeft: "Left", ArrowRight: "Right",
+  };
+  if (code.startsWith("F") && !isNaN(Number(code.slice(1)))) return code;
+  return map[code] || null;
+}
+
+const keyDisplayNames: Record<string, string> = {
+  Backslash: "\\", Slash: "/", BracketLeft: "[", BracketRight: "]",
+  Semicolon: ";", Quote: "'", Comma: ",", Period: ".", Minus: "-",
+  Equal: "=", Backquote: "`", Space: "Space", Enter: "Enter",
+  Backspace: "Delete", Tab: "Tab", Escape: "Esc",
+  Up: "↑", Down: "↓", Left: "←", Right: "→",
+};
+
+function shortcutToDisplay(shortcut: string): string {
+  const parts = shortcut.split("+");
+  const displayParts = parts.map((p) => {
+    if (p === "Command") return isMac ? "Cmd" : "Cmd";
+    if (p === "CmdOrCtrl") return isMac ? "Cmd" : "Ctrl";
+    if (p === "Control") return "Ctrl";
+    if (p === "Shift") return "Shift";
+    if (p === "Alt") return isMac ? "Opt" : "Alt";
+    if (p === "Super") return isMac ? "Cmd" : "Win";
+    return keyDisplayNames[p] || p;
+  });
+  return displayParts.join(" + ");
+}
+
+function ShortcutRecorder({ value, onChange }: { value: string; onChange: (shortcut: string) => void }) {
+  const [recording, setRecording] = useState(false);
+  const [previous, setPrevious] = useState<string | null>(null);
+  const [showUndo, setShowUndo] = useState(false);
+  const undoTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleKeyDown = useCallback((e: KeyboardEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    if (e.key === "Escape") {
+      setRecording(false);
+      return;
+    }
+
+    if (["Meta", "Control", "Alt", "Shift"].includes(e.key)) return;
+
+    const keyToken = keyToTauriToken(e.key, e.code);
+    if (!keyToken) return;
+
+    const parts: string[] = [];
+    if (e.metaKey) parts.push(isMac ? "Command" : "Super");
+    if (e.ctrlKey) parts.push("Control");
+    if (e.altKey) parts.push("Alt");
+    if (e.shiftKey) parts.push("Shift");
+    parts.push(keyToken);
+
+    if (parts.length < 2) return;
+
+    const shortcutStr = parts.join("+");
+    setRecording(false);
+    setPrevious(value);
+    setShowUndo(true);
+    if (undoTimer.current) clearTimeout(undoTimer.current);
+    undoTimer.current = setTimeout(() => setShowUndo(false), 4000);
+    invoke("update_global_shortcut", { shortcut: shortcutStr }).then(() => {
+      onChange(shortcutStr);
+    }).catch(() => {
+      setPrevious(null);
+      setShowUndo(false);
+    });
+  }, [value, onChange]);
+
+  useEffect(() => {
+    if (!recording) return;
+    window.addEventListener("keydown", handleKeyDown, true);
+    return () => window.removeEventListener("keydown", handleKeyDown, true);
+  }, [recording, handleKeyDown]);
+
+  const handleUndo = async () => {
+    if (!previous) return;
+    try {
+      await invoke("update_global_shortcut", { shortcut: previous });
+      onChange(previous);
+    } catch { /* ignore */ }
+    setPrevious(null);
+    setShowUndo(false);
+    if (undoTimer.current) clearTimeout(undoTimer.current);
+  };
+
+  return (
+    <div className="shortcut-recorder">
+      <button
+        className={`shortcut-recorder-btn${recording ? " recording" : ""}`}
+        onClick={() => setRecording(true)}
+      >
+        {recording ? "Press shortcut..." : shortcutToDisplay(value)}
+      </button>
+      {showUndo && (
+        <button className="shortcut-undo" onClick={handleUndo}>Undo</button>
+      )}
+    </div>
+  );
+}
 
 
 function InfoTooltip({ text, children }: { text?: string; children?: React.ReactNode }) {
@@ -537,8 +651,12 @@ export function Settings({
                 <h3>Global</h3>
                 <div className="settings-row">
                   <label>Toggle window</label>
-                  <kbd className="shortcut-display">{mod}+Shift+Space</kbd>
+                  <ShortcutRecorder
+                    value={settings.globalShortcut || (isMac ? "Command+Shift+Space" : "Control+Shift+Space")}
+                    onChange={(shortcut) => onSettingsChange({ ...settings, globalShortcut: shortcut })}
+                  />
                 </div>
+                <p className="settings-hint">Click the shortcut to change it</p>
                 <h3>Navigation</h3>
                 <div className="settings-row">
                   <label>Search / Find</label>

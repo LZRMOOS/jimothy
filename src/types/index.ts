@@ -31,4 +31,5 @@ export type AppSettings = {
   pinnedNotes?: string[];
   protectedNotes?: string[];
   zoomLevel?: number;
+  globalShortcut?: string;
 };
