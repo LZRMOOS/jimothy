@@ -390,8 +390,8 @@ function App() {
       setAppSettings(newSettings);
       const { showTrayIcon, zoomLevel, globalShortcut } = newSettings;
       const local: LocalSettings = { notesFolder: notesFolder || undefined, showTrayIcon, zoomLevel, globalShortcut };
-      const { theme, confirmDelete, idleLockMinutes, defaultCodex, tocDefault, codexIcons, codexColors, pinnedNotes, frozenNotes, protectedNotes, macros, colorsLight, colorsDark, colorPresets } = newSettings;
-      const prefs: Preferences = { theme, confirmDelete, idleLockMinutes, defaultCodex, tocDefault, codexIcons, codexColors, pinnedNotes, frozenNotes, protectedNotes, macros, colorsLight, colorsDark, colorPresets };
+      const { theme, confirmDelete, idleLockMinutes, defaultCodex, tocDefault, codexIcons, codexColors, pinnedNotes, frozenNotes, pinnedCommands, protectedNotes, macros, colorsLight, colorsDark, colorPresets } = newSettings;
+      const prefs: Preferences = { theme, confirmDelete, idleLockMinutes, defaultCodex, tocDefault, codexIcons, codexColors, pinnedNotes, frozenNotes, pinnedCommands, protectedNotes, macros, colorsLight, colorsDark, colorPresets };
       await Promise.all([
         invoke("save_app_settings", { settingsJson: JSON.stringify(local) }),
         invoke("save_preferences", { prefsJson: JSON.stringify(prefs) }),
@@ -1016,6 +1016,12 @@ function App() {
       {showCommandPalette && (
         <CommandPalette
           commands={commands}
+          pinnedIds={appSettings.pinnedCommands || []}
+          onTogglePin={(id) => {
+            const pinned = appSettings.pinnedCommands || [];
+            const next = pinned.includes(id) ? pinned.filter((p) => p !== id) : [...pinned, id];
+            handleSettingsChange({ ...appSettings, pinnedCommands: next });
+          }}
           onClose={() => setShowCommandPalette(false)}
         />
       )}

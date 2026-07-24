@@ -55,6 +55,7 @@ export type Preferences = {
   codexColors?: Record<string, string>;
   pinnedNotes?: string[];
   frozenNotes?: string[];
+  pinnedCommands?: string[];
   protectedNotes?: string[];
   macros?: Record<string, string>;
   colorsLight?: ThemeColors;

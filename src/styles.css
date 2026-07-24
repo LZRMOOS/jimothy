@@ -2547,10 +2547,37 @@ body {
   background: var(--bg-selected);
 }
 
+.command-palette-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .command-palette-shortcut {
   font-size: 11px;
   color: var(--text-hint);
   font-family: system-ui;
+}
+
+.command-palette-pin {
+  opacity: 0;
+  color: var(--text-hint);
+  cursor: pointer;
+  transition: opacity 0.15s, color 0.15s;
+}
+
+.command-palette-item:hover .command-palette-pin,
+.command-palette-item.selected .command-palette-pin {
+  opacity: 1;
+}
+
+.command-palette-pin.pinned {
+  opacity: 1;
+  color: var(--accent);
+}
+
+.command-palette-pin:hover {
+  color: var(--accent);
 }
 
 .command-palette-empty {

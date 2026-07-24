@@ -9,23 +9,30 @@ export type Command = {
 
 type Props = {
   commands: Command[];
+  pinnedIds?: string[];
+  onTogglePin?: (id: string) => void;
   onClose: () => void;
 };
 
-export function CommandPalette({ commands, onClose }: Props) {
+export function CommandPalette({ commands, pinnedIds = [], onTogglePin, onClose }: Props) {
   const [query, setQuery] = useState("");
   const [selectedIndex, setSelectedIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
 
   const filtered = useMemo(() => {
-    if (!query.trim()) return commands;
-    const terms = query.toLowerCase().split(/\s+/);
-    return commands.filter((cmd) => {
-      const label = cmd.label.toLowerCase();
-      return terms.every((t) => label.includes(t));
-    });
-  }, [commands, query]);
+    let list = commands;
+    if (query.trim()) {
+      const terms = query.toLowerCase().split(/\s+/);
+      list = commands.filter((cmd) => {
+        const label = cmd.label.toLowerCase();
+        return terms.every((t) => label.includes(t));
+      });
+    }
+    const pinned = list.filter((cmd) => pinnedIds.includes(cmd.id));
+    const unpinned = list.filter((cmd) => !pinnedIds.includes(cmd.id));
+    return [...pinned, ...unpinned];
+  }, [commands, query, pinnedIds]);
 
   useEffect(() => {
     setSelectedIndex(0);
@@ -86,9 +93,22 @@ export function CommandPalette({ commands, onClose }: Props) {
               onMouseEnter={() => setSelectedIndex(i)}
             >
               <span className="command-palette-label">{cmd.label}</span>
-              {cmd.shortcut && (
-                <span className="command-palette-shortcut">{cmd.shortcut}</span>
-              )}
+              <span className="command-palette-actions">
+                {cmd.shortcut && (
+                  <span className="command-palette-shortcut">{cmd.shortcut}</span>
+                )}
+                {onTogglePin && (
+                  <span
+                    className={`command-palette-pin${pinnedIds.includes(cmd.id) ? " pinned" : ""}`}
+                    onClick={(e) => { e.stopPropagation(); onTogglePin(cmd.id); }}
+                    title={pinnedIds.includes(cmd.id) ? "Unpin" : "Pin to top"}
+                  >
+                    <svg width="10" height="10" viewBox="0 0 24 24" fill={pinnedIds.includes(cmd.id) ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
+                    </svg>
+                  </span>
+                )}
+              </span>
             </button>
           ))}
           {filtered.length === 0 && (
