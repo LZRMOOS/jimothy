@@ -553,6 +553,12 @@ export function Editor({ note, saveStatus, onTitleChange, onBodyChange, onCodexC
   const wordCount = useMemo(() => note.body.trim() ? note.body.trim().split(/\s+/).length : 0, [note.body]);
   const charCount = useMemo(() => note.body.replace(/\s/g, "").length, [note.body]);
 
+  const createdDate = new Date(note.created_at);
+  const createdStr = createdDate.toLocaleString(undefined, {
+    month: "short",
+    day: "numeric",
+    year: createdDate.getFullYear() !== new Date().getFullYear() ? "numeric" : undefined,
+  });
   const modifiedDate = new Date(note.updated_at);
   const modifiedStr = modifiedDate.toLocaleString(undefined, {
     month: "short",
@@ -593,6 +599,7 @@ export function Editor({ note, saveStatus, onTitleChange, onBodyChange, onCodexC
               {highlightMatches(localTitle, searchQuery)}
             </div>
           )}
+          <span className="editor-created">Created {createdStr}</span>
         </div>
         <div className="editor-status">
           {note.archived && <span className="archived-status">Archived</span>}
