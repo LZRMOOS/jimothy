@@ -1,6 +1,6 @@
 [package]
 name = "jimothy"
-version = "0.3.0"
+version = "0.4.0"
 description = "A fast, keyboard-first cross-platform notes app"
 authors = ["Wei D"]
 edition = "2021"
