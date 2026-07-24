@@ -51,7 +51,7 @@ export function FolderSetup({ onFolderSelected }: Props) {
   return (
     <div className="folder-setup">
       <div className="folder-setup-content">
-        <h1>Scratch</h1>
+        <h1>Jimothy</h1>
         <p>Choose where to store your notes.</p>
         <p className="hint">
           Pick a folder inside Dropbox to sync across devices.

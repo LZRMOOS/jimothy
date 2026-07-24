@@ -51,7 +51,7 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           tagName: v__VERSION__
-          releaseName: "Scratch v__VERSION__"
+          releaseName: "Jimothy v__VERSION__"
           releaseBody: "See the assets for download links."
           releaseDraft: true
           prerelease: false

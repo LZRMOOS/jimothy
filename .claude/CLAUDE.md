@@ -1,4 +1,4 @@
-# Scratch - Desktop Notes App
+# Jimothy - Desktop Notes App
 
 A fast, keyboard-first desktop notes app built with Tauri 2, React, TypeScript, and Rust.
 
@@ -178,7 +178,7 @@ All commands defined in `src-tauri/src/commands/mod.rs`:
 ### Settings
 - `get_app_settings()` - Load settings.json from config dir
 - `save_app_settings(settings_json)` - Save settings to config dir
-- `get_default_notes_path()` - Get default notes path (Dropbox or ~/Scratch)
+- `get_default_notes_path()` - Get default notes path (Dropbox or ~/Jimothy)
 
 ### System
 - `set_tray_visible(visible)` - Show/hide system tray icon
@@ -186,8 +186,8 @@ All commands defined in `src-tauri/src/commands/mod.rs`:
 ## Configuration Files
 
 ### Settings Location
-- **macOS**: `~/Library/Application Support/scratch/settings.json`
-- **Windows**: `%APPDATA%/scratch/settings.json`
+- **macOS**: `~/Library/Application Support/jimothy/settings.json`
+- **Windows**: `%APPDATA%/jimothy/settings.json`
 
 ### Notes Folder Structure
 ```
@@ -227,7 +227,7 @@ All commands defined in `src-tauri/src/commands/mod.rs`:
 - Commits should not be co-authored with Claude
 
 ### One-time Setup
-1. Generate Tauri updater signing keypair: `npx tauri signer generate -w ~/.tauri/scratch.key`
+1. Generate Tauri updater signing keypair: `npx tauri signer generate -w ~/.tauri/jimothy.key`
 2. Update `src-tauri/tauri.conf.json` with public key and GitHub repo URL
 3. Add GitHub secrets: `TAURI_SIGNING_PRIVATE_KEY`, `TAURI_SIGNING_PRIVATE_KEY_PASSWORD`, Apple certificates
 

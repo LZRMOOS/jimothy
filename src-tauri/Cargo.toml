@@ -1,12 +1,12 @@
 [package]
-name = "scratch"
+name = "jimothy"
 version = "0.2.0"
 description = "A fast, keyboard-first cross-platform notes app"
 authors = ["you"]
 edition = "2021"
 
 [lib]
-name = "scratch_lib"
+name = "jimothy_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]

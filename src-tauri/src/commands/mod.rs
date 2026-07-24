@@ -351,16 +351,16 @@ pub fn get_default_notes_path() -> String {
         if dropbox_legacy.exists() {
             return dropbox_legacy.to_string_lossy().to_string();
         }
-        home.join("Scratch").to_string_lossy().to_string()
+        home.join("Jimothy").to_string_lossy().to_string()
     } else {
-        "Scratch".to_string()
+        "Jimothy".to_string()
     }
 }
 
 #[tauri::command]
 pub fn get_app_settings() -> Result<String, String> {
     let config_dir = dirs::config_dir().ok_or("Cannot find config directory")?;
-    let settings_path = config_dir.join("scratch").join("settings.json");
+    let settings_path = config_dir.join("jimothy").join("settings.json");
     if settings_path.exists() {
         std::fs::read_to_string(&settings_path)
             .map_err(|e| format!("Failed to read settings: {}", e))
@@ -372,7 +372,7 @@ pub fn get_app_settings() -> Result<String, String> {
 #[tauri::command]
 pub fn save_app_settings(settings_json: String) -> Result<(), String> {
     let config_dir = dirs::config_dir().ok_or("Cannot find config directory")?;
-    let settings_dir = config_dir.join("scratch");
+    let settings_dir = config_dir.join("jimothy");
     std::fs::create_dir_all(&settings_dir)
         .map_err(|e| format!("Failed to create settings dir: {}", e))?;
     let settings_path = settings_dir.join("settings.json");

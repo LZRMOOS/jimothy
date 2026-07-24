@@ -72,10 +72,10 @@ pub fn run() {
         .menu(|app| {
             let app_menu = Submenu::with_items(
                 app,
-                "Scratch",
+                "Jimothy",
                 true,
                 &[
-                    &MenuItem::with_id(app, "about", "About Scratch", true, None::<&str>)?,
+                    &MenuItem::with_id(app, "about", "About Jimothy", true, None::<&str>)?,
                     &tauri::menu::PredefinedMenuItem::separator(app)?,
                     &MenuItem::with_id(app, "menu_settings", "Settings...", true, Some("CmdOrCtrl+,"))?,
                     &tauri::menu::PredefinedMenuItem::separator(app)?,
@@ -173,7 +173,7 @@ pub fn run() {
             let handle = app.handle().clone();
 
             // System tray
-            let quit = MenuItem::with_id(app, "quit", "Quit Scratch", true, None::<&str>)?;
+            let quit = MenuItem::with_id(app, "quit", "Quit Jimothy", true, None::<&str>)?;
             let show = MenuItem::with_id(app, "show", "Open Notes", true, None::<&str>)?;
             let new_note =
                 MenuItem::with_id(app, "new_note", "New Note", true, None::<&str>)?;
@@ -186,7 +186,7 @@ pub fn run() {
             TrayIconBuilder::with_id("main-tray")
                 .icon(tray_icon)
                 .menu(&menu)
-                .tooltip("Scratch")
+                .tooltip("Jimothy")
                 .on_menu_event(move |app, event| match event.id.as_ref() {
                     "quit" => {
                         app.exit(0);
@@ -232,7 +232,7 @@ pub fn run() {
             // Register global shortcut (load from settings or use default)
             let shortcut_str = {
                 let config_dir = dirs::config_dir().unwrap_or_default();
-                let settings_path = config_dir.join("scratch").join("settings.json");
+                let settings_path = config_dir.join("jimothy").join("settings.json");
                 settings_path
                     .exists()
                     .then(|| std::fs::read_to_string(&settings_path).ok())

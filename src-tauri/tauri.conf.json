@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "Scratch",
+  "productName": "Jimothy",
   "version": "0.2.0",
-  "identifier": "com.scratch.app",
+  "identifier": "com.jimothy.app",
   "build": {
     "beforeDevCommand": "npm run dev",
     "devUrl": "http://localhost:1420",
@@ -12,7 +12,7 @@
   "app": {
     "windows": [
       {
-        "title": "Scratch",
+        "title": "Jimothy",
         "width": 900,
         "height": 620,
         "minWidth": 650,
@@ -57,7 +57,7 @@
   "plugins": {
     "updater": {
       "endpoints": [
-        "https://github.com/LZRMOOS/scratch/releases/latest/download/latest.json"
+        "https://github.com/LZRMOOS/jimothy/releases/latest/download/latest.json"
       ],
       "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDY1OTNFOTY0MUYzRUNBOTYKUldTV3lqNGZaT21UWlVYWGN4eG13L2Q3U0dJMlJoYmJUeUQ5aVB1NkpDV1MwVm0xMW5ETVZEbC8K"
     }
