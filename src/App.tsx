@@ -36,6 +36,7 @@ function App() {
     initFolder,
     checkExistingFolder,
     createNote,
+    saveNote,
     debouncedSave,
     deleteNote,
     search,
@@ -437,6 +438,16 @@ function App() {
       handleSettingsChange({ ...appSettings, frozenNotes: next });
     },
     [appSettings, handleSettingsChange]
+  );
+
+  const handleDuplicate = useCallback(
+    async (id: string) => {
+      const note = notes.find((n) => n.id === id);
+      if (!note) return;
+      const newNote = await createNote(`${note.title} (copy)`, note.codex);
+      await saveNote(newNote.id, newNote.title, note.body, note.codex);
+    },
+    [notes, createNote, saveNote]
   );
 
   const handleToggleArchive = useCallback(
@@ -913,6 +924,11 @@ function App() {
           navigator.clipboard.writeText(md);
         },
       },
+      {
+        id: "duplicate-note",
+        label: "Duplicate Note",
+        action: () => handleDuplicate(selectedId),
+      },
     ] : []),
     { id: "settings", label: "Open Settings", shortcut: "⌘,", action: () => setShowSettings(true) },
     { id: "markdown-ref", label: referencePanel === "markdown" ? "Hide Markdown Reference" : "Markdown Reference", shortcut: "⌘.", action: () => setReferencePanel((s) => s === "markdown" ? null : "markdown") },
@@ -1159,6 +1175,7 @@ function App() {
                 onToggleSensitive={vaultStatus === "plaintext" || vaultStatus === "unlocked" ? handleToggleSensitive : undefined}
                 onToggleArchive={handleToggleArchive}
                 onToggleFreeze={handleToggleFreeze}
+                onDuplicate={handleDuplicate}
                 pinnedIds={appSettings.pinnedNotes || []}
                 frozenIds={appSettings.frozenNotes || []}
                 sensitiveIds={

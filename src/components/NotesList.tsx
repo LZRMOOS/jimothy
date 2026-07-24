@@ -11,6 +11,7 @@ type Props = {
   onToggleSensitive?: (id: string) => void;
   onToggleArchive?: (id: string) => void;
   onToggleFreeze?: (id: string) => void;
+  onDuplicate?: (id: string) => void;
   pinnedIds: string[];
   sensitiveIds: string[];
   frozenIds?: string[];
@@ -47,7 +48,7 @@ type ContextMenuState = {
 } | null;
 
 
-export function NotesList({ notes, selectedId, onSelect, onDelete, onTogglePin, onToggleSensitive, onToggleArchive, onToggleFreeze, pinnedIds, sensitiveIds, frozenIds = [], searchQuery = "", codexColors }: Props) {
+export function NotesList({ notes, selectedId, onSelect, onDelete, onTogglePin, onToggleSensitive, onToggleArchive, onToggleFreeze, onDuplicate, pinnedIds, sensitiveIds, frozenIds = [], searchQuery = "", codexColors }: Props) {
   const [contextMenu, setContextMenu] = useState<ContextMenuState>(null);
 
   const handleContextMenu = (e: React.MouseEvent, noteId: string) => {
@@ -167,6 +168,17 @@ export function NotesList({ notes, selectedId, onSelect, onDelete, onTogglePin, 
               }}
             >
               {frozenIds.includes(contextMenu.noteId) ? "Unfreeze Note" : "Freeze Note"}
+            </button>
+          )}
+          {onDuplicate && (
+            <button
+              className="context-menu-item"
+              onClick={() => {
+                onDuplicate(contextMenu.noteId);
+                closeContextMenu();
+              }}
+            >
+              Duplicate Note
             </button>
           )}
           <button
