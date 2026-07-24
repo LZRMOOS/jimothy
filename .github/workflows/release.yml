@@ -31,10 +31,7 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: 20
-
-      - name: Clean npm config
-        run: npm config delete //registry.npmjs.org/:_authToken 2>/dev/null || true
-        shell: bash
+          cache: npm
 
       - uses: dtolnay/rust-toolchain@stable
         with:
