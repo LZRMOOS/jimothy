@@ -24,6 +24,19 @@
         "hiddenTitle": true,
         "resizable": true,
         "zoomHotkeysEnabled": false
+      },
+      {
+        "label": "scratchpad",
+        "title": "Scratchpad",
+        "url": "scratchpad.html",
+        "width": 380,
+        "height": 420,
+        "center": true,
+        "visible": false,
+        "decorations": false,
+        "resizable": true,
+        "alwaysOnTop": true,
+        "skipTaskbar": true
       }
     ],
     "security": {

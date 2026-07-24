@@ -25,6 +25,34 @@ fn set_tray_visible(app: tauri::AppHandle, visible: bool) -> Result<(), String> 
     Ok(())
 }
 
+fn toggle_window(app: &tauri::AppHandle, label: &str) {
+    if let Some(window) = app.get_webview_window(label) {
+        if window.is_minimized().unwrap_or(false) {
+            let _ = window.unminimize();
+            let _ = window.set_focus();
+        } else if window.is_visible().unwrap_or(false) {
+            if window.is_focused().unwrap_or(false) {
+                let _ = window.hide();
+            } else {
+                let _ = window.set_focus();
+            }
+        } else {
+            let _ = window.show();
+            let _ = window.set_focus();
+        }
+    }
+}
+
+fn toggle_scratchpad(app: &tauri::AppHandle) {
+    toggle_window(app, "scratchpad");
+}
+
+#[tauri::command]
+fn open_scratchpad(app: tauri::AppHandle) -> Result<(), String> {
+    toggle_scratchpad(&app);
+    Ok(())
+}
+
 #[tauri::command]
 fn update_global_shortcut(app: tauri::AppHandle, shortcut: String) -> Result<(), String> {
     let gs = app.global_shortcut();
@@ -34,21 +62,67 @@ fn update_global_shortcut(app: tauri::AppHandle, shortcut: String) -> Result<(),
     let h = app.clone();
     gs.on_shortcut(parsed, move |_app, _shortcut, event| {
         if event.state == ShortcutState::Pressed {
-            if let Some(window) = h.get_webview_window("main") {
-                if window.is_minimized().unwrap_or(false) {
-                    let _ = window.unminimize();
-                    let _ = window.set_focus();
-                } else if window.is_visible().unwrap_or(false) {
-                    if window.is_focused().unwrap_or(false) {
-                        let _ = window.hide();
-                    } else {
-                        let _ = window.set_focus();
-                    }
-                } else {
-                    let _ = window.show();
-                    let _ = window.set_focus();
-                }
+            toggle_window(&h, "main");
+        }
+    }).map_err(|e| e.to_string())?;
+
+    // Re-register capture shortcut
+    let capture_str = {
+        let config_dir = dirs::config_dir().unwrap_or_default();
+        let settings_path = config_dir.join("jimothy").join("settings.json");
+        settings_path
+            .exists()
+            .then(|| std::fs::read_to_string(&settings_path).ok())
+            .flatten()
+            .and_then(|json| serde_json::from_str::<serde_json::Value>(&json).ok())
+            .and_then(|v| v.get("captureShortcut")?.as_str().map(String::from))
+            .unwrap_or_else(|| platform::default_capture_shortcut().to_string())
+    };
+    if let Ok(capture_shortcut) = capture_str.parse::<Shortcut>() {
+        let h2 = app.clone();
+        let _ = gs.on_shortcut(capture_shortcut, move |_app, _shortcut, event| {
+            if event.state == ShortcutState::Pressed {
+                toggle_scratchpad(&h2);
             }
+        });
+    }
+
+    Ok(())
+}
+
+#[tauri::command]
+fn update_capture_shortcut(app: tauri::AppHandle, shortcut: String) -> Result<(), String> {
+    let gs = app.global_shortcut();
+    // We need to unregister all and re-register both shortcuts
+    gs.unregister_all().map_err(|e| e.to_string())?;
+
+    // Re-register main shortcut
+    let main_str = {
+        let config_dir = dirs::config_dir().unwrap_or_default();
+        let settings_path = config_dir.join("jimothy").join("settings.json");
+        settings_path
+            .exists()
+            .then(|| std::fs::read_to_string(&settings_path).ok())
+            .flatten()
+            .and_then(|json| serde_json::from_str::<serde_json::Value>(&json).ok())
+            .and_then(|v| v.get("globalShortcut")?.as_str().map(String::from))
+            .unwrap_or_else(|| platform::default_shortcut().to_string())
+    };
+    if let Ok(main_shortcut) = main_str.parse::<Shortcut>() {
+        let h = app.clone();
+        let _ = gs.on_shortcut(main_shortcut, move |_app, _shortcut, event| {
+            if event.state == ShortcutState::Pressed {
+                toggle_window(&h, "main");
+            }
+        });
+    }
+
+    // Register capture shortcut
+    let parsed: Shortcut = shortcut.parse().map_err(|e| format!("{e:?}"))?;
+    let h2 = app.clone();
+    gs.on_shortcut(parsed, move |_app, _shortcut, event| {
+        if event.state == ShortcutState::Pressed {
+            toggle_scratchpad(&h2);
         }
     }).map_err(|e| e.to_string())?;
 
@@ -111,6 +185,8 @@ pub fn run() {
                     &[
                         &MenuItem::with_id(app, "menu_new_note", "New Note", true, Some("CmdOrCtrl+N"))?,
                         &MenuItem::with_id(app, "menu_lock", "Lock Vault", true, None::<&str>)?,
+                        &tauri::menu::PredefinedMenuItem::separator(app)?,
+                        &tauri::menu::PredefinedMenuItem::close_window(app, None)?,
                     ],
                 )?;
                 return Menu::with_items(app, &[&app_menu, &file_menu, &edit_menu]);
@@ -178,8 +254,13 @@ pub fn run() {
             commands::save_protected_note,
             commands::disable_protection,
             commands::change_protection_password,
+            commands::get_scratchpad_entries,
+            commands::append_scratchpad_entry,
+            commands::delete_scratchpad_entry,
             set_tray_visible,
+            open_scratchpad,
             update_global_shortcut,
+            update_capture_shortcut,
         ])
         .setup(|app| {
             let handle = app.handle().clone();
@@ -189,10 +270,12 @@ pub fn run() {
             let show = MenuItem::with_id(app, "show", "Open Notes", true, None::<&str>)?;
             let new_note =
                 MenuItem::with_id(app, "new_note", "New Note", true, None::<&str>)?;
+            let scratchpad =
+                MenuItem::with_id(app, "scratchpad", "Scratchpad", true, None::<&str>)?;
             let lock = MenuItem::with_id(app, "lock", "Lock Vault", true, None::<&str>)?;
             let settings =
                 MenuItem::with_id(app, "settings", "Settings", true, None::<&str>)?;
-            let menu = Menu::with_items(app, &[&show, &new_note, &lock, &settings, &quit])?;
+            let menu = Menu::with_items(app, &[&show, &new_note, &scratchpad, &lock, &settings, &quit])?;
 
             let tray_icon = Image::from_bytes(include_bytes!("../icons/tray-icon.png")).unwrap();
             TrayIconBuilder::with_id("main-tray")
@@ -215,6 +298,9 @@ pub fn run() {
                             let _ = window.set_focus();
                             let _ = window.emit("create-new-note", ());
                         }
+                    }
+                    "scratchpad" => {
+                        toggle_scratchpad(app);
                     }
                     "lock" => {
                         if let Some(window) = app.get_webview_window("main") {
@@ -241,37 +327,38 @@ pub fn run() {
                 });
             }
 
-            // Register global shortcut (load from settings or use default)
-            let shortcut_str = {
+            // Register global shortcuts (load from settings or use defaults)
+            let (shortcut_str, capture_str) = {
                 let config_dir = dirs::config_dir().unwrap_or_default();
                 let settings_path = config_dir.join("jimothy").join("settings.json");
-                settings_path
+                let json_val = settings_path
                     .exists()
                     .then(|| std::fs::read_to_string(&settings_path).ok())
                     .flatten()
-                    .and_then(|json| serde_json::from_str::<serde_json::Value>(&json).ok())
+                    .and_then(|json| serde_json::from_str::<serde_json::Value>(&json).ok());
+                let main = json_val
+                    .as_ref()
                     .and_then(|v| v.get("globalShortcut")?.as_str().map(String::from))
-                    .unwrap_or_else(|| platform::default_shortcut().to_string())
+                    .unwrap_or_else(|| platform::default_shortcut().to_string());
+                let capture = json_val
+                    .as_ref()
+                    .and_then(|v| v.get("captureShortcut")?.as_str().map(String::from))
+                    .unwrap_or_else(|| platform::default_capture_shortcut().to_string());
+                (main, capture)
             };
             if let Ok(shortcut) = shortcut_str.parse::<Shortcut>() {
                 let h = handle.clone();
                 app.global_shortcut().on_shortcut(shortcut, move |_app, _shortcut, event| {
                     if event.state == ShortcutState::Pressed {
-                        if let Some(window) = h.get_webview_window("main") {
-                            if window.is_minimized().unwrap_or(false) {
-                                let _ = window.unminimize();
-                                let _ = window.set_focus();
-                            } else if window.is_visible().unwrap_or(false) {
-                                if window.is_focused().unwrap_or(false) {
-                                    let _ = window.hide();
-                                } else {
-                                    let _ = window.set_focus();
-                                }
-                            } else {
-                                let _ = window.show();
-                                let _ = window.set_focus();
-                            }
-                        }
+                        toggle_window(&h, "main");
+                    }
+                })?;
+            }
+            if let Ok(capture_shortcut) = capture_str.parse::<Shortcut>() {
+                let h = handle.clone();
+                app.global_shortcut().on_shortcut(capture_shortcut, move |_app, _shortcut, event| {
+                    if event.state == ShortcutState::Pressed {
+                        toggle_scratchpad(&h);
                     }
                 })?;
             }

@@ -156,6 +156,9 @@ function ControlsReference() {
       <h4>App</h4>
       <table className="ref-table">
         <tbody>
+          <tr><td className="ref-key">{mod}⇧Space</td><td>Toggle window</td></tr>
+          <tr><td className="ref-key">{mod}⌥Space</td><td>Scratchpad</td></tr>
+          <tr><td className="ref-key">{mod}W</td><td>Hide window</td></tr>
           <tr><td className="ref-key">{mod},</td><td>Settings</td></tr>
           <tr><td className="ref-key">{mod}.</td><td>Markdown reference</td></tr>
           <tr><td className="ref-key">{mod};</td><td>Controls reference</td></tr>

@@ -236,7 +236,12 @@ function shortcutToDisplay(shortcut: string): string {
   return displayParts.join(" + ");
 }
 
-function ShortcutRecorder({ value, onChange }: { value: string; onChange: (shortcut: string) => void }) {
+function ShortcutRecorder({ value, onChange, command = "update_global_shortcut", placeholder }: {
+  value: string;
+  onChange: (shortcut: string) => void;
+  command?: string;
+  placeholder?: string;
+}) {
   const [recording, setRecording] = useState(false);
   const [previous, setPrevious] = useState<string | null>(null);
   const [showUndo, setShowUndo] = useState(false);
@@ -271,13 +276,13 @@ function ShortcutRecorder({ value, onChange }: { value: string; onChange: (short
     setShowUndo(true);
     if (undoTimer.current) clearTimeout(undoTimer.current);
     undoTimer.current = setTimeout(() => setShowUndo(false), 4000);
-    invoke("update_global_shortcut", { shortcut: shortcutStr }).then(() => {
+    invoke(command, { shortcut: shortcutStr }).then(() => {
       onChange(shortcutStr);
     }).catch(() => {
       setPrevious(null);
       setShowUndo(false);
     });
-  }, [value, onChange]);
+  }, [value, onChange, command]);
 
   useEffect(() => {
     if (!recording) return;
@@ -288,7 +293,7 @@ function ShortcutRecorder({ value, onChange }: { value: string; onChange: (short
   const handleUndo = async () => {
     if (!previous) return;
     try {
-      await invoke("update_global_shortcut", { shortcut: previous });
+      await invoke(command, { shortcut: previous });
       onChange(previous);
     } catch { /* ignore */ }
     setPrevious(null);
@@ -296,13 +301,15 @@ function ShortcutRecorder({ value, onChange }: { value: string; onChange: (short
     if (undoTimer.current) clearTimeout(undoTimer.current);
   };
 
+  const displayText = value ? shortcutToDisplay(value) : (placeholder || "");
+
   return (
     <div className="shortcut-recorder">
       <button
-        className={`shortcut-recorder-btn${recording ? " recording" : ""}`}
+        className={`shortcut-recorder-btn${recording ? " recording" : ""}${!value && placeholder ? " placeholder" : ""}`}
         onClick={() => setRecording(true)}
       >
-        {recording ? "Press shortcut..." : shortcutToDisplay(value)}
+        {recording ? "Press shortcut..." : displayText}
       </button>
       {showUndo && (
         <button className="shortcut-undo" onClick={handleUndo}>Undo</button>
@@ -1313,7 +1320,15 @@ export function Settings({
                     onChange={(shortcut) => onSettingsChange({ ...settings, globalShortcut: shortcut })}
                   />
                 </div>
-                <p className="settings-hint">Click the shortcut to change it</p>
+                <div className="settings-row">
+                  <label>Scratchpad</label>
+                  <ShortcutRecorder
+                    value={settings.captureShortcut || (isMac ? "Command+Alt+Space" : "Control+Alt+Space")}
+                    onChange={(shortcut) => onSettingsChange({ ...settings, captureShortcut: shortcut })}
+                    command="update_capture_shortcut"
+                  />
+                </div>
+                <p className="settings-hint">Click a shortcut to change it. Scratchpad opens a floating notepad from any app.</p>
                 <h3>Search</h3>
                 <div className="settings-row">
                   <label>Find in note</label>
@@ -1418,6 +1433,17 @@ export function Settings({
                 </div>
                 <h3>App</h3>
                 <div className="settings-row">
+                  <label>Scratchpad</label>
+                  <kbd className="shortcut-display">{mod}+{isMac ? "⌥" : "Alt"}+Space</kbd>
+                </div>
+                <div className="settings-row">
+                  <label>Hide window</label>
+                  <span>
+                    <kbd className="shortcut-display">{mod}+W</kbd>{" "}
+                    <kbd className="shortcut-display">Escape</kbd>
+                  </span>
+                </div>
+                <div className="settings-row">
                   <label>Open settings</label>
                   <kbd className="shortcut-display">{mod}+,</kbd>
                 </div>
@@ -1428,10 +1454,6 @@ export function Settings({
                 <div className="settings-row">
                   <label>Controls reference</label>
                   <kbd className="shortcut-display">{mod}+;</kbd>
-                </div>
-                <div className="settings-row">
-                  <label>Hide window</label>
-                  <kbd className="shortcut-display">Escape</kbd>
                 </div>
               </div>
             )}

@@ -43,6 +43,7 @@ export type LocalSettings = {
   showTrayIcon?: boolean;
   zoomLevel?: number;
   globalShortcut?: string;
+  captureShortcut?: string;
 };
 
 export type Preferences = {

@@ -897,3 +897,67 @@ pub fn change_protection_password(
 
     Ok(())
 }
+
+// --- Scratchpad ---
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ScratchpadEntry {
+    pub id: String,
+    pub text: String,
+    pub timestamp: String,
+}
+
+fn scratchpad_path(folder: &Path) -> PathBuf {
+    folder.join(".scratch").join("scratchpad.json")
+}
+
+fn load_scratchpad(folder: &Path) -> Vec<ScratchpadEntry> {
+    let path = scratchpad_path(folder);
+    fs::read_to_string(path)
+        .ok()
+        .and_then(|s| serde_json::from_str(&s).ok())
+        .unwrap_or_default()
+}
+
+fn save_scratchpad(folder: &Path, entries: &[ScratchpadEntry]) -> Result<(), String> {
+    let scratch_dir = folder.join(".scratch");
+    fs::create_dir_all(&scratch_dir)
+        .map_err(|e| format!("Failed to create .scratch dir: {}", e))?;
+    let json = serde_json::to_string_pretty(entries)
+        .map_err(|e| format!("Failed to serialize scratchpad: {}", e))?;
+    let dest = scratchpad_path(folder);
+    let temp = scratch_dir.join(".tmp-scratchpad.json");
+    fs::write(&temp, &json).map_err(|e| format!("Failed to write scratchpad: {}", e))?;
+    fs::rename(&temp, &dest).map_err(|e| {
+        let _ = fs::remove_file(&temp);
+        format!("Failed to rename scratchpad: {}", e)
+    })?;
+    Ok(())
+}
+
+#[tauri::command]
+pub fn get_scratchpad_entries(state: State<'_, AppState>) -> Result<Vec<ScratchpadEntry>, String> {
+    let folder = state.folder()?;
+    Ok(load_scratchpad(&folder))
+}
+
+#[tauri::command]
+pub fn append_scratchpad_entry(text: String, state: State<'_, AppState>) -> Result<(), String> {
+    let folder = state.folder()?;
+    let mut entries = load_scratchpad(&folder);
+    let entry = ScratchpadEntry {
+        id: ulid::Ulid::new().to_string(),
+        text,
+        timestamp: Utc::now().to_rfc3339(),
+    };
+    entries.insert(0, entry);
+    save_scratchpad(&folder, &entries)
+}
+
+#[tauri::command]
+pub fn delete_scratchpad_entry(id: String, state: State<'_, AppState>) -> Result<(), String> {
+    let folder = state.folder()?;
+    let mut entries = load_scratchpad(&folder);
+    entries.retain(|e| e.id != id);
+    save_scratchpad(&folder, &entries)
+}

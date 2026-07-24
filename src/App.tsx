@@ -1145,6 +1145,7 @@ function App() {
     { id: "settings", label: "Open Settings", shortcut: `${mod},`, action: () => setShowSettings(true) },
     { id: "markdown-ref", label: referencePanel === "markdown" ? "Hide Markdown Reference" : "Markdown Reference", shortcut: `${mod}.`, action: () => setReferencePanel((s) => s === "markdown" ? null : "markdown") },
     { id: "controls-ref", label: referencePanel === "controls" ? "Hide Controls Reference" : "Controls Reference", shortcut: `${mod};`, action: () => setReferencePanel((s) => s === "controls" ? null : "controls") },
+    { id: "scratchpad", label: "Open Scratchpad", action: () => invoke("open_scratchpad") },
     { id: "lock-vault", label: "Lock Vault", action: handleLock },
     { id: "toggle-sidebar", label: "Toggle Sidebar", shortcut: `${mod}/`, action: () => setSidebarCollapsed((s) => !s) },
     { id: "next-note", label: "Next Note", shortcut: `${mod}${shift}]`, action: () => navigateNote(1) },
