@@ -51,6 +51,7 @@ export type Preferences = {
   idleLockMinutes?: number;
   defaultCodex?: string | null;
   codexIcons?: Record<string, string>;
+  codexColors?: Record<string, string>;
   pinnedNotes?: string[];
   protectedNotes?: string[];
   macros?: Record<string, string>;

@@ -13,6 +13,7 @@ type Props = {
   pinnedIds: string[];
   sensitiveIds: string[];
   searchQuery?: string;
+  codexColors?: Record<string, string>;
 };
 
 function formatDate(dateStr: string): string {
@@ -44,7 +45,7 @@ type ContextMenuState = {
 } | null;
 
 
-export function NotesList({ notes, selectedId, onSelect, onDelete, onTogglePin, onToggleSensitive, onToggleArchive, pinnedIds, sensitiveIds, searchQuery = "" }: Props) {
+export function NotesList({ notes, selectedId, onSelect, onDelete, onTogglePin, onToggleSensitive, onToggleArchive, pinnedIds, sensitiveIds, searchQuery = "", codexColors }: Props) {
   const [contextMenu, setContextMenu] = useState<ContextMenuState>(null);
 
   const handleContextMenu = (e: React.MouseEvent, noteId: string) => {
@@ -121,7 +122,10 @@ export function NotesList({ notes, selectedId, onSelect, onDelete, onTogglePin, 
           <div className="note-item-footer">
             <div className="note-item-date">{formatDate(note.updated_at)}</div>
             {note.codex && (
-              <div className="note-codex-pill">{note.codex}</div>
+              <div
+                className="note-codex-pill"
+                style={codexColors?.[note.codex] ? { background: codexColors[note.codex] + "20", color: codexColors[note.codex] } : undefined}
+              >{note.codex}</div>
             )}
           </div>
         </div>

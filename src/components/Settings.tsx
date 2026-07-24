@@ -1038,6 +1038,14 @@ export function Settings({
                   <kbd className="shortcut-display">{mod}+F</kbd>
                 </div>
                 <div className="settings-row">
+                  <label>Next match</label>
+                  <kbd className="shortcut-display">{mod}+]</kbd>
+                </div>
+                <div className="settings-row">
+                  <label>Previous match</label>
+                  <kbd className="shortcut-display">{mod}+[</kbd>
+                </div>
+                <div className="settings-row">
                   <label>Search notes</label>
                   <span>
                     <kbd className="shortcut-display">{mod}+Shift+F</kbd>{" "}
@@ -1160,6 +1168,38 @@ export function Settings({
                 </div>
                 <h3>Colors</h3>
                 <ColorSettings settings={settings} onSettingsChange={onSettingsChange} />
+                {codexList.length > 0 && (
+                  <>
+                    <h3>Codex Colors</h3>
+                    {codexList.map((codex) => (
+                      <div className="settings-row" key={codex}>
+                        <label>{codex}</label>
+                        <div className="codex-color-picker">
+                          <input
+                            type="color"
+                            value={settings.codexColors?.[codex] || "#808080"}
+                            onChange={(e) => {
+                              const newColors = { ...settings.codexColors, [codex]: e.target.value };
+                              onSettingsChange({ ...settings, codexColors: newColors });
+                            }}
+                          />
+                          {settings.codexColors?.[codex] && (
+                            <button
+                              className="codex-color-reset"
+                              onClick={() => {
+                                const newColors = { ...settings.codexColors };
+                                delete newColors[codex];
+                                onSettingsChange({ ...settings, codexColors: newColors });
+                              }}
+                            >
+                              ×
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </>
+                )}
               </div>
             )}
 
@@ -1182,7 +1222,7 @@ export function Settings({
                   >
                     Open Folder
                   </button>
-                  <button className="btn secondary" onClick={onReloadNotes}>
+                  <button className="btn secondary" onClick={onReloadNotes} title="Re-reads all notes from disk and rebuilds the search index. Use if notes appear missing or search results seem stale.">
                     Rebuild Index
                   </button>
                 </div>

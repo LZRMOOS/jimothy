@@ -389,8 +389,8 @@ function App() {
       setAppSettings(newSettings);
       const { showTrayIcon, zoomLevel, globalShortcut } = newSettings;
       const local: LocalSettings = { notesFolder: notesFolder || undefined, showTrayIcon, zoomLevel, globalShortcut };
-      const { theme, confirmDelete, idleLockMinutes, defaultCodex, codexIcons, pinnedNotes, protectedNotes, macros, colorsLight, colorsDark, colorPresets } = newSettings;
-      const prefs: Preferences = { theme, confirmDelete, idleLockMinutes, defaultCodex, codexIcons, pinnedNotes, protectedNotes, macros, colorsLight, colorsDark, colorPresets };
+      const { theme, confirmDelete, idleLockMinutes, defaultCodex, codexIcons, codexColors, pinnedNotes, protectedNotes, macros, colorsLight, colorsDark, colorPresets } = newSettings;
+      const prefs: Preferences = { theme, confirmDelete, idleLockMinutes, defaultCodex, codexIcons, codexColors, pinnedNotes, protectedNotes, macros, colorsLight, colorsDark, colorPresets };
       await Promise.all([
         invoke("save_app_settings", { settingsJson: JSON.stringify(local) }),
         invoke("save_preferences", { prefsJson: JSON.stringify(prefs) }),
@@ -1035,22 +1035,15 @@ function App() {
             ) : (
               <button
                 key={codex}
-                className={`codex-sidebar-item ${activeCodex === codex && !viewingArchive ? "active" : ""}${appSettings.defaultCodex === codex ? " default-codex" : ""}`}
+                className={`codex-sidebar-item ${activeCodex === codex && !viewingArchive ? "active" : ""}`}
+                style={appSettings.codexColors?.[codex] ? { color: appSettings.codexColors[codex] } : undefined}
                 onClick={() => { setActiveCodex(activeCodex === codex ? null : codex); setViewingArchive(false); }}
                 onDoubleClick={() => setEditingCodexIcon(codex)}
-                onContextMenu={(e) => {
-                  e.preventDefault();
-                  handleSettingsChange({
-                    ...appSettings,
-                    defaultCodex: appSettings.defaultCodex === codex ? null : codex,
-                  });
-                }}
-                title={`${codex}${appSettings.defaultCodex === codex ? " (default)" : ""} (double-click to set icon, right-click to ${appSettings.defaultCodex === codex ? "unset" : "set as"} default)`}
+                title={`${codex} (double-click to set icon)`}
               >
                 <span className="codex-sidebar-letter">
                   {appSettings.codexIcons?.[codex] || codex[0].toUpperCase()}
                 </span>
-                {appSettings.defaultCodex === codex && <span className="codex-default-star">★</span>}
               </button>
             )
           ))}
@@ -1152,6 +1145,7 @@ function App() {
                     : appSettings.protectedNotes || []
                 }
                 searchQuery={query}
+                codexColors={appSettings.codexColors}
               />
             </div>
           )}
