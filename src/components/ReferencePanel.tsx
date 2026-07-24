@@ -101,6 +101,8 @@ function ControlsReference() {
         <tbody>
           <tr><td className="ref-key">{mod}F</td><td>Find in note</td></tr>
           <tr><td className="ref-key">{mod}H</td><td>Find & replace</td></tr>
+          <tr><td className="ref-key">{mod}]</td><td>Next match</td></tr>
+          <tr><td className="ref-key">{mod}[</td><td>Previous match</td></tr>
           <tr><td className="ref-key">{mod}⇧F</td><td>Search notes</td></tr>
           <tr><td className="ref-key">{mod}K</td><td>Command palette</td></tr>
         </tbody>

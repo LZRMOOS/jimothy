@@ -376,6 +376,12 @@ export function Editor({ note, saveStatus, onTitleChange, onBodyChange, onCodexC
         if (!showInNoteSearch) setShowInNoteSearch(true);
         setShowReplace(true);
         setTimeout(() => replaceInputRef.current?.focus(), 0);
+      } else if (mod && e.key === "]" && showInNoteSearch) {
+        e.preventDefault();
+        cycleMatchRef.current(1);
+      } else if (mod && e.key === "[" && showInNoteSearch) {
+        e.preventDefault();
+        cycleMatchRef.current(-1);
       }
     };
     const handleOpenFind = () => {
@@ -451,6 +457,8 @@ export function Editor({ note, saveStatus, onTitleChange, onBodyChange, onCodexC
       return next;
     });
   }, [matchPositions]);
+  const cycleMatchRef = useRef(cycleMatch);
+  cycleMatchRef.current = cycleMatch;
 
   const closeInNoteSearch = useCallback(() => {
     setShowInNoteSearch(false);
