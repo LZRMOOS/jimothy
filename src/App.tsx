@@ -75,7 +75,15 @@ function App() {
   const [editingCodexIcon, setEditingCodexIcon] = useState<string | null>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const [isEditingNote, setIsEditingNote] = useState(false);
+  const isEditingNoteRef = useRef(false);
+
+  const setEditingNote = useCallback((value: boolean) => {
+    setIsEditingNote(value);
+    isEditingNoteRef.current = value;
+  }, []);
   const [editorFocusTrigger, setEditorFocusTrigger] = useState(0);
+  const editorRef = useRef<any>(null);
+  const [isCreateMode, setIsCreateMode] = useState(false);
   const [initialized, setInitialized] = useState(false);
   const [notification, setNotification] = useState<string | null>(null);
   const [conflictNoteId, setConflictNoteId] = useState<string | null>(null);
@@ -158,22 +166,27 @@ function App() {
 
 
   useEffect(() => {
+    if (isCreateMode) {
+      setFilteredNotes(notes);
+      return;
+    }
     let results = search(query);
     if (activeCodex) {
       results = results.filter((n) => n.codex === activeCodex);
     }
     setFilteredNotes(results);
-  }, [query, search, notes, activeCodex]);
+  }, [query, search, notes, activeCodex, isCreateMode]);
 
   // Auto-select best match when search results change
   useEffect(() => {
+    if (isCreateMode) return;
     if (filteredNotes.length > 0) {
       const currentInList = filteredNotes.find((n) => n.id === selectedId);
       if (!currentInList) {
         setSelectedId(filteredNotes[0].id);
       }
     }
-  }, [filteredNotes, selectedId, setSelectedId]);
+  }, [filteredNotes, selectedId, setSelectedId, isCreateMode]);
 
   useEffect(() => {
     const appWindow = getCurrentWindow();
@@ -380,19 +393,33 @@ function App() {
   );
 
   const handleSearchSubmit = useCallback(async () => {
-    if (!query.trim()) return;
-
-    const exactMatch = notes.find(
-      (n) => n.title.toLowerCase() === query.trim().toLowerCase()
-    );
-
-    if (exactMatch) {
-      setSelectedId(exactMatch.id);
-    } else {
+    if (isCreateMode) {
+      // In create mode: Enter creates note with query as title
+      if (!query.trim()) return;
       await createNote(query.trim(), activeCodex);
       setQuery("");
+      setIsCreateMode(false);
+    } else {
+      // In search mode: Enter selects note and exits search (enter browse mode)
+      if (selectedId) {
+        handleSelectNote(selectedId);
+        // Explicitly enter browse mode
+        setEditingNote(false);
+        // Blur search
+        if (document.activeElement instanceof HTMLElement) {
+          document.activeElement.blur();
+        }
+      }
     }
-  }, [query, notes, setSelectedId, createNote, activeCodex]);
+  }, [isCreateMode, query, selectedId, createNote, activeCodex, handleSelectNote]);
+
+  const handleSearchCreate = useCallback(async () => {
+    // Cmd+Enter: create new note with search query as title
+    if (!query.trim()) return;
+    await createNote(query.trim(), activeCodex);
+    setQuery("");
+    setIsCreateMode(false);
+  }, [query, createNote, activeCodex]);
 
   const navigateNote = useCallback((direction: 1 | -1) => {
     // Use the same list that's displayed on screen
@@ -409,7 +436,7 @@ function App() {
     const next = Math.max(0, Math.min(idx + direction, list.length - 1));
 
     // Exit edit mode when navigating and reset focus trigger
-    setIsEditingNote(false);
+    setEditingNote(false);
     setEditorFocusTrigger(0);
     handleSelectNote(list[next].id);
   }, [query, activeCodex, filteredNotes, notes, selectedId, appSettings.pinnedNotes, handleSelectNote]);
@@ -431,19 +458,26 @@ function App() {
       setShowSettings(false);
       return;
     }
-    // If there's a query, clear it and unfocus search
+    // Exit create mode if active
+    if (isCreateMode) {
+      setIsCreateMode(false);
+      setQuery("");
+      return;
+    }
+    // If there's a query, clear it
     if (query) {
       setQuery("");
-      // Blur the search input to return focus to previous element
-      if (document.activeElement instanceof HTMLElement) {
-        document.activeElement.blur();
-      }
+      return;
+    }
+    // If search is focused, blur it
+    if (document.activeElement === searchInputRef.current) {
+      searchInputRef.current.blur();
       return;
     }
     // Otherwise hide the window
     const appWindow = getCurrentWindow();
     await appWindow.hide();
-  }, [showSettings, query]);
+  }, [showSettings, isCreateMode, query]);
 
   const saveProtectedDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -540,8 +574,10 @@ function App() {
       const key = e.key.toLowerCase();
       if (mod && key === "n" && !e.shiftKey) {
         e.preventDefault();
-        searchInputRef.current?.focus();
+        // Enter create mode: focus search and wait for title input
+        setIsCreateMode(true);
         setQuery("");
+        searchInputRef.current?.focus();
       } else if (mod && !e.shiftKey && key === "f") {
         e.preventDefault();
         searchInputRef.current?.focus();
@@ -599,11 +635,11 @@ function App() {
       const target = e.target as HTMLElement;
       const inEditor = target.closest('.ProseMirror') || target.closest('.editor-title');
 
-      if (inEditor || isEditingNote) {
-        // In edit mode - only handle Escape
+      // In edit mode - only handle Escape
+      if (inEditor || isEditingNoteRef.current) {
         if (e.key === "Escape") {
           e.preventDefault();
-          setIsEditingNote(false);
+          setEditingNote(false);
           // Blur any focused element
           if (document.activeElement instanceof HTMLElement) {
             document.activeElement.blur();
@@ -613,16 +649,22 @@ function App() {
       }
 
       // Browse mode: note selected but not editing
-      if (selectedId) {
+      if (selectedId && !isEditingNoteRef.current) {
         if (e.key === "ArrowDown" || e.key === "ArrowUp") {
           e.preventDefault();
           navigateNote(e.key === "ArrowDown" ? 1 : -1);
         } else if (e.key === "Enter" || e.key === "ArrowRight") {
           e.preventDefault();
-          setIsEditingNote(true);
-          // Trigger editor focus
-          setEditorFocusTrigger(prev => prev + 1);
-        } else if (e.key === "ArrowLeft" || e.key === "Escape") {
+          // Directly focus the editor if we have a ref to it
+          if (editorRef.current && editorRef.current.view) {
+            editorRef.current.view.dom.focus();
+            // Set cursor to start
+            const tr = editorRef.current.state.tr.setSelection(
+              editorRef.current.state.selection.constructor.atStart(editorRef.current.state.doc)
+            );
+            editorRef.current.view.dispatch(tr);
+          }
+        } else if (e.key === "ArrowLeft") {
           e.preventDefault();
           searchInputRef.current?.focus();
         }
@@ -631,7 +673,7 @@ function App() {
 
     window.addEventListener("keydown", handleBrowseKeys);
     return () => window.removeEventListener("keydown", handleBrowseKeys);
-  }, [showSettings, showCommandPalette, sensitivePromptId, editingCodexIcon, selectedId, isEditingNote, navigateNote]);
+  }, [showSettings, showCommandPalette, sensitivePromptId, editingCodexIcon, selectedId, navigateNote]);
 
   const commands: Command[] = useMemo(() => [
     { id: "new-note", label: "New Note", shortcut: "⌘N", action: () => { searchInputRef.current?.focus(); setQuery(""); } },
@@ -688,7 +730,7 @@ function App() {
     );
   }
 
-  const displayNotes = query || activeCodex ? filteredNotes : notes;
+  const displayNotes = (query && !isCreateMode) || activeCodex ? filteredNotes : notes;
 
   return (
     <div className={`app${sidebarCollapsed ? " sidebar-collapsed" : ""}`}>
@@ -720,11 +762,13 @@ function App() {
         value={query}
         onChange={setQuery}
         onSubmit={handleSearchSubmit}
+        onCreate={handleSearchCreate}
         onArrowDown={handleArrowDown}
         onArrowUp={handleArrowUp}
         onEscape={handleEscape}
         onCommandPaletteClick={() => setShowCommandPalette(true)}
         onSettingsClick={() => setShowSettings(true)}
+        isCreateMode={isCreateMode}
       />
       <div className="app-body">
       {!sidebarCollapsed && (
@@ -915,10 +959,11 @@ function App() {
               onTitleChange={handleTitleChange}
               onBodyChange={handleBodyChange}
               onCodexChange={handleCodexChange}
-              onEditingChange={setIsEditingNote}
+              onEditingChange={setEditingNote}
               focusTrigger={editorFocusTrigger}
               searchQuery={query}
               codexList={codexList}
+              editorRef={editorRef}
               isSensitive={
                 vaultStatus === "plaintext"
                   ? selectedNote.encrypted

@@ -161,9 +161,10 @@ type Props = {
   searchQuery?: string;
   codexList: string[];
   isSensitive?: boolean;
+  editorRef?: React.MutableRefObject<any>;
 };
 
-export function Editor({ note, saveStatus, onTitleChange, onBodyChange, onCodexChange, onEditingChange, focusTrigger, searchQuery = "", codexList, isSensitive }: Props) {
+export function Editor({ note, saveStatus, onTitleChange, onBodyChange, onCodexChange, onEditingChange, focusTrigger, searchQuery = "", codexList, isSensitive, editorRef }: Props) {
   const [showCharCount, setShowCharCount] = useState(false);
   const [isTitleFocused, setIsTitleFocused] = useState(false);
   const noteIdRef = useRef(note.id);
@@ -177,6 +178,11 @@ export function Editor({ note, saveStatus, onTitleChange, onBodyChange, onCodexC
   const suppressUpdate = useRef(false);
 
   const editor = useEditor({
+    editorProps: {
+      attributes: {
+        'data-editor': 'true',
+      },
+    },
     extensions: [
       StarterKit.configure({
         codeBlock: false,
@@ -204,6 +210,9 @@ export function Editor({ note, saveStatus, onTitleChange, onBodyChange, onCodexC
       const md = (editor.storage as any).markdown.getMarkdown();
       onBodyChangeRef.current(md);
     },
+    onFocus: ({ editor }) => {
+      onEditingChange?.(true);
+    },
   });
 
   useEffect(() => {
@@ -217,14 +226,12 @@ export function Editor({ note, saveStatus, onTitleChange, onBodyChange, onCodexC
     }
   }, [searchQuery, editor]);
 
-  // Focus editor body when focusTrigger increases
-  const prevFocusTriggerRef = useRef(0);
+  // Expose editor instance via ref
   useEffect(() => {
-    if (focusTrigger && focusTrigger > prevFocusTriggerRef.current && editor) {
-      editor.commands.focus('start');
-      prevFocusTriggerRef.current = focusTrigger;
+    if (editorRef && editor) {
+      editorRef.current = editor;
     }
-  }, [focusTrigger, editor]);
+  }, [editor, editorRef]);
 
   useEffect(() => {
     if (!editor) return;
@@ -289,7 +296,10 @@ export function Editor({ note, saveStatus, onTitleChange, onBodyChange, onCodexC
             value={note.title}
             onChange={(e) => onTitleChange(e.target.value)}
             onKeyDown={handleTitleKeyDown}
-            onFocus={() => setIsTitleFocused(true)}
+            onFocus={() => {
+              setIsTitleFocused(true);
+              onEditingChange?.(true);
+            }}
             onBlur={() => setIsTitleFocused(false)}
             placeholder="Note title"
             autoComplete="off"
