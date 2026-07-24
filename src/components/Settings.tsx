@@ -8,7 +8,7 @@ import { Dropdown } from "./Dropdown";
 import { PasswordInput } from "./PasswordInput";
 import type { AppSettings, VaultStatus, ThemeColors, ColorPreset } from "../types";
 
-type SettingsTab = "general" | "organization" | "keyboard" | "macros" | "colors" | "storage" | "security" | "markdown";
+type SettingsTab = "general" | "organization" | "keyboard" | "macros" | "dictionary" | "colors" | "storage" | "security" | "markdown";
 
 function NoteProtectionSection({
   protectionStatus,
@@ -704,6 +704,46 @@ function MacroEditor({ macros, onChange }: { macros: Record<string, string>; onC
   );
 }
 
+function DictionaryEditor({ entries, onChange }: { entries: string[]; onChange: (entries: string[]) => void }) {
+  const [newEntry, setNewEntry] = useState("");
+
+  const handleAdd = () => {
+    const value = newEntry.trim();
+    if (!value || entries.includes(value)) return;
+    onChange([...entries, value]);
+    setNewEntry("");
+  };
+
+  const handleRemove = (entry: string) => {
+    onChange(entries.filter((e) => e !== entry));
+  };
+
+  return (
+    <div className="macro-editor">
+      {entries.length > 0 && (
+        <div className="macro-list">
+          {entries.map((entry) => (
+            <div key={entry} className="macro-row">
+              <span className="macro-expansion">{entry}</span>
+              <button className="macro-remove" onClick={() => handleRemove(entry)} title="Remove">×</button>
+            </div>
+          ))}
+        </div>
+      )}
+      <div className="macro-add">
+        <input
+          className="macro-input macro-input-expansion"
+          placeholder="Add a person, place, or word..."
+          value={newEntry}
+          onChange={(e) => setNewEntry(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter") handleAdd(); }}
+        />
+        <button className="btn secondary btn-sm" onClick={handleAdd} disabled={!newEntry.trim()}>Add</button>
+      </div>
+    </div>
+  );
+}
+
 function CodexList({ codexList, codexCounts, onRenameCodex }: {
   codexList: string[];
   codexCounts: Record<string, number>;
@@ -1084,6 +1124,7 @@ export function Settings({
     { id: "organization", label: "Organization" },
     { id: "keyboard", label: "Controls" },
     { id: "macros", label: "Macros" },
+    { id: "dictionary", label: "Dictionary" },
     { id: "colors", label: "Colors" },
     { id: "storage", label: "Storage" },
     { id: "security", label: "Security" },
@@ -1403,6 +1444,21 @@ export function Settings({
                 <MacroEditor
                   macros={settings.macros || {}}
                   onChange={(macros) => onSettingsChange({ ...settings, macros })}
+                />
+              </div>
+            )}
+
+            {activeTab === "dictionary" && (
+              <div className="settings-section">
+                <h3>Dictionary</h3>
+                <p className="settings-hint">
+                  Add people, places, or anything you mention often. Type <kbd>@</kbd> in
+                  the editor to autocomplete from this list. Mentions are highlighted and
+                  searchable.
+                </p>
+                <DictionaryEditor
+                  entries={settings.dictionary || []}
+                  onChange={(dictionary) => onSettingsChange({ ...settings, dictionary })}
                 />
               </div>
             )}

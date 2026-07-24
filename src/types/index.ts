@@ -61,6 +61,7 @@ export type Preferences = {
   pinnedCommands?: string[];
   protectedNotes?: string[];
   macros?: Record<string, string>;
+  dictionary?: string[];
   colorsLight?: ThemeColors;
   colorsDark?: ThemeColors;
   colorPresets?: ColorPreset[];

@@ -1,22 +1,20 @@
 import { ReactRenderer } from "@tiptap/react";
 import { Node, mergeAttributes } from "@tiptap/core";
-import { Plugin, PluginKey } from "@tiptap/pm/state";
+import { PluginKey } from "@tiptap/pm/state";
 import { forwardRef, useEffect, useImperativeHandle, useState, useRef } from "react";
 import type { SuggestionKeyDownProps } from "@tiptap/suggestion";
 import Suggestion from "@tiptap/suggestion";
 
-type NoteItem = { id: string; title: string; codex?: string | null };
-
 type ListProps = {
-  items: NoteItem[];
-  command: (item: NoteItem) => void;
+  items: string[];
+  command: (item: string) => void;
 };
 
 type ListRef = {
   onKeyDown: (props: SuggestionKeyDownProps) => boolean;
 };
 
-const NoteLinkList = forwardRef<ListRef, ListProps>((props, ref) => {
+const MentionList = forwardRef<ListRef, ListProps>((props, ref) => {
   const [selectedIndex, setSelectedIndex] = useState(0);
   const listRef = useRef<HTMLDivElement>(null);
 
@@ -54,76 +52,72 @@ const NoteLinkList = forwardRef<ListRef, ListProps>((props, ref) => {
 
   if (props.items.length === 0) {
     return (
-      <div className="note-link-menu">
-        <div className="note-link-empty">No matching notes</div>
+      <div className="mention-menu">
+        <div className="mention-empty">No matches</div>
       </div>
     );
   }
 
   return (
-    <div className="note-link-menu" ref={listRef}>
+    <div className="mention-menu" ref={listRef}>
       {props.items.map((item, i) => (
         <button
-          key={item.id}
-          className={`note-link-item${i === selectedIndex ? " selected" : ""}`}
+          key={item}
+          className={`mention-item${i === selectedIndex ? " selected" : ""}`}
           onClick={() => props.command(item)}
           onMouseEnter={() => setSelectedIndex(i)}
         >
-          <span className="note-link-item-title">{item.title}</span>
-          {item.codex && <span className="note-link-item-codex">{item.codex}</span>}
+          {item}
         </button>
       ))}
     </div>
   );
 });
 
-NoteLinkList.displayName = "NoteLinkList";
+MentionList.displayName = "MentionList";
 
-export function createNoteLinkExtension(
-  notesRef: React.MutableRefObject<NoteItem[]>,
-  onNavigateRef: React.MutableRefObject<(id: string) => void>,
+export function createMentionExtension(
+  dictionaryRef: React.MutableRefObject<string[]>,
 ) {
   return Node.create({
-    name: "noteLink",
+    name: "mention",
     group: "inline",
     inline: true,
     atom: true,
 
     addAttributes() {
       return {
-        id: { default: null },
         label: { default: null },
       };
     },
 
     parseHTML() {
       return [{
-        tag: 'span[data-type="noteLink"]',
+        tag: 'span[data-type="mention"]',
         getAttrs: (el: HTMLElement) => ({
-          id: el.getAttribute("data-id"),
-          label: el.getAttribute("data-label") || el.textContent,
+          label: el.getAttribute("data-label") || el.textContent?.replace(/^@/, ""),
         }),
       }];
     },
 
     renderHTML({ HTMLAttributes }) {
       return ["span", mergeAttributes(HTMLAttributes, {
-        "data-type": "noteLink",
-        class: "note-link",
-      }), `[[${HTMLAttributes.label || ""}]]`];
+        "data-type": "mention",
+        "data-label": HTMLAttributes.label,
+        class: "mention",
+      }), `@${HTMLAttributes.label || ""}`];
     },
 
     addProseMirrorPlugins() {
-      const navigateRef = onNavigateRef;
       return [
         Suggestion({
           editor: this.editor,
-          char: "[[",
-          pluginKey: new PluginKey("noteLink"),
+          char: "@",
+          pluginKey: new PluginKey("mention"),
           items: ({ query }) => {
             const q = query.toLowerCase();
-            return notesRef.current
-              .filter((n) => n.title.toLowerCase().includes(q))
+            return dictionaryRef.current
+              .filter((entry) => entry.toLowerCase().includes(q))
               .slice(0, 8);
           },
           command: ({ editor, range, props: item }) => {
@@ -132,8 +126,8 @@ export function createNoteLinkExtension(
               .focus()
               .deleteRange(range)
               .insertContent({
-                type: "noteLink",
-                attrs: { id: item.id, label: item.title },
+                type: "mention",
+                attrs: { label: item },
               })
               .insertContent(" ")
               .run();
@@ -157,13 +151,13 @@ export function createNoteLinkExtension(
 
             return {
               onStart: (props) => {
-                component = new ReactRenderer(NoteLinkList, {
+                component = new ReactRenderer(MentionList, {
                   props: { items: props.items, command: props.command },
                   editor: props.editor,
                 });
 
                 popup = document.createElement("div");
-                popup.className = "note-link-popup";
+                popup.className = "mention-popup";
                 popup.appendChild(component.element);
                 document.body.appendChild(popup);
 
@@ -194,22 +188,6 @@ export function createNoteLinkExtension(
             };
           },
         }),
-        new Plugin({
-          props: {
-            handleClick(view, pos, event) {
-              const target = event.target as HTMLElement;
-              if (target?.closest?.('.note-link')) {
-                const resolved = view.state.doc.resolve(pos);
-                const node = resolved.nodeAfter;
-                if (node?.type.name === "noteLink" && node.attrs.id) {
-                  navigateRef.current(node.attrs.id);
-                  return true;
-                }
-              }
-              return false;
-            },
-          },
-        }),
       ];
     },
 
@@ -217,47 +195,35 @@ export function createNoteLinkExtension(
       return {
         markdown: {
           serialize(state: any, node: any) {
-            const currentNote = notesRef.current.find((n: NoteItem) => n.id === node.attrs.id);
-            const label = currentNote?.title || node.attrs.label;
-            state.write(`[${label}](scratch://${node.attrs.id})`);
+            state.write(`@${node.attrs.label}`);
           },
           parse: {
             setup(md: any) {
-              const defaultLinkOpen = md.renderer.rules.link_open ||
-                function (tokens: any, idx: any, options: any, _env: any, self: any) {
-                  return self.renderToken(tokens, idx, options);
-                };
-              const defaultLinkClose = md.renderer.rules.link_close ||
-                function (tokens: any, idx: any, options: any, _env: any, self: any) {
-                  return self.renderToken(tokens, idx, options);
-                };
+              const defaultTextRule = md.renderer.rules.text ||
+                function (tokens: any, idx: any) { return tokens[idx].content; };
 
-              md.renderer.rules.link_open = function (tokens: any, idx: any, options: any, env: any, self: any) {
-                const href = tokens[idx].attrGet("href");
-                if (href && href.startsWith("scratch://")) {
-                  const id = href.slice(10);
-                  const textToken = tokens[idx + 1];
-                  const currentNote = notesRef.current.find((n) => n.id === id);
-                  const label = currentNote?.title || textToken?.content || id;
-                  if (textToken) textToken.content = `[[${label}]]`;
-                  const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-                  return `<span data-type="noteLink" data-id="${esc(id)}" data-label="${esc(label)}" class="note-link">`;
-                }
-                return defaultLinkOpen(tokens, idx, options, env, self);
-              };
+              md.renderer.rules.text = function (tokens: any, idx: any, options: any, env: any, self: any) {
+                const content = tokens[idx].content;
+                const mentionRegex = /@([^\s@]+(?:\s[^\s@]+)*?)(?=\s|$|[.,;:!?)])/g;
+                let result = "";
+                let lastIndex = 0;
+                let match;
 
-              md.renderer.rules.link_close = function (tokens: any, idx: any, options: any, env: any, self: any) {
-                // Find the matching link_open to check if it was a scratch:// link
-                for (let i = idx - 1; i >= 0; i--) {
-                  if (tokens[i].type === "link_open") {
-                    const href = tokens[i].attrGet("href");
-                    if (href && href.startsWith("scratch://")) {
-                      return "</span>";
-                    }
-                    break;
+                while ((match = mentionRegex.exec(content)) !== null) {
+                  const label = match[1];
+                  if (dictionaryRef.current.some((d) => d.toLowerCase() === label.toLowerCase())) {
+                    const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+                    result += content.slice(lastIndex, match.index);
+                    result += `<span data-type="mention" data-label="${esc(label)}" class="mention">@${esc(label)}</span>`;
+                    lastIndex = match.index + match[0].length;
                   }
                 }
-                return defaultLinkClose(tokens, idx, options, env, self);
+
+                if (lastIndex === 0) {
+                  return defaultTextRule(tokens, idx, options, env, self);
+                }
+                result += content.slice(lastIndex);
+                return result;
               };
             },
           },

@@ -13,6 +13,7 @@ import { Decoration, DecorationSet } from "@tiptap/pm/view";
 import type { Note, SaveStatus } from "../types";
 import { buildSearchPattern, highlightMatches } from "../utils/search";
 import { createNoteLinkExtension } from "../extensions/noteLink";
+import { createMentionExtension } from "../extensions/mention";
 import { createTagHighlightExtension } from "../extensions/tagHighlight";
 import { extractTags } from "../utils/tags";
 
@@ -271,12 +272,13 @@ type Props = {
   onToggleSplit?: () => void;
   isSplit?: boolean;
   tagColors?: Record<string, string>;
+  dictionary?: string[];
 };
 
 type TocHeading = { level: number; text: string; pos: number };
 type Backlink = { id: string; title: string };
 
-export function Editor({ note, saveStatus, onTitleChange, onBodyChange, onCodexChange, onEditingChange, searchQuery = "", codexList, isSensitive, editorRef, macros = {}, allNotes = [], onNavigateToNote, frozen, onToggleFreeze, tocDefault, onCloseSplit, onToggleSplit, isSplit, tagColors }: Props) {
+export function Editor({ note, saveStatus, onTitleChange, onBodyChange, onCodexChange, onEditingChange, searchQuery = "", codexList, isSensitive, editorRef, macros = {}, allNotes = [], onNavigateToNote, frozen, onToggleFreeze, tocDefault, onCloseSplit, onToggleSplit, isSplit, tagColors, dictionary = [] }: Props) {
   const [showCharCount, setShowCharCount] = useState(false);
   const [isTitleFocused, setIsTitleFocused] = useState(false);
   const [showToc, setShowToc] = useState(false);
@@ -318,6 +320,9 @@ export function Editor({ note, saveStatus, onTitleChange, onBodyChange, onCodexC
   const tagColorsRef = useRef(tagColors);
   tagColorsRef.current = tagColors;
   const [tagExt] = useState(() => createTagHighlightExtension(tagColorsRef));
+  const dictionaryRef = useRef(dictionary);
+  dictionaryRef.current = dictionary;
+  const [mentionExt] = useState(() => createMentionExtension(dictionaryRef));
   const suppressUpdate = useRef(false);
 
   const editor = useEditor({
@@ -349,6 +354,7 @@ export function Editor({ note, saveStatus, onTitleChange, onBodyChange, onCodexC
       searchExt,
       macroExt,
       noteLinkExt,
+      mentionExt,
       tagExt,
     ],
     content: note.body,
