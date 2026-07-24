@@ -5,7 +5,7 @@ import { forwardRef, useEffect, useImperativeHandle, useState, useRef } from "re
 import type { SuggestionKeyDownProps } from "@tiptap/suggestion";
 import Suggestion from "@tiptap/suggestion";
 
-type NoteItem = { id: string; title: string };
+type NoteItem = { id: string; title: string; codex?: string | null };
 
 type ListProps = {
   items: NoteItem[];
@@ -69,7 +69,8 @@ const NoteLinkList = forwardRef<ListRef, ListProps>((props, ref) => {
           onClick={() => props.command(item)}
           onMouseEnter={() => setSelectedIndex(i)}
         >
-          {item.title}
+          <span className="note-link-item-title">{item.title}</span>
+          {item.codex && <span className="note-link-item-codex">{item.codex}</span>}
         </button>
       ))}
     </div>
@@ -141,6 +142,19 @@ export function createNoteLinkExtension(
             let component: ReactRenderer<ListRef> | null = null;
             let popup: HTMLDivElement | null = null;
 
+            const positionPopup = (rect: DOMRect | null) => {
+              if (!rect || !popup) return;
+              const menuHeight = popup.offsetHeight || 200;
+              const spaceBelow = window.innerHeight - rect.bottom;
+              if (spaceBelow < menuHeight + 8) {
+                popup.style.left = `${rect.left}px`;
+                popup.style.top = `${rect.top - menuHeight - 4}px`;
+              } else {
+                popup.style.left = `${rect.left}px`;
+                popup.style.top = `${rect.bottom + 4}px`;
+              }
+            };
+
             return {
               onStart: (props) => {
                 component = new ReactRenderer(NoteLinkList, {
@@ -154,18 +168,12 @@ export function createNoteLinkExtension(
                 document.body.appendChild(popup);
 
                 const rect = props.clientRect?.();
-                if (rect && popup) {
-                  popup.style.left = `${rect.left}px`;
-                  popup.style.top = `${rect.bottom + 4}px`;
-                }
+                positionPopup(rect ?? null);
               },
               onUpdate: (props) => {
                 component?.updateProps({ items: props.items, command: props.command });
                 const rect = props.clientRect?.();
-                if (rect && popup) {
-                  popup.style.left = `${rect.left}px`;
-                  popup.style.top = `${rect.bottom + 4}px`;
-                }
+                positionPopup(rect ?? null);
               },
               onKeyDown: (props) => {
                 if (props.event.key === "Escape") {

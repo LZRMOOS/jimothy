@@ -2404,7 +2404,9 @@ body {
 }
 
 .note-link-item {
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: 8px;
   width: 100%;
   text-align: left;
   background: none;
@@ -2414,14 +2416,28 @@ body {
   color: var(--text-primary);
   border-radius: 4px;
   cursor: pointer;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 .note-link-item:hover,
 .note-link-item.selected {
   background: var(--bg-hover);
+}
+
+.note-link-item-title {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.note-link-item-codex {
+  flex-shrink: 0;
+  font-size: 10px;
+  padding: 1px 6px;
+  border-radius: 8px;
+  background: var(--accent-subtle);
+  color: var(--accent);
+  font-weight: 500;
 }
 
 .note-link-empty {

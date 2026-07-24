@@ -295,8 +295,8 @@ export function Editor({ note, saveStatus, onTitleChange, onBodyChange, onCodexC
   const macrosRef = useRef(macros);
   macrosRef.current = macros;
   const titleInputRef = useRef<HTMLInputElement>(null);
-  const notesListRef = useRef(allNotes.map((n) => ({ id: n.id, title: n.title })));
-  notesListRef.current = allNotes.filter((n) => n.id !== note.id).map((n) => ({ id: n.id, title: n.title }));
+  const notesListRef = useRef(allNotes.map((n) => ({ id: n.id, title: n.title, codex: n.codex })));
+  notesListRef.current = allNotes.filter((n) => n.id !== note.id).map((n) => ({ id: n.id, title: n.title, codex: n.codex }));
   const onNavigateRef = useRef(onNavigateToNote || (() => {}));
   onNavigateRef.current = onNavigateToNote || (() => {});
 
