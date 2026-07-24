@@ -481,8 +481,8 @@ function App() {
       setAppSettings(newSettings);
       const { showTrayIcon, zoomLevel, globalShortcut } = newSettings;
       const local: LocalSettings = { notesFolder: notesFolder || undefined, showTrayIcon, zoomLevel, globalShortcut };
-      const { theme, confirmDelete, idleLockMinutes, defaultCodex, tocDefault, dailyNoteCodex, dailyNoteFormat, codexIcons, codexColors, pinnedNotes, frozenNotes, pinnedCommands, protectedNotes, macros, colorsLight, colorsDark, colorPresets } = newSettings;
-      const prefs: Preferences = { theme, confirmDelete, idleLockMinutes, defaultCodex, tocDefault, dailyNoteCodex, dailyNoteFormat, codexIcons, codexColors, pinnedNotes, frozenNotes, pinnedCommands, protectedNotes, macros, colorsLight, colorsDark, colorPresets };
+      const { theme, confirmDelete, idleLockMinutes, defaultCodex, tocDefault, dailyNoteCodex, dailyNoteFormat, codexIcons, codexColors, pinnedNotes, frozenNotes, pinnedCommands, protectedNotes, macros, colorsLight, colorsDark, colorPresets, tagColors, dictionary } = newSettings;
+      const prefs: Preferences = { theme, confirmDelete, idleLockMinutes, defaultCodex, tocDefault, dailyNoteCodex, dailyNoteFormat, codexIcons, codexColors, pinnedNotes, frozenNotes, pinnedCommands, protectedNotes, macros, colorsLight, colorsDark, colorPresets, tagColors, dictionary };
       await Promise.all([
         invoke("save_app_settings", { settingsJson: JSON.stringify(local) }),
         invoke("save_preferences", { prefsJson: JSON.stringify(prefs) }),
