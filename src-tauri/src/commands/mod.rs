@@ -5,7 +5,9 @@ use std::sync::Mutex;
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use sha2::{Sha256, Digest};
+use subtle::ConstantTimeEq;
 use tauri::{AppHandle, Emitter, State};
+use zeroize::Zeroize;
 
 use crate::crypto::{self, VaultConfig};
 use crate::notes::Note;
@@ -75,8 +77,14 @@ fn save_config(folder: &Path, filename: &str, config: &VaultConfig) -> Result<()
         .map_err(|e| format!("Failed to create .scratch dir: {}", e))?;
     let json = serde_json::to_string_pretty(config)
         .map_err(|e| format!("Failed to serialize config: {}", e))?;
-    fs::write(config_path(folder, filename), json)
-        .map_err(|e| format!("Failed to write config: {}", e))?;
+    let dest = config_path(folder, filename);
+    let temp = scratch_dir.join(format!(".tmp-{}", filename));
+    fs::write(&temp, &json)
+        .map_err(|e| format!("Failed to write config temp file: {}", e))?;
+    fs::rename(&temp, &dest).map_err(|e| {
+        let _ = fs::remove_file(&temp);
+        format!("Failed to rename config file: {}", e)
+    })?;
     Ok(())
 }
 
@@ -414,6 +422,7 @@ pub fn setup_vault(password: String, state: State<'_, AppState>) -> Result<(), S
     save_vault_config(&folder, &config)?;
 
     // Update state
+    store_hash(&state.password_hash, &password);
     *state.vault_key.lock().unwrap() = Some(key);
     *state.vault_status.lock().unwrap() = VaultStatus::Unlocked;
     *state.notes.lock().unwrap() = encrypted_notes;
@@ -448,9 +457,17 @@ pub fn lock_vault(state: State<'_, AppState>) -> Result<(), String> {
         return Err("No vault to lock".to_string());
     }
 
-    // Clear key, password hash, and notes from memory
+    // Zeroize and clear all sensitive material from memory
+    if let Some(ref mut key) = *state.vault_key.lock().unwrap() {
+        key.zeroize();
+    }
     *state.vault_key.lock().unwrap() = None;
     *state.password_hash.lock().unwrap() = None;
+    if let Some(ref mut key) = *state.protection_key.lock().unwrap() {
+        key.zeroize();
+    }
+    *state.protection_key.lock().unwrap() = None;
+    *state.protection_hash.lock().unwrap() = None;
     *state.vault_status.lock().unwrap() = VaultStatus::Locked;
     *state.notes.lock().unwrap() = Vec::new();
 
@@ -468,17 +485,20 @@ pub fn get_vault_status(state: State<'_, AppState>) -> String {
 }
 
 #[tauri::command]
-pub fn verify_password(password: String, state: State<'_, AppState>) -> Result<bool, String> {
-    // Fast path: compare SHA-256 hash against stored hash (instant)
+pub fn verify_password(mut password: String, state: State<'_, AppState>) -> Result<bool, String> {
+    // Fast path: compare SHA-256 hash against stored hash (constant-time)
     if let Some(ref stored_hash) = *state.password_hash.lock().unwrap() {
         let hash: [u8; 32] = Sha256::digest(password.as_bytes()).into();
-        return Ok(hash == *stored_hash);
+        let result = hash.ct_eq(stored_hash).into();
+        password.zeroize();
+        return Ok(result);
     }
 
     // Slow path: full Argon2 derivation
     let folder = state.folder()?;
     let config = load_vault_config(&folder).ok_or("No vault configured")?;
     let key = crypto::derive_key(&password, &config.kdf)?;
+    password.zeroize();
     crypto::verify_key(&key, &config.verification_record)
 }
 
@@ -640,17 +660,20 @@ pub fn unlock_protection(password: String, state: State<'_, AppState>) -> Result
 }
 
 #[tauri::command]
-pub fn verify_protection_password(password: String, state: State<'_, AppState>) -> Result<bool, String> {
-    // Fast path: compare SHA-256 hash
+pub fn verify_protection_password(mut password: String, state: State<'_, AppState>) -> Result<bool, String> {
+    // Fast path: compare SHA-256 hash (constant-time)
     if let Some(ref stored_hash) = *state.protection_hash.lock().unwrap() {
         let hash: [u8; 32] = Sha256::digest(password.as_bytes()).into();
-        return Ok(hash == *stored_hash);
+        let result = hash.ct_eq(stored_hash).into();
+        password.zeroize();
+        return Ok(result);
     }
 
     // Slow path: full Argon2 derivation
     let folder = state.folder()?;
     let config = load_protection_config(&folder).ok_or("No protection configured")?;
     let key = crypto::derive_key(&password, &config.kdf)?;
+    password.zeroize();
     crypto::verify_key(&key, &config.verification_record)
 }
 

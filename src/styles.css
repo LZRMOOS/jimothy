@@ -415,9 +415,6 @@ body {
   overflow-y: auto;
 }
 
-.codex-sidebar-item,
-.codex-sidebar-toggle {
-}
 
 .codex-sidebar-expand {
   display: flex;

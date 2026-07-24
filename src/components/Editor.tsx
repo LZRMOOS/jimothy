@@ -1,4 +1,4 @@
-import { useEffect, useCallback, useState, useRef } from "react";
+import { useEffect, useCallback, useState, useRef, useMemo } from "react";
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import Placeholder from "@tiptap/extension-placeholder";
@@ -11,23 +11,8 @@ import { Extension } from "@tiptap/core";
 import { Plugin } from "@tiptap/pm/state";
 import { Decoration, DecorationSet } from "@tiptap/pm/view";
 import type { Note, SaveStatus } from "../types";
-import { buildSearchPattern } from "../utils/search";
+import { buildSearchPattern, highlightMatches } from "../utils/search";
 import { createNoteLinkExtension } from "../extensions/noteLink";
-
-function highlightMatches(text: string, query: string): React.ReactNode {
-  const regex = buildSearchPattern(query);
-  if (!regex) return text;
-  const splitter = new RegExp(`(${regex.source})`, "gi");
-  const parts = text.split(splitter);
-  if (parts.length === 1) return text;
-  return parts.map((part, i) =>
-    regex.test(part) ? (
-      <mark key={i} className="search-highlight">{part}</mark>
-    ) : (
-      part
-    )
-  );
-}
 
 const lowlight = createLowlight(common);
 
@@ -483,10 +468,8 @@ export function Editor({ note, saveStatus, onTitleChange, onBodyChange, onCodexC
           ? "Save failed"
           : "";
 
-  const wordCount = note.body.trim()
-    ? note.body.trim().split(/\s+/).length
-    : 0;
-  const charCount = note.body.replace(/\s/g, "").length;
+  const wordCount = useMemo(() => note.body.trim() ? note.body.trim().split(/\s+/).length : 0, [note.body]);
+  const charCount = useMemo(() => note.body.replace(/\s/g, "").length, [note.body]);
 
   const modifiedDate = new Date(note.updated_at);
   const modifiedStr = modifiedDate.toLocaleString(undefined, {

@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
+use std::sync::LazyLock;
 
 use chrono::Utc;
 use regex::Regex;
@@ -207,8 +208,10 @@ pub fn cleanup_temp_files(folder: &Path) -> Vec<PathBuf> {
 /// Check if a filename matches the Dropbox conflict copy pattern.
 /// Pattern: `* (*.conflicted copy *)*`
 pub fn is_dropbox_conflict(filename: &str) -> bool {
-    let re = Regex::new(r".+\s+\(.+conflicted copy .+\)").unwrap();
-    re.is_match(filename)
+    static RE: LazyLock<Regex> = LazyLock::new(|| {
+        Regex::new(r".+\s+\(.+conflicted copy .+\)").unwrap()
+    });
+    RE.is_match(filename)
 }
 
 /// Move a file to the `.scratch/conflicts/` directory, preserving its filename.
@@ -339,6 +342,10 @@ pub fn check_folder_available(folder: &Path) -> Result<(), String> {
 
 /// Restore a note from `.scratch/trash/` back to the notes folder.
 pub fn restore_note_from_trash(folder: &Path, filename: &str) -> Result<Note, String> {
+    if filename.contains('/') || filename.contains('\\') || filename.contains("..") {
+        return Err("Invalid filename".to_string());
+    }
+
     let trash_dir = folder.join(".scratch").join("trash");
     let trash_path = trash_dir.join(filename);
 

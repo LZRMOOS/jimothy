@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useEffect } from "react";
+import { useState, useCallback, useRef, useEffect, useMemo } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import MiniSearch from "minisearch";
@@ -140,7 +140,7 @@ export function useNotes() {
     [notes]
   );
 
-  const selectedNote = notes.find((n) => n.id === selectedId) || null;
+  const selectedNote = useMemo(() => notes.find((n) => n.id === selectedId) || null, [notes, selectedId]);
 
   const updateNoteLocally = useCallback(
     (id: string, patch: Partial<Note>) => {

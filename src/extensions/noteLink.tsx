@@ -240,7 +240,8 @@ export function createNoteLinkExtension(
                   const currentNote = notesRef.current.find((n) => n.id === id);
                   const label = currentNote?.title || textToken?.content || id;
                   if (textToken) textToken.content = `@${label}`;
-                  return `<span data-type="noteLink" data-id="${id}" data-label="${label}" class="note-link">`;
+                  const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/"/g, "&quot;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+                  return `<span data-type="noteLink" data-id="${esc(id)}" data-label="${esc(label)}" class="note-link">`;
                 }
                 return defaultLinkOpen(tokens, idx, options, env, self);
               };

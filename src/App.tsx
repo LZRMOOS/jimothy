@@ -23,7 +23,7 @@ import { useNotes } from "./hooks/useNotes";
 import { useVault } from "./hooks/useVault";
 import { useProtection } from "./hooks/useProtection";
 import { useIdleLock } from "./hooks/useIdleLock";
-import type { Note, AppSettings } from "./types";
+import type { AppSettings } from "./types";
 
 function App() {
   const {
@@ -71,7 +71,6 @@ function App() {
   } = useProtection();
 
   const [query, setQuery] = useState("");
-  const [filteredNotes, setFilteredNotes] = useState<Note[]>([]);
   const [activeCodex, setActiveCodex] = useState<string | null>(null);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [editingCodexIcon, setEditingCodexIcon] = useState<string | null>(null);
@@ -101,9 +100,10 @@ function App() {
   });
   const [notesFolder, setNotesFolder] = useState<string | null>(null);
 
-  const codexList = Array.from(
-    new Set(notes.map((n) => n.codex).filter(Boolean) as string[])
-  ).sort();
+  const codexList = useMemo(() =>
+    Array.from(new Set(notes.map((n) => n.codex).filter(Boolean) as string[])).sort(),
+    [notes]
+  );
 
   useIdleLock(
     vaultStatus === "unlocked" && (appSettings.idleLockMinutes ?? 0) > 0,
@@ -168,63 +168,47 @@ function App() {
     const currentTheme = root.getAttribute("data-theme");
     const isDark = currentTheme === "dark";
     const colors = isDark ? appSettings.colorsDark : appSettings.colorsLight;
+    const clamp = (v: number) => Math.max(0, Math.min(255, v));
+    const hexRgb = (hex: string) => [
+      parseInt(hex.slice(1, 3), 16),
+      parseInt(hex.slice(3, 5), 16),
+      parseInt(hex.slice(5, 7), 16),
+    ];
+
+    const props: [string, string | null][] = [];
 
     if (colors?.accent) {
-      root.style.setProperty("--accent", colors.accent);
-      const r = parseInt(colors.accent.slice(1, 3), 16);
-      const g = parseInt(colors.accent.slice(3, 5), 16);
-      const b = parseInt(colors.accent.slice(5, 7), 16);
-      root.style.setProperty("--accent-subtle", `rgba(${r}, ${g}, ${b}, ${isDark ? 0.1 : 0.08})`);
-    } else {
-      root.style.removeProperty("--accent");
-      root.style.removeProperty("--accent-subtle");
+      const [r, g, b] = hexRgb(colors.accent);
+      props.push(["--accent", colors.accent]);
+      props.push(["--accent-subtle", `rgba(${r}, ${g}, ${b}, ${isDark ? 0.1 : 0.08})`]);
     }
-    if (colors?.accentHover) {
-      root.style.setProperty("--accent-hover", colors.accentHover);
-    } else {
-      root.style.removeProperty("--accent-hover");
-    }
+    props.push(["--accent-hover", colors?.accentHover ?? null]);
+
     if (colors?.bgPrimary) {
-      root.style.setProperty("--bg-primary", colors.bgPrimary);
-      const pr = parseInt(colors.bgPrimary.slice(1, 3), 16);
-      const pg = parseInt(colors.bgPrimary.slice(3, 5), 16);
-      const pb = parseInt(colors.bgPrimary.slice(5, 7), 16);
+      const [r, g, b] = hexRgb(colors.bgPrimary);
       const shift = isDark ? 12 : -8;
-      const clamp = (v: number) => Math.max(0, Math.min(255, v));
-      root.style.setProperty("--bg-tertiary", `rgb(${clamp(pr + shift)}, ${clamp(pg + shift)}, ${clamp(pb + shift)})`);
       const hoverShift = isDark ? 6 : -4;
-      root.style.setProperty("--bg-hover", `rgb(${clamp(pr + hoverShift)}, ${clamp(pg + hoverShift)}, ${clamp(pb + hoverShift)})`);
-    } else {
-      root.style.removeProperty("--bg-primary");
-      root.style.removeProperty("--bg-tertiary");
-      root.style.removeProperty("--bg-hover");
+      props.push(["--bg-primary", colors.bgPrimary]);
+      props.push(["--bg-tertiary", `rgb(${clamp(r + shift)}, ${clamp(g + shift)}, ${clamp(b + shift)})`]);
+      props.push(["--bg-hover", `rgb(${clamp(r + hoverShift)}, ${clamp(g + hoverShift)}, ${clamp(b + hoverShift)})`]);
     }
-    if (colors?.bgSecondary) {
-      root.style.setProperty("--bg-secondary", colors.bgSecondary);
-    } else {
-      root.style.removeProperty("--bg-secondary");
-    }
-    if (colors?.bgSelected) {
-      root.style.setProperty("--bg-selected", colors.bgSelected);
-    } else {
-      root.style.removeProperty("--bg-selected");
-    }
-    if (colors?.textPrimary) {
-      root.style.setProperty("--text-primary", colors.textPrimary);
-    } else {
-      root.style.removeProperty("--text-primary");
-    }
+    props.push(["--bg-secondary", colors?.bgSecondary ?? null]);
+    props.push(["--bg-selected", colors?.bgSelected ?? null]);
+    props.push(["--text-primary", colors?.textPrimary ?? null]);
+
     if (colors?.textSecondary) {
-      root.style.setProperty("--text-secondary", colors.textSecondary);
-      const sr = parseInt(colors.textSecondary.slice(1, 3), 16);
-      const sg = parseInt(colors.textSecondary.slice(3, 5), 16);
-      const sb = parseInt(colors.textSecondary.slice(5, 7), 16);
-      const clamp = (v: number) => Math.max(0, Math.min(255, v));
+      const [r, g, b] = hexRgb(colors.textSecondary);
       const hintShift = isDark ? -20 : 20;
-      root.style.setProperty("--text-hint", `rgb(${clamp(sr + hintShift)}, ${clamp(sg + hintShift)}, ${clamp(sb + hintShift)})`);
-    } else {
-      root.style.removeProperty("--text-secondary");
-      root.style.removeProperty("--text-hint");
+      props.push(["--text-secondary", colors.textSecondary]);
+      props.push(["--text-hint", `rgb(${clamp(r + hintShift)}, ${clamp(g + hintShift)}, ${clamp(b + hintShift)})`]);
+    }
+
+    for (const [prop, value] of props) {
+      if (value) {
+        root.style.setProperty(prop, value);
+      } else {
+        root.style.removeProperty(prop);
+      }
     }
   }, [appSettings.colorsLight, appSettings.colorsDark, appSettings.theme]);
 
@@ -235,16 +219,13 @@ function App() {
   }, [appSettings.zoomLevel]);
 
 
-  useEffect(() => {
-    if (isCreateMode) {
-      setFilteredNotes(notes);
-      return;
-    }
+  const filteredNotes = useMemo(() => {
+    if (isCreateMode) return notes;
     let results = search(query);
     if (activeCodex) {
       results = results.filter((n) => n.codex === activeCodex);
     }
-    setFilteredNotes(results);
+    return results;
   }, [query, search, notes, activeCodex, isCreateMode]);
 
   // Auto-select best match when search results change
@@ -648,37 +629,32 @@ function App() {
     [selectedNote, debouncedSave, saveProtectedNote, isSelectedProtected, decryptedBodies]
   );
 
+  const pendingDeleteId = useRef<string | null>(null);
+
   const handleDeleteById = useCallback(
     async (id: string) => {
       if (appSettings.confirmDelete !== false) {
+        pendingDeleteId.current = id;
         setShowDeleteDialog(true);
-        // Wait for user decision
-        return new Promise<void>((resolve) => {
-          const checkDialog = () => {
-            if (!showDeleteDialog) {
-              resolve();
-            } else {
-              setTimeout(checkDialog, 100);
-            }
-          };
-          checkDialog();
-        });
       } else {
         await deleteNote(id);
       }
     },
-    [deleteNote, appSettings.confirmDelete, showDeleteDialog]
+    [deleteNote, appSettings.confirmDelete]
   );
 
   const handleConfirmDelete = useCallback(async () => {
     setShowDeleteDialog(false);
-    if (selectedId) {
-      await deleteNote(selectedId);
+    const id = pendingDeleteId.current;
+    pendingDeleteId.current = null;
+    if (id) {
+      await deleteNote(id);
     }
-  }, [selectedId, deleteNote]);
+  }, [deleteNote]);
 
   const handleCancelDelete = useCallback(() => {
     setShowDeleteDialog(false);
+    pendingDeleteId.current = null;
   }, []);
 
   const handleDelete = useCallback(async () => {

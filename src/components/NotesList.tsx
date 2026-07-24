@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import type { Note } from "../types";
-import { buildSearchPattern } from "../utils/search";
+import { highlightMatches } from "../utils/search";
 
 type Props = {
   notes: Note[];
@@ -42,20 +42,6 @@ type ContextMenuState = {
   y: number;
 } | null;
 
-function highlightMatches(text: string, query: string): React.ReactNode {
-  const regex = buildSearchPattern(query);
-  if (!regex) return text;
-  const splitter = new RegExp(`(${regex.source})`, "gi");
-  const parts = text.split(splitter);
-  if (parts.length === 1) return text;
-  return parts.map((part, i) =>
-    regex.test(part) ? (
-      <mark key={i} className="search-highlight">{part}</mark>
-    ) : (
-      part
-    )
-  );
-}
 
 export function NotesList({ notes, selectedId, onSelect, onDelete, onTogglePin, onToggleSensitive, pinnedIds, sensitiveIds, searchQuery = "" }: Props) {
   const [contextMenu, setContextMenu] = useState<ContextMenuState>(null);
@@ -87,9 +73,11 @@ export function NotesList({ notes, selectedId, onSelect, onDelete, onTogglePin, 
     );
   }
 
-  const pinned = notes.filter((n) => pinnedIds.includes(n.id));
-  const unpinned = notes.filter((n) => !pinnedIds.includes(n.id));
-  const sorted = [...pinned, ...unpinned];
+  const sorted = useMemo(() => {
+    const pinned = notes.filter((n) => pinnedIds.includes(n.id));
+    const unpinned = notes.filter((n) => !pinnedIds.includes(n.id));
+    return [...pinned, ...unpinned];
+  }, [notes, pinnedIds]);
 
   return (
     <div className="notes-list" onClick={closeContextMenu}>
