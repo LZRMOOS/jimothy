@@ -1467,6 +1467,7 @@ export function Settings({
                     {notesFolder || "Not set"}
                   </span>
                 </div>
+                <p className="settings-hint">To sync notes across devices, point this to a folder inside Dropbox, iCloud Drive, or another sync service.</p>
                 <div className="settings-actions">
                   <button className="btn secondary" onClick={handleChangeFolder}>
                     Change Folder

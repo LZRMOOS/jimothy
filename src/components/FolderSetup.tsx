@@ -93,6 +93,10 @@ export function FolderSetup({ onFolderSelected }: Props) {
           </button>
         </div>
 
+        <p className="folder-setup-sync-hint">
+          Want notes on multiple devices? Pick a folder inside Dropbox, iCloud Drive, or your preferred sync service.
+        </p>
+
         {error && <p className="error">{error}</p>}
       </div>
     </div>
