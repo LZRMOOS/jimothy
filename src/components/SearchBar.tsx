@@ -12,6 +12,7 @@ type Props = {
   onCommandPaletteClick?: () => void;
   isCreateMode?: boolean;
   activeTags?: string[];
+  dictionary?: string[];
 };
 
 export const SearchBar = forwardRef<HTMLInputElement, Props>(
@@ -28,13 +29,15 @@ export const SearchBar = forwardRef<HTMLInputElement, Props>(
       onCommandPaletteClick,
       isCreateMode,
       activeTags = [],
+      dictionary = [],
     },
     ref
   ) => {
     const tagSet = useMemo(() => new Set(activeTags.map((t) => t.toLowerCase())), [activeTags]);
+    const dictSet = useMemo(() => new Set(dictionary.map((d) => d.toLowerCase())), [dictionary]);
 
     const highlightedValue = useMemo(() => {
-      if (!value || tagSet.size === 0) return null;
+      if (!value || (tagSet.size === 0 && dictSet.size === 0)) return null;
       const parts = value.split(/(\s+)/);
       let hasMatch = false;
       const rendered = parts.map((part, i) => {
@@ -42,31 +45,55 @@ export const SearchBar = forwardRef<HTMLInputElement, Props>(
           hasMatch = true;
           return <span key={i} className="search-tag-pill">{part}</span>;
         }
+        if (/^@.+$/.test(part) && dictSet.has(part.slice(1).toLowerCase())) {
+          hasMatch = true;
+          return <span key={i} className="search-mention-pill">{part}</span>;
+        }
         return <span key={i}>{part}</span>;
       });
       return hasMatch ? rendered : null;
-    }, [value, tagSet]);
+    }, [value, tagSet, dictSet]);
 
     const [tagSuggestions, setTagSuggestions] = useState<string[]>([]);
+    const [mentionSuggestions, setMentionSuggestions] = useState<string[]>([]);
     const [selectedSuggestion, setSelectedSuggestion] = useState(0);
     const [tagQuery, setTagQuery] = useState<{ start: number; fragment: string } | null>(null);
+    const [mentionQuery, setMentionQuery] = useState<{ start: number; fragment: string } | null>(null);
     const suggestionsRef = useRef<HTMLDivElement>(null);
+
+    const activeSuggestions = tagSuggestions.length > 0 ? tagSuggestions : mentionSuggestions;
+    const activeSuggestionType = tagSuggestions.length > 0 ? "tag" : mentionSuggestions.length > 0 ? "mention" : null;
 
     const updateTagSuggestions = useCallback((inputValue: string, cursorPos: number) => {
       const before = inputValue.slice(0, cursorPos);
-      const match = before.match(/#([a-zA-Z]\w*)$/);
-      if (match) {
-        const fragment = match[1].toLowerCase();
-        const start = cursorPos - match[0].length;
+      const tagMatch = before.match(/#([a-zA-Z]\w*)$/);
+      if (tagMatch) {
+        const fragment = tagMatch[1].toLowerCase();
+        const start = cursorPos - tagMatch[0].length;
         const matches = activeTags.filter((t) => t.toLowerCase().startsWith(fragment));
         setTagQuery({ start, fragment });
         setTagSuggestions(matches.slice(0, 8));
+        setMentionQuery(null);
+        setMentionSuggestions([]);
+        setSelectedSuggestion(0);
+        return;
+      }
+      setTagQuery(null);
+      setTagSuggestions([]);
+
+      const mentionMatch = before.match(/@(\S+)$/);
+      if (mentionMatch && mentionMatch[1].length >= 1) {
+        const fragment = mentionMatch[1].toLowerCase();
+        const start = cursorPos - mentionMatch[0].length;
+        const matches = dictionary.filter((d) => d.toLowerCase().includes(fragment));
+        setMentionQuery({ start, fragment });
+        setMentionSuggestions(matches.slice(0, 8));
         setSelectedSuggestion(0);
       } else {
-        setTagQuery(null);
-        setTagSuggestions([]);
+        setMentionQuery(null);
+        setMentionSuggestions([]);
       }
-    }, [activeTags]);
+    }, [activeTags, dictionary]);
 
     const applyTagSuggestion = useCallback((tag: string) => {
       if (!tagQuery) return;
@@ -78,12 +105,22 @@ export const SearchBar = forwardRef<HTMLInputElement, Props>(
       setTagQuery(null);
     }, [tagQuery, value, onChange]);
 
+    const applyMentionSuggestion = useCallback((entry: string) => {
+      if (!mentionQuery) return;
+      const before = value.slice(0, mentionQuery.start);
+      const after = value.slice(mentionQuery.start + 1 + mentionQuery.fragment.length);
+      const newValue = before + "@" + entry + (after.startsWith(" ") ? "" : " ") + after;
+      onChange(newValue);
+      setMentionSuggestions([]);
+      setMentionQuery(null);
+    }, [mentionQuery, value, onChange]);
+
     useEffect(() => {
-      if (tagSuggestions.length > 0 && suggestionsRef.current) {
+      if (activeSuggestions.length > 0 && suggestionsRef.current) {
         const selected = suggestionsRef.current.children[selectedSuggestion] as HTMLElement;
         selected?.scrollIntoView({ block: "nearest" });
       }
-    }, [selectedSuggestion, tagSuggestions.length]);
+    }, [selectedSuggestion, activeSuggestions.length]);
 
     return (
       <div className="search-bar" data-tauri-drag-region>
@@ -109,23 +146,29 @@ export const SearchBar = forwardRef<HTMLInputElement, Props>(
               autoCapitalize="off"
               spellCheck="false"
               onKeyDown={(e) => {
-                if (tagSuggestions.length > 0) {
+                if (activeSuggestions.length > 0) {
                   if (e.key === "ArrowDown") {
                     e.preventDefault();
-                    setSelectedSuggestion((s) => (s + 1) % tagSuggestions.length);
+                    setSelectedSuggestion((s) => (s + 1) % activeSuggestions.length);
                     return;
                   } else if (e.key === "ArrowUp") {
                     e.preventDefault();
-                    setSelectedSuggestion((s) => (s - 1 + tagSuggestions.length) % tagSuggestions.length);
+                    setSelectedSuggestion((s) => (s - 1 + activeSuggestions.length) % activeSuggestions.length);
                     return;
                   } else if (e.key === "Enter" || e.key === "Tab") {
                     e.preventDefault();
-                    applyTagSuggestion(tagSuggestions[selectedSuggestion]);
+                    if (activeSuggestionType === "tag") {
+                      applyTagSuggestion(activeSuggestions[selectedSuggestion]);
+                    } else {
+                      applyMentionSuggestion(activeSuggestions[selectedSuggestion]);
+                    }
                     return;
                   } else if (e.key === "Escape") {
                     e.preventDefault();
                     setTagSuggestions([]);
                     setTagQuery(null);
+                    setMentionSuggestions([]);
+                    setMentionQuery(null);
                     return;
                   }
                 }
@@ -153,19 +196,23 @@ export const SearchBar = forwardRef<HTMLInputElement, Props>(
                   {highlightedValue}
                 </div>
               )}
-              {tagSuggestions.length > 0 && (
+              {activeSuggestions.length > 0 && (
                 <div className="search-tag-suggestions" ref={suggestionsRef}>
-                  {tagSuggestions.map((tag, i) => (
+                  {activeSuggestions.map((item, i) => (
                     <div
-                      key={tag}
+                      key={item}
                       className={`search-tag-suggestion ${i === selectedSuggestion ? "selected" : ""}`}
                       onMouseDown={(e) => {
                         e.preventDefault();
-                        applyTagSuggestion(tag);
+                        if (activeSuggestionType === "tag") {
+                          applyTagSuggestion(item);
+                        } else {
+                          applyMentionSuggestion(item);
+                        }
                       }}
                       onMouseEnter={() => setSelectedSuggestion(i)}
                     >
-                      #{tag}
+                      {activeSuggestionType === "tag" ? `#${item}` : `@${item}`}
                     </div>
                   ))}
                 </div>

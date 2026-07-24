@@ -356,10 +356,13 @@ function App() {
   const filteredNotes = useMemo(() => {
     if (isCreateMode) return activeNotes;
     const tagTokens: string[] = [];
+    const mentionTokens: string[] = [];
     const textParts: string[] = [];
     for (const token of query.trim().split(/\s+/)) {
       if (/^#[a-zA-Z]\w*$/.test(token)) {
         tagTokens.push(token.slice(1));
+      } else if (/^@.+$/.test(token)) {
+        mentionTokens.push(token.slice(1).toLowerCase());
       } else if (token) {
         textParts.push(token);
       }
@@ -370,6 +373,9 @@ function App() {
       : activeNotes;
     for (const tag of tagTokens) {
       results = results.filter((n) => noteHasTag(n.body, tag));
+    }
+    for (const mention of mentionTokens) {
+      results = results.filter((n) => n.body.toLowerCase().includes(`@${mention}`));
     }
     if (activeCodex && !viewingArchive) {
       results = results.filter((n) => n.codex === activeCodex);
@@ -1209,6 +1215,7 @@ function App() {
         onSettingsClick={() => setShowSettings(true)}
         isCreateMode={isCreateMode}
         activeTags={allTags}
+        dictionary={appSettings.dictionary}
       />
       <div className="app-body">
       {!sidebarCollapsed && (

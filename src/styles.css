@@ -391,6 +391,11 @@ body {
   color: var(--accent);
 }
 
+.search-mention-pill {
+  color: var(--accent);
+  font-weight: 500;
+}
+
 .search-tag-suggestions {
   position: absolute;
   top: 100%;
