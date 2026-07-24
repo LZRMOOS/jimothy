@@ -1335,19 +1335,19 @@ export function Settings({
                   <kbd className="shortcut-display">{mod}+F</kbd>
                 </div>
                 <div className="settings-row">
-                  <label>Next match</label>
-                  <kbd className="shortcut-display">{mod}+]</kbd>
+                  <label>Find & replace</label>
+                  <kbd className="shortcut-display">{mod}+H</kbd>
                 </div>
                 <div className="settings-row">
-                  <label>Previous match</label>
-                  <kbd className="shortcut-display">{mod}+[</kbd>
+                  <label>Next / previous match</label>
+                  <span>
+                    <kbd className="shortcut-display">{mod}+]</kbd>{" "}
+                    <kbd className="shortcut-display">{mod}+[</kbd>
+                  </span>
                 </div>
                 <div className="settings-row">
                   <label>Search notes</label>
-                  <span>
-                    <kbd className="shortcut-display">{mod}+Shift+F</kbd>{" "}
-                    <kbd className="shortcut-display">{mod}+L</kbd>
-                  </span>
+                  <kbd className="shortcut-display">{mod}+Shift+F</kbd>
                 </div>
                 <div className="settings-row">
                   <label>Command palette</label>
@@ -1374,20 +1374,18 @@ export function Settings({
                   <kbd className="shortcut-display">Enter</kbd>
                 </div>
                 <div className="settings-row">
-                  <label>Expand backlinks</label>
-                  <kbd className="shortcut-display">→</kbd>
+                  <label>Backlinks</label>
+                  <span>
+                    <kbd className="shortcut-display">←</kbd>{" "}
+                    <kbd className="shortcut-display">→</kbd>
+                  </span>
                 </div>
                 <div className="settings-row">
-                  <label>Collapse backlinks</label>
-                  <kbd className="shortcut-display">←</kbd>
-                </div>
-                <div className="settings-row">
-                  <label>Next note</label>
-                  <kbd className="shortcut-display">{mod}+Shift+]</kbd>
-                </div>
-                <div className="settings-row">
-                  <label>Previous note</label>
-                  <kbd className="shortcut-display">{mod}+Shift+[</kbd>
+                  <label>Next / previous note</label>
+                  <span>
+                    <kbd className="shortcut-display">{mod}+Shift+]</kbd>{" "}
+                    <kbd className="shortcut-display">{mod}+Shift+[</kbd>
+                  </span>
                 </div>
                 <h3>Editor</h3>
                 <div className="settings-row">
@@ -1420,12 +1418,11 @@ export function Settings({
                   <kbd className="shortcut-display">{mod}+1–9</kbd>
                 </div>
                 <div className="settings-row">
-                  <label>Zoom in</label>
-                  <kbd className="shortcut-display">{mod}+=</kbd>
-                </div>
-                <div className="settings-row">
-                  <label>Zoom out</label>
-                  <kbd className="shortcut-display">{mod}+-</kbd>
+                  <label>Zoom in / out</label>
+                  <span>
+                    <kbd className="shortcut-display">{mod}+=</kbd>{" "}
+                    <kbd className="shortcut-display">{mod}+-</kbd>
+                  </span>
                 </div>
                 <div className="settings-row">
                   <label>Reset zoom</label>
@@ -1437,23 +1434,19 @@ export function Settings({
                   <kbd className="shortcut-display">{mod}+{isMac ? "⌥" : "Alt"}+Space</kbd>
                 </div>
                 <div className="settings-row">
-                  <label>Hide window</label>
+                  <label>Banish window</label>
                   <span>
                     <kbd className="shortcut-display">{mod}+W</kbd>{" "}
                     <kbd className="shortcut-display">Escape</kbd>
                   </span>
                 </div>
                 <div className="settings-row">
-                  <label>Open settings</label>
+                  <label>Settings</label>
                   <kbd className="shortcut-display">{mod}+,</kbd>
                 </div>
                 <div className="settings-row">
-                  <label>Markdown reference</label>
+                  <label>Reference panel</label>
                   <kbd className="shortcut-display">{mod}+.</kbd>
-                </div>
-                <div className="settings-row">
-                  <label>Controls reference</label>
-                  <kbd className="shortcut-display">{mod}+;</kbd>
                 </div>
               </div>
             )}

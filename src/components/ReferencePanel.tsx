@@ -1,17 +1,18 @@
-import { useEffect } from "react";
+import { useState, useEffect } from "react";
 
 const isMac = navigator.platform.toUpperCase().includes("MAC");
 const mod = isMac ? "⌘" : "Ctrl";
 
-export type ReferencePanelMode = "markdown" | "controls";
-
 type Props = {
-  mode: ReferencePanelMode;
   macros?: Record<string, string>;
   onClose: () => void;
 };
 
-export function ReferencePanel({ mode, macros, onClose }: Props) {
+type Tab = "markdown" | "controls";
+
+export function ReferencePanel({ macros, onClose }: Props) {
+  const [tab, setTab] = useState<Tab>("markdown");
+
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
@@ -26,12 +27,25 @@ export function ReferencePanel({ mode, macros, onClose }: Props) {
   return (
     <div className="reference-panel">
       <div className="reference-panel-header">
-        <h3>{mode === "markdown" ? "Markdown" : "Controls"}</h3>
+        <div className="reference-panel-tabs">
+          <button
+            className={`reference-panel-tab ${tab === "markdown" ? "active" : ""}`}
+            onClick={() => setTab("markdown")}
+          >
+            Markdown
+          </button>
+          <button
+            className={`reference-panel-tab ${tab === "controls" ? "active" : ""}`}
+            onClick={() => setTab("controls")}
+          >
+            Controls
+          </button>
+        </div>
         <button className="reference-panel-close" onClick={onClose}>&times;</button>
       </div>
       <div className="reference-panel-body">
-        {mode === "markdown" && <MarkdownReference macros={macros} />}
-        {mode === "controls" && <ControlsReference />}
+        {tab === "markdown" && <MarkdownReference macros={macros} />}
+        {tab === "controls" && <ControlsReference />}
       </div>
     </div>
   );
@@ -112,12 +126,10 @@ function ControlsReference() {
         <tbody>
           <tr><td className="ref-key">{mod}F</td><td>Find in note</td></tr>
           <tr><td className="ref-key">{mod}H</td><td>Find & replace</td></tr>
-          <tr><td className="ref-key">{mod}]</td><td>Next match</td></tr>
-          <tr><td className="ref-key">{mod}[</td><td>Previous match</td></tr>
+          <tr><td className="ref-key">{mod}] / [</td><td>Next / previous match</td></tr>
           <tr><td className="ref-key">{mod}⇧F</td><td>Search notes</td></tr>
           <tr><td className="ref-key">{mod}K</td><td>Command palette</td></tr>
-          <tr><td className="ref-key">#tag</td><td>Filter by tag</td></tr>
-          <tr><td className="ref-key">@name</td><td>Filter by dictionary</td></tr>
+          <tr><td className="ref-key">#tag / @name</td><td>Filter by tag or mention</td></tr>
         </tbody>
       </table>
       <h4>Notes</h4>
@@ -126,11 +138,9 @@ function ControlsReference() {
           <tr><td className="ref-key">{mod}N</td><td>New note</td></tr>
           <tr><td className="ref-key">{mod}J</td><td>Daily note</td></tr>
           <tr><td className="ref-key">↑ ↓</td><td>Navigate notes</td></tr>
+          <tr><td className="ref-key">← →</td><td>Collapse / expand backlinks</td></tr>
           <tr><td className="ref-key">Enter</td><td>Edit note</td></tr>
-          <tr><td className="ref-key">→</td><td>Expand backlinks</td></tr>
-          <tr><td className="ref-key">←</td><td>Collapse backlinks</td></tr>
-          <tr><td className="ref-key">{mod}⇧]</td><td>Next note</td></tr>
-          <tr><td className="ref-key">{mod}⇧[</td><td>Previous note</td></tr>
+          <tr><td className="ref-key">{mod}⇧] / [</td><td>Next / previous note</td></tr>
         </tbody>
       </table>
       <h4>Editor</h4>
@@ -147,22 +157,19 @@ function ControlsReference() {
           <tr><td className="ref-key">{mod}/</td><td>Toggle sidebar</td></tr>
           <tr><td className="ref-key">{mod}T</td><td>Table of contents</td></tr>
           <tr><td className="ref-key">{mod}\</td><td>Split view</td></tr>
-          <tr><td className="ref-key">{mod}1–9</td><td>Switch codex</td></tr>
-          <tr><td className="ref-key">{mod}=</td><td>Zoom in</td></tr>
-          <tr><td className="ref-key">{mod}-</td><td>Zoom out</td></tr>
+          <tr><td className="ref-key">{mod}1-9</td><td>Switch codex</td></tr>
+          <tr><td className="ref-key">{mod}= / -</td><td>Zoom in / out</td></tr>
           <tr><td className="ref-key">{mod}0</td><td>Reset zoom</td></tr>
         </tbody>
       </table>
       <h4>App</h4>
       <table className="ref-table">
         <tbody>
-          <tr><td className="ref-key">{mod}⇧Space</td><td>Toggle window</td></tr>
+          <tr><td className="ref-key">{mod}⇧Space</td><td>Summon window</td></tr>
           <tr><td className="ref-key">{mod}⌥Space</td><td>Scratchpad</td></tr>
-          <tr><td className="ref-key">{mod}W</td><td>Hide window</td></tr>
+          <tr><td className="ref-key">{mod}W / Esc</td><td>Banish window</td></tr>
           <tr><td className="ref-key">{mod},</td><td>Settings</td></tr>
-          <tr><td className="ref-key">{mod}.</td><td>Markdown reference</td></tr>
-          <tr><td className="ref-key">{mod};</td><td>Controls reference</td></tr>
-          <tr><td className="ref-key">Esc</td><td>Hide window</td></tr>
+          <tr><td className="ref-key">{mod}.</td><td>Reference panel</td></tr>
         </tbody>
       </table>
     </>

@@ -18,7 +18,6 @@ import type { ConflictChoice } from "./components/ConflictDialog";
 import { DeleteDialog } from "./components/DeleteDialog";
 import { Settings } from "./components/Settings";
 import { ReferencePanel } from "./components/ReferencePanel";
-import type { ReferencePanelMode } from "./components/ReferencePanel";
 import { useNotes } from "./hooks/useNotes";
 import { useVault } from "./hooks/useVault";
 import { useProtection } from "./hooks/useProtection";
@@ -100,7 +99,7 @@ function App() {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showCommandPalette, setShowCommandPalette] = useState(false);
-  const [referencePanel, setReferencePanel] = useState<ReferencePanelMode | null>(null);
+  const [showReferencePanel, setShowReferencePanel] = useState(false);
   const [expandedBacklinks, setExpandedBacklinks] = useState<Set<string>>(new Set());
   const [sensitivePromptId, setSensitivePromptId] = useState<string | null>(null);
   const sensitiveUnlockTime = useRef<Record<string, number>>({});
@@ -171,6 +170,7 @@ function App() {
     const SCRATCH_RE = /scratch:\/\/([A-Za-z0-9]+)/g;
     const map = new Map<string, { id: string; title: string }[]>();
     for (const note of notes) {
+      if (note.archived) continue;
       SCRATCH_RE.lastIndex = 0;
       let match;
       while ((match = SCRATCH_RE.exec(note.body)) !== null) {
@@ -993,10 +993,7 @@ function App() {
         setShowSettings((s) => !s);
       } else if (mod && e.key === ".") {
         e.preventDefault();
-        setReferencePanel((s) => s === "markdown" ? null : "markdown");
-      } else if (mod && e.key === ";") {
-        e.preventDefault();
-        setReferencePanel((s) => s === "controls" ? null : "controls");
+        setShowReferencePanel((s) => !s);
       } else if (mod && e.key === "/") {
         e.preventDefault();
         setSidebarCollapsed((s) => !s);
@@ -1143,8 +1140,7 @@ function App() {
       },
     ] : []),
     { id: "settings", label: "Open Settings", shortcut: `${mod},`, action: () => setShowSettings(true) },
-    { id: "markdown-ref", label: referencePanel === "markdown" ? "Hide Markdown Reference" : "Markdown Reference", shortcut: `${mod}.`, action: () => setReferencePanel((s) => s === "markdown" ? null : "markdown") },
-    { id: "controls-ref", label: referencePanel === "controls" ? "Hide Controls Reference" : "Controls Reference", shortcut: `${mod};`, action: () => setReferencePanel((s) => s === "controls" ? null : "controls") },
+    { id: "reference-panel", label: showReferencePanel ? "Hide Reference Panel" : "Reference Panel", shortcut: `${mod}.`, action: () => setShowReferencePanel((s) => !s) },
     { id: "scratchpad", label: "Open Scratchpad", action: () => invoke("open_scratchpad") },
     { id: "lock-vault", label: "Lock Vault", action: handleLock },
     { id: "toggle-sidebar", label: "Toggle Sidebar", shortcut: `${mod}/`, action: () => setSidebarCollapsed((s) => !s) },
@@ -1174,7 +1170,7 @@ function App() {
       shortcut: i < 8 ? `${mod}${i + 2}` : undefined,
       action: () => { setActiveCodex(c); setViewingArchive(false); },
     })),
-  ], [handleDelete, handleLock, handleDailyNote, handleTogglePin, handleToggleFreeze, handleToggleArchive, handleZoom, handleSettingsChange, handleToggleSensitive, navigateNote, appSettings, selectedId, selectedNote, splitNoteId, codexList, notes, vaultStatus, referencePanel, viewingArchive]);
+  ], [handleDelete, handleLock, handleDailyNote, handleTogglePin, handleToggleFreeze, handleToggleArchive, handleZoom, handleSettingsChange, handleToggleSensitive, navigateNote, appSettings, selectedId, selectedNote, splitNoteId, codexList, notes, vaultStatus, showReferencePanel, viewingArchive]);
 
   if (!initialized) {
     return <div className="loading">Loading…</div>;
@@ -1533,11 +1529,10 @@ function App() {
               <p>Select a note or create one</p>
             </div>
           )}
-          {referencePanel && (
+          {showReferencePanel && (
             <ReferencePanel
-              mode={referencePanel}
               macros={appSettings.macros}
-              onClose={() => setReferencePanel(null)}
+              onClose={() => setShowReferencePanel(false)}
             />
           )}
         </div>
