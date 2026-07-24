@@ -4,8 +4,11 @@ import { Decoration, DecorationSet } from "@tiptap/pm/view";
 
 const TAG_REGEX = /(?:^|[\s(])(#[a-zA-Z]\w*)/g;
 
-export function createTagHighlightExtension() {
+export function createTagHighlightExtension(
+  tagColorsRef: { current: Record<string, string> | undefined }
+) {
   let cachedDoc: any = null;
+  let cachedColors: Record<string, string> | undefined = undefined;
   let cachedDecos: DecorationSet = DecorationSet.empty;
 
   return Extension.create({
@@ -15,8 +18,10 @@ export function createTagHighlightExtension() {
         new Plugin({
           props: {
             decorations(state) {
-              if (state.doc === cachedDoc) return cachedDecos;
+              const colors = tagColorsRef.current;
+              if (state.doc === cachedDoc && colors === cachedColors) return cachedDecos;
               cachedDoc = state.doc;
+              cachedColors = colors;
               const decorations: Decoration[] = [];
 
               state.doc.descendants((node, pos) => {
@@ -27,12 +32,16 @@ export function createTagHighlightExtension() {
                 let match;
                 while ((match = TAG_REGEX.exec(text)) !== null) {
                   const tagText = match[1];
+                  const tagName = tagText.slice(1).toLowerCase();
                   const startInMatch = match[0].indexOf("#");
                   const from = pos + match.index + startInMatch;
                   const to = from + tagText.length;
-                  decorations.push(
-                    Decoration.inline(from, to, { class: "inline-tag" })
-                  );
+                  const color = colors?.[tagName];
+                  const attrs: Record<string, string> = { class: "inline-tag" };
+                  if (color) {
+                    attrs.style = `color: ${color}; background: ${color}20;`;
+                  }
+                  decorations.push(Decoration.inline(from, to, attrs));
                 }
               });
 

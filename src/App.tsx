@@ -1455,6 +1455,7 @@ function App() {
                 tocDefault={appSettings.tocDefault}
                 onToggleSplit={() => setSplitNoteId((s) => s ? null : selectedNote.id)}
                 isSplit={!!splitNote}
+                tagColors={appSettings.tagColors}
               />
               {splitNote && splitNote.id !== selectedNote.id && (
                 <Editor
@@ -1472,6 +1473,7 @@ function App() {
                   onToggleFreeze={() => handleToggleFreeze(splitNote.id)}
                   tocDefault={appSettings.tocDefault}
                   onCloseSplit={() => setSplitNoteId(null)}
+                  tagColors={appSettings.tagColors}
                 />
               )}
             </div>

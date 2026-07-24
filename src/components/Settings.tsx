@@ -1456,6 +1456,38 @@ export function Settings({
                     ))}
                   </>
                 )}
+                {allTags.length > 0 && (
+                  <>
+                    <h3>Tag Colors</h3>
+                    {allTags.map(({ name }) => (
+                      <div className="settings-row" key={name}>
+                        <label>#{name}</label>
+                        <div className="codex-color-picker">
+                          <input
+                            type="color"
+                            value={settings.tagColors?.[name] || "#808080"}
+                            onChange={(e) => {
+                              const newColors = { ...settings.tagColors, [name]: e.target.value };
+                              onSettingsChange({ ...settings, tagColors: newColors });
+                            }}
+                          />
+                          {settings.tagColors?.[name] && (
+                            <button
+                              className="codex-color-reset"
+                              onClick={() => {
+                                const newColors = { ...settings.tagColors };
+                                delete newColors[name];
+                                onSettingsChange({ ...settings, tagColors: newColors });
+                              }}
+                            >
+                              ×
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </>
+                )}
               </div>
             )}
 

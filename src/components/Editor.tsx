@@ -270,12 +270,13 @@ type Props = {
   onCloseSplit?: () => void;
   onToggleSplit?: () => void;
   isSplit?: boolean;
+  tagColors?: Record<string, string>;
 };
 
 type TocHeading = { level: number; text: string; pos: number };
 type Backlink = { id: string; title: string };
 
-export function Editor({ note, saveStatus, onTitleChange, onBodyChange, onCodexChange, onEditingChange, searchQuery = "", codexList, isSensitive, editorRef, macros = {}, allNotes = [], onNavigateToNote, frozen, onToggleFreeze, tocDefault, onCloseSplit, onToggleSplit, isSplit }: Props) {
+export function Editor({ note, saveStatus, onTitleChange, onBodyChange, onCodexChange, onEditingChange, searchQuery = "", codexList, isSensitive, editorRef, macros = {}, allNotes = [], onNavigateToNote, frozen, onToggleFreeze, tocDefault, onCloseSplit, onToggleSplit, isSplit, tagColors }: Props) {
   const [showCharCount, setShowCharCount] = useState(false);
   const [isTitleFocused, setIsTitleFocused] = useState(false);
   const [showToc, setShowToc] = useState(false);
@@ -314,7 +315,9 @@ export function Editor({ note, saveStatus, onTitleChange, onBodyChange, onCodexC
   const [searchExt] = useState(() => createSearchHighlightExtension(searchQueryRef, currentMatchRef));
   const [macroExt] = useState(() => createMacroExtension(macrosRef));
   const [noteLinkExt] = useState(() => createNoteLinkExtension(notesListRef, onNavigateRef));
-  const [tagExt] = useState(() => createTagHighlightExtension());
+  const tagColorsRef = useRef(tagColors);
+  tagColorsRef.current = tagColors;
+  const [tagExt] = useState(() => createTagHighlightExtension(tagColorsRef));
   const suppressUpdate = useRef(false);
 
   const editor = useEditor({
@@ -363,6 +366,12 @@ export function Editor({ note, saveStatus, onTitleChange, onBodyChange, onCodexC
   useEffect(() => {
     if (editor) editor.setEditable(!frozen, false);
   }, [frozen, editor]);
+
+  useEffect(() => {
+    if (!editor || editor.isDestroyed || !editor.view) return;
+    const tr = editor.view.state.tr.setMeta("tagColorUpdate", true);
+    editor.view.dispatch(tr);
+  }, [tagColors, editor]);
 
   // Update the combined query ref: in-note search takes priority over global search
   searchQueryRef.current = inNoteQuery.trim() ? inNoteQuery : searchQuery;
@@ -695,7 +704,11 @@ export function Editor({ note, saveStatus, onTitleChange, onBodyChange, onCodexC
             {tags.length > 0 && (
               <span className="editor-tags">
                 {tags.map((tag) => (
-                  <span key={tag} className="editor-tag">#{tag}</span>
+                  <span
+                    key={tag}
+                    className="editor-tag"
+                    style={tagColors?.[tag] ? { color: tagColors[tag], background: `${tagColors[tag]}20` } : undefined}
+                  >#{tag}</span>
                 ))}
               </span>
             )}

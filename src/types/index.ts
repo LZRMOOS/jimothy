@@ -55,6 +55,7 @@ export type Preferences = {
   dailyNoteFormat?: string;
   codexIcons?: Record<string, string>;
   codexColors?: Record<string, string>;
+  tagColors?: Record<string, string>;
   pinnedNotes?: string[];
   frozenNotes?: string[];
   pinnedCommands?: string[];
