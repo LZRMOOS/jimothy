@@ -15,11 +15,11 @@
  */
 
 :root {
-  --bg-primary: #faf9f7;
-  --bg-secondary: #f4f3f0;
-  --bg-tertiary: #eceae6;
-  --bg-selected: #e6e3de;
-  --bg-hover: #efede9;
+  --bg-primary: #f5f4f1;
+  --bg-secondary: #efeee9;
+  --bg-tertiary: #e8e6e1;
+  --bg-selected: #e0ddd7;
+  --bg-hover: #eae8e3;
   --text-primary: #1a1a2e;
   --text-secondary: #64648c;
   --text-hint: #9898b0;
