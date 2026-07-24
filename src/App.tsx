@@ -2,7 +2,6 @@ import { useState, useRef, useEffect, useCallback, useMemo } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
-import { ask } from "@tauri-apps/plugin-dialog";
 import { useEventListener } from "./hooks/useEventListener";
 import { SearchBar } from "./components/SearchBar";
 import { NotesList } from "./components/NotesList";
@@ -16,6 +15,7 @@ import { SensitivePrompt } from "./components/SensitivePrompt";
 import { ProtectionSetup } from "./components/ProtectionSetup";
 import { ConflictDialog } from "./components/ConflictDialog";
 import type { ConflictChoice } from "./components/ConflictDialog";
+import { DeleteDialog } from "./components/DeleteDialog";
 import { Settings } from "./components/Settings";
 import { useNotes } from "./hooks/useNotes";
 import { useVault } from "./hooks/useVault";
@@ -87,6 +87,7 @@ function App() {
   const [initialized, setInitialized] = useState(false);
   const [notification, setNotification] = useState<string | null>(null);
   const [conflictNoteId, setConflictNoteId] = useState<string | null>(null);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showCommandPalette, setShowCommandPalette] = useState(false);
   const [sensitivePromptId, setSensitivePromptId] = useState<string | null>(null);
@@ -553,16 +554,35 @@ function App() {
   const handleDeleteById = useCallback(
     async (id: string) => {
       if (appSettings.confirmDelete !== false) {
-        const confirmed = await ask("Delete this note? This cannot be undone.", {
-          title: "Delete Note",
-          kind: "warning",
+        setShowDeleteDialog(true);
+        // Wait for user decision
+        return new Promise<void>((resolve) => {
+          const checkDialog = () => {
+            if (!showDeleteDialog) {
+              resolve();
+            } else {
+              setTimeout(checkDialog, 100);
+            }
+          };
+          checkDialog();
         });
-        if (!confirmed) return;
+      } else {
+        await deleteNote(id);
       }
-      await deleteNote(id);
     },
-    [deleteNote, appSettings.confirmDelete]
+    [deleteNote, appSettings.confirmDelete, showDeleteDialog]
   );
+
+  const handleConfirmDelete = useCallback(async () => {
+    setShowDeleteDialog(false);
+    if (selectedId) {
+      await deleteNote(selectedId);
+    }
+  }, [selectedId, deleteNote]);
+
+  const handleCancelDelete = useCallback(() => {
+    setShowDeleteDialog(false);
+  }, []);
 
   const handleDelete = useCallback(async () => {
     if (selectedId) await handleDeleteById(selectedId);
@@ -738,6 +758,12 @@ function App() {
         <ConflictDialog
           noteId={conflictNoteId}
           onChoice={handleConflictChoice}
+        />
+      )}
+      {showDeleteDialog && (
+        <DeleteDialog
+          onConfirm={handleConfirmDelete}
+          onCancel={handleCancelDelete}
         />
       )}
       {notification && (

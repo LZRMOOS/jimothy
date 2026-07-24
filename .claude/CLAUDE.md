@@ -65,6 +65,8 @@ Two independent layers of encryption:
 - Zoom support (Cmd+/- for text size)
 - System tray with hide-on-close behavior
 - Native macOS menu bar with standard shortcuts
+- Update settings page with keyboard controls when changing hotkeys
+- When writing, use a more fun, quirky straightforward language, do not use em-dashes.
 
 ## Development Workflow
 
@@ -219,7 +221,8 @@ All commands defined in `src-tauri/src/commands/mod.rs`:
 
 ## Release Process
 
-### Pushing to GitHub
+### Committing/Pushing to GitHub
+- Do not automatically commit unless asked to
 - Do not automatically push to GitHub unless asked to
 - Commits should not be co-authored with Claude
 
