@@ -320,7 +320,7 @@ export function Editor({ note, saveStatus, onTitleChange, onBodyChange, onCodexC
       Markdown.configure({
         html: false,
         transformPastedText: true,
-        transformCopiedText: true,
+        transformCopiedText: false,
       }),
       searchExt,
       macroExt,
