@@ -796,7 +796,12 @@ body {
   background: var(--bg-tertiary);
 }
 
-.save-status.saved {
+.save-status.unsaved {
+  color: var(--text-hint);
+}
+
+.save-status.saved,
+.save-status.saving {
   color: var(--success);
   background: rgba(16, 185, 129, 0.08);
 }

@@ -18,7 +18,7 @@ export type SearchResult = {
   matchedInBody: boolean;
 };
 
-export type SaveStatus = "idle" | "saving" | "saved" | "error";
+export type SaveStatus = "idle" | "unsaved" | "saving" | "saved" | "error";
 
 export type VaultStatus = "plaintext" | "locked" | "unlocked";
 

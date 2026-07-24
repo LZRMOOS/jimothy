@@ -10,6 +10,7 @@ export function useNotes() {
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
   const [folderSet, setFolderSet] = useState(false);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const lastSaveRef = useRef<number>(0);
   const searchRef = useRef<MiniSearch<Note>>(
     new MiniSearch({
       fields: ["title", "body"],
@@ -56,6 +57,8 @@ export function useNotes() {
 
   useEffect(() => {
     const unlisten = listen("notes-changed", () => {
+      const elapsed = Date.now() - lastSaveRef.current;
+      if (elapsed < 2000) return;
       loadNotes();
     });
     return () => {
@@ -87,8 +90,12 @@ export function useNotes() {
           body,
           codex: codex ?? null,
         })) as Note;
+        lastSaveRef.current = Date.now();
         setNotes((prev) => {
-          const newList = prev.map((n) => (n.id === id ? updated : n));
+          const newList = prev.map((n) => {
+            if (n.id !== id) return n;
+            return { ...n, updated_at: updated.updated_at };
+          });
           rebuildIndex(newList);
           return newList;
         });
@@ -102,12 +109,13 @@ export function useNotes() {
 
   const debouncedSave = useCallback(
     (id: string, title: string, body: string, codex?: string | null) => {
+      setSaveStatus("unsaved");
       if (saveTimerRef.current) {
         clearTimeout(saveTimerRef.current);
       }
       saveTimerRef.current = setTimeout(() => {
         saveNote(id, title, body, codex);
-      }, 400);
+      }, 1500);
     },
     [saveNote]
   );

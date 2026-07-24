@@ -267,6 +267,13 @@ type Props = {
 export function Editor({ note, saveStatus, onTitleChange, onBodyChange, onCodexChange, onEditingChange, searchQuery = "", codexList, isSensitive, editorRef, macros = {}, allNotes = [], onNavigateToNote }: Props) {
   const [showCharCount, setShowCharCount] = useState(false);
   const [isTitleFocused, setIsTitleFocused] = useState(false);
+  const [localTitle, setLocalTitle] = useState(note.title);
+  const localTitleNoteId = useRef(note.id);
+
+  if (localTitleNoteId.current !== note.id) {
+    localTitleNoteId.current = note.id;
+    setLocalTitle(note.title);
+  }
   const [showInNoteSearch, setShowInNoteSearch] = useState(false);
   const [showReplace, setShowReplace] = useState(false);
   const [inNoteQuery, setInNoteQuery] = useState("");
@@ -527,10 +534,10 @@ export function Editor({ note, saveStatus, onTitleChange, onBodyChange, onCodexC
   );
 
   const statusLabel =
-    saveStatus === "saving"
-      ? "Saving…"
-      : saveStatus === "saved"
-        ? "Saved"
+    saveStatus === "saved" || saveStatus === "saving"
+      ? "Saved"
+      : saveStatus === "unsaved"
+        ? "Unsaved"
         : saveStatus === "error"
           ? "Save failed"
           : "";
@@ -546,7 +553,7 @@ export function Editor({ note, saveStatus, onTitleChange, onBodyChange, onCodexC
     minute: "2-digit",
   });
 
-  const titleHasMatch = searchQuery && buildSearchPattern(searchQuery)?.test(note.title);
+  const titleHasMatch = searchQuery && buildSearchPattern(searchQuery)?.test(localTitle);
 
   return (
     <div className="editor">
@@ -556,8 +563,11 @@ export function Editor({ note, saveStatus, onTitleChange, onBodyChange, onCodexC
             ref={titleInputRef}
             type="text"
             className="editor-title"
-            value={note.title}
-            onChange={(e) => onTitleChange(e.target.value)}
+            value={localTitle}
+            onChange={(e) => {
+              setLocalTitle(e.target.value);
+              onTitleChange(e.target.value);
+            }}
             onKeyDown={handleTitleKeyDown}
             onFocus={() => {
               setIsTitleFocused(true);
@@ -572,7 +582,7 @@ export function Editor({ note, saveStatus, onTitleChange, onBodyChange, onCodexC
           />
           {titleHasMatch && !isTitleFocused && (
             <div className="editor-title-overlay" aria-hidden="true">
-              {highlightMatches(note.title, searchQuery)}
+              {highlightMatches(localTitle, searchQuery)}
             </div>
           )}
         </div>
