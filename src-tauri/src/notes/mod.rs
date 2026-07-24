@@ -12,6 +12,7 @@ pub struct Note {
     pub encrypted: bool,
     pub file_path: String,
     pub codex: Option<String>,
+    pub archived: bool,
 }
 
 impl Note {
@@ -27,6 +28,7 @@ impl Note {
             encrypted: false,
             file_path: String::new(),
             codex: None,
+            archived: false,
         }
     }
 }
@@ -36,14 +38,16 @@ pub fn serialize_note(note: &Note) -> String {
         Some(c) if !c.is_empty() => format!("codex: {}\n", c),
         _ => String::new(),
     };
+    let archived_line = if note.archived { "archived: true\n" } else { "" };
     format!(
-        "---\nid: {}\ntitle: {}\ncreated_at: {}\nupdated_at: {}\nencrypted: {}\n{}---\n\n{}",
+        "---\nid: {}\ntitle: {}\ncreated_at: {}\nupdated_at: {}\nencrypted: {}\n{}{}---\n\n{}",
         note.id,
         note.title,
         note.created_at.to_rfc3339(),
         note.updated_at.to_rfc3339(),
         note.encrypted,
         codex_line,
+        archived_line,
         note.body
     )
 }
@@ -68,6 +72,7 @@ pub fn parse_note(content: &str, file_path: &str) -> Option<Note> {
     let mut updated_at: Option<DateTime<Utc>> = None;
     let mut encrypted = false;
     let mut codex: Option<String> = None;
+    let mut archived = false;
 
     for line in frontmatter.lines() {
         if let Some((key, value)) = line.split_once(": ") {
@@ -91,6 +96,7 @@ pub fn parse_note(content: &str, file_path: &str) -> Option<Note> {
                         codex = Some(value.to_string());
                     }
                 }
+                "archived" => archived = value == "true",
                 _ => {}
             }
         }
@@ -109,6 +115,7 @@ pub fn parse_note(content: &str, file_path: &str) -> Option<Note> {
         encrypted,
         file_path: file_path.to_string(),
         codex,
+        archived,
     })
 }
 

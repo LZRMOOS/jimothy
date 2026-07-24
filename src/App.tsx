@@ -72,6 +72,7 @@ function App() {
 
   const [query, setQuery] = useState("");
   const [activeCodex, setActiveCodex] = useState<string | null>(null);
+  const [viewingArchive, setViewingArchive] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [editingCodexIcon, setEditingCodexIcon] = useState<string | null>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
@@ -100,8 +101,21 @@ function App() {
   });
   const [notesFolder, setNotesFolder] = useState<string | null>(null);
 
+  const activeNotes = useMemo(() =>
+    viewingArchive ? notes.filter((n) => n.archived) : notes.filter((n) => !n.archived),
+    [notes, viewingArchive]
+  );
+
+  const archivedCount = useMemo(() => notes.filter((n) => n.archived).length, [notes]);
+
+  useEffect(() => {
+    if (viewingArchive && archivedCount === 0) {
+      setViewingArchive(false);
+    }
+  }, [viewingArchive, archivedCount]);
+
   const codexList = useMemo(() =>
-    Array.from(new Set(notes.map((n) => n.codex).filter(Boolean) as string[])).sort(),
+    Array.from(new Set(notes.filter((n) => !n.archived).map((n) => n.codex).filter(Boolean) as string[])).sort(),
     [notes]
   );
 
@@ -263,13 +277,13 @@ function App() {
 
 
   const filteredNotes = useMemo(() => {
-    if (isCreateMode) return notes;
-    let results = search(query);
-    if (activeCodex) {
+    if (isCreateMode) return activeNotes;
+    let results = search(query).filter((n) => viewingArchive ? n.archived : !n.archived);
+    if (activeCodex && !viewingArchive) {
       results = results.filter((n) => n.codex === activeCodex);
     }
     return results;
-  }, [query, search, notes, activeCodex, isCreateMode]);
+  }, [query, search, activeNotes, activeCodex, isCreateMode, viewingArchive]);
 
   // Auto-select best match when search results change
   useEffect(() => {
@@ -406,6 +420,23 @@ function App() {
       handleSettingsChange({ ...appSettings, pinnedNotes: next });
     },
     [appSettings, handleSettingsChange]
+  );
+
+  const handleToggleArchive = useCallback(
+    async (id: string) => {
+      const note = notes.find((n) => n.id === id);
+      if (!note) return;
+      const newArchived = !note.archived;
+      await invoke("set_note_archived", { id, archived: newArchived });
+      if (!newArchived && viewingArchive) {
+        const otherArchived = notes.filter((n) => n.archived && n.id !== id);
+        if (otherArchived.length === 0) {
+          setViewingArchive(false);
+        }
+      }
+      await loadNotes();
+    },
+    [notes, loadNotes, viewingArchive]
   );
 
 
@@ -557,7 +588,7 @@ function App() {
 
   const navigateNote = useCallback((direction: 1 | -1) => {
     // Use the same list that's displayed on screen
-    let list = query || activeCodex ? filteredNotes : notes;
+    let list = (query || activeCodex || viewingArchive) ? filteredNotes : activeNotes;
     if (list.length === 0) return;
 
     // Sort by pinned first, then unpinned (same as NotesList)
@@ -573,7 +604,7 @@ function App() {
     setEditingNote(false);
     setEditorFocusTrigger(0);
     handleSelectNote(list[next].id);
-  }, [query, activeCodex, filteredNotes, notes, selectedId, appSettings.pinnedNotes, handleSelectNote]);
+  }, [query, activeCodex, viewingArchive, filteredNotes, activeNotes, selectedId, appSettings.pinnedNotes, handleSelectNote]);
 
   const handleArrowDown = useCallback(() => navigateNote(1), [navigateNote]);
   const handleArrowUp = useCallback(() => navigateNote(-1), [navigateNote]);
@@ -763,8 +794,10 @@ function App() {
         const idx = parseInt(e.key) - 1;
         if (idx === 0) {
           setActiveCodex(null);
+          setViewingArchive(false);
         } else if (idx - 1 < codexList.length) {
           setActiveCodex(codexList[idx - 1]);
+          setViewingArchive(false);
         }
       } else if (mod && e.shiftKey && e.key === "]") {
         e.preventDefault();
@@ -842,6 +875,11 @@ function App() {
         action: () => handleTogglePin(selectedId),
       },
       {
+        id: "archive-note",
+        label: notes.find((n) => n.id === selectedId)?.archived ? "Unarchive Note" : "Archive Note",
+        action: () => handleToggleArchive(selectedId),
+      },
+      {
         id: "copy-markdown",
         label: "Copy as Markdown",
         action: () => {
@@ -872,14 +910,15 @@ function App() {
       })(),
       action: () => handleToggleSensitive(selectedId),
     }] : []),
-    { id: "all-notes", label: "All Notes", shortcut: "⌘1", action: () => setActiveCodex(null) },
+    { id: "all-notes", label: "All Notes", shortcut: "⌘1", action: () => { setActiveCodex(null); setViewingArchive(false); } },
+    { id: "view-archive", label: viewingArchive ? "Exit Archive" : "View Archive", action: () => { setViewingArchive((s) => !s); setActiveCodex(null); } },
     ...codexList.map((c, i) => ({
       id: `codex-${c}`,
       label: `Codex: ${c}`,
       shortcut: i < 8 ? `⌘${i + 2}` : undefined,
-      action: () => setActiveCodex(c),
+      action: () => { setActiveCodex(c); setViewingArchive(false); },
     })),
-  ], [handleDelete, handleLock, handleTogglePin, handleZoom, handleSettingsChange, handleToggleSensitive, navigateNote, appSettings, selectedId, selectedNote, codexList, notes, vaultStatus, referencePanel]);
+  ], [handleDelete, handleLock, handleTogglePin, handleToggleArchive, handleZoom, handleSettingsChange, handleToggleSensitive, navigateNote, appSettings, selectedId, selectedNote, codexList, notes, vaultStatus, referencePanel, viewingArchive]);
 
   if (!initialized) {
     return <div className="loading">Loading…</div>;
@@ -905,7 +944,7 @@ function App() {
     );
   }
 
-  const displayNotes = (query && !isCreateMode) || activeCodex ? filteredNotes : notes;
+  const displayNotes = (query && !isCreateMode) || activeCodex || viewingArchive ? filteredNotes : activeNotes;
 
   return (
     <div className={`app${sidebarCollapsed ? " sidebar-collapsed" : ""}`}>
@@ -955,8 +994,8 @@ function App() {
       {!sidebarCollapsed && (
         <div className="codex-sidebar">
           <button
-            className={`codex-sidebar-item ${activeCodex === null ? "active" : ""}`}
-            onClick={() => setActiveCodex(null)}
+            className={`codex-sidebar-item ${activeCodex === null && !viewingArchive ? "active" : ""}`}
+            onClick={() => { setActiveCodex(null); setViewingArchive(false); }}
             title="All Notes"
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -990,8 +1029,8 @@ function App() {
             ) : (
               <button
                 key={codex}
-                className={`codex-sidebar-item ${activeCodex === codex ? "active" : ""}`}
-                onClick={() => setActiveCodex(activeCodex === codex ? null : codex)}
+                className={`codex-sidebar-item ${activeCodex === codex && !viewingArchive ? "active" : ""}`}
+                onClick={() => { setActiveCodex(activeCodex === codex ? null : codex); setViewingArchive(false); }}
                 onDoubleClick={() => setEditingCodexIcon(codex)}
                 title={`${codex} (double-click to set icon)`}
               >
@@ -1001,15 +1040,30 @@ function App() {
               </button>
             )
           ))}
-          <button
-            className="codex-sidebar-item codex-sidebar-toggle"
-            onClick={() => setSidebarCollapsed(true)}
-            title="Collapse sidebar"
-          >
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <polyline points="15 18 9 12 15 6" />
-            </svg>
-          </button>
+          <div className="codex-sidebar-bottom">
+            {archivedCount > 0 && (
+              <button
+                className={`codex-sidebar-item codex-sidebar-archive ${viewingArchive ? "active" : ""}`}
+                onClick={() => { setViewingArchive((s) => !s); setActiveCodex(null); }}
+                title={`Archive (${archivedCount})`}
+              >
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="21 8 21 21 3 21 3 8"/>
+                  <rect x="1" y="3" width="22" height="5"/>
+                  <line x1="10" y1="12" x2="14" y2="12"/>
+                </svg>
+              </button>
+            )}
+            <button
+              className="codex-sidebar-item codex-sidebar-toggle"
+              onClick={() => setSidebarCollapsed(true)}
+              title="Collapse sidebar"
+            >
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="15 18 9 12 15 6" />
+              </svg>
+            </button>
+          </div>
         </div>
       )}
       {sidebarCollapsed && (
@@ -1051,11 +1105,20 @@ function App() {
             <div className="notes-panel">
               <div className="codex-dropdown">
                 <Dropdown
-                  value={activeCodex || ""}
-                  onChange={(v) => setActiveCodex(v || null)}
+                  value={viewingArchive ? "__archive__" : (activeCodex || "")}
+                  onChange={(v) => {
+                    if (v === "__archive__") {
+                      setViewingArchive(true);
+                      setActiveCodex(null);
+                    } else {
+                      setViewingArchive(false);
+                      setActiveCodex(v || null);
+                    }
+                  }}
                   options={[
                     { value: "", label: "All Notes" },
                     ...codexList.map((c) => ({ value: c, label: `Codex: ${c}` })),
+                    ...(archivedCount > 0 ? [{ value: "__archive__", label: `Archive (${archivedCount})` }] : []),
                   ]}
                 />
               </div>
@@ -1066,6 +1129,7 @@ function App() {
                 onDelete={handleDeleteById}
                 onTogglePin={handleTogglePin}
                 onToggleSensitive={vaultStatus === "plaintext" || vaultStatus === "unlocked" ? handleToggleSensitive : undefined}
+                onToggleArchive={handleToggleArchive}
                 pinnedIds={appSettings.pinnedNotes || []}
                 sensitiveIds={
                   vaultStatus === "plaintext"

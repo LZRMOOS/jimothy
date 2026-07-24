@@ -6,6 +6,7 @@ export type Note = {
   updated_at: string;
   encrypted: boolean;
   codex: string | null;
+  archived: boolean;
 };
 
 export type SearchResult = {

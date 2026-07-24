@@ -142,6 +142,7 @@ pub fn run() {
             commands::get_notes,
             commands::create_note,
             commands::save_note,
+            commands::set_note_archived,
             commands::delete_note,
             commands::reload_notes,
             commands::get_default_notes_path,

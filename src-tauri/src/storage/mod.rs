@@ -450,6 +450,7 @@ pub fn load_protected_note_stubs(folder: &Path) -> Vec<Note> {
                     encrypted: true,
                     file_path: path.to_string_lossy().to_string(),
                     codex: protected.codex,
+                    archived: false,
                 });
             }
         }
@@ -537,6 +538,7 @@ mod tests {
             encrypted: false,
             file_path: String::new(),
             codex: None,
+            archived: false,
         }
     }
 

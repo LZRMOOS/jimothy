@@ -577,6 +577,7 @@ export function Editor({ note, saveStatus, onTitleChange, onBodyChange, onCodexC
           )}
         </div>
         <div className="editor-status">
+          {note.archived && <span className="archived-status">Archived</span>}
           {isSensitive && <span className="sensitive-status">Protected</span>}
           {note.encrypted && <span className="encrypted-status">Encrypted</span>}
           {statusLabel && <span className={`save-status ${saveStatus}`}>{statusLabel}</span>}

@@ -12,6 +12,7 @@ function makeNote(overrides: Partial<Note> = {}): Note {
     updated_at: new Date().toISOString(),
     encrypted: false,
     codex: null,
+    archived: false,
     ...overrides,
   };
 }

@@ -295,6 +295,7 @@ mod tests {
             encrypted: true,
             file_path: String::new(),
             codex: None,
+            archived: false,
         }
     }
 

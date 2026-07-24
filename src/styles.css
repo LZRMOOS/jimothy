@@ -478,8 +478,23 @@ body {
   outline: none;
 }
 
-.codex-sidebar-toggle {
+.codex-sidebar-bottom {
   margin-top: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.codex-sidebar-archive {
+  opacity: 0.6;
+}
+
+.codex-sidebar-archive:hover,
+.codex-sidebar-archive.active {
+  opacity: 1;
+}
+
+.codex-sidebar-toggle {
   opacity: 0.5;
 }
 
@@ -761,6 +776,15 @@ body {
   padding: 3px 8px;
   border-radius: 4px;
   background: rgba(239, 68, 68, 0.08);
+}
+
+.archived-status {
+  font-size: 11px;
+  color: var(--text-secondary);
+  white-space: nowrap;
+  padding: 3px 8px;
+  border-radius: 4px;
+  background: var(--bg-hover);
 }
 
 .save-status {
@@ -1471,6 +1495,10 @@ body {
 
 .context-menu-item:hover {
   background: var(--bg-selected);
+}
+
+.context-menu-item.subtle {
+  color: var(--text-secondary);
 }
 
 .context-menu-item.danger {

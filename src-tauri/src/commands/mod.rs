@@ -126,6 +126,7 @@ pub struct NoteDto {
     pub updated_at: String,
     pub encrypted: bool,
     pub codex: Option<String>,
+    pub archived: bool,
 }
 
 impl From<&Note> for NoteDto {
@@ -138,6 +139,7 @@ impl From<&Note> for NoteDto {
             updated_at: note.updated_at.to_rfc3339(),
             encrypted: note.encrypted,
             codex: note.codex.clone(),
+            archived: note.archived,
         }
     }
 }
@@ -280,6 +282,34 @@ pub fn save_note(
     }
 
     note.file_path = new_path.to_string_lossy().to_string();
+
+    Ok(NoteDto::from(&*note))
+}
+
+#[tauri::command]
+pub fn set_note_archived(id: String, archived: bool, state: State<'_, AppState>) -> Result<NoteDto, String> {
+    let folder = state.folder()?;
+    let vault_status = state.vault_status.lock().unwrap().clone();
+
+    let mut notes = state.notes.lock().unwrap();
+    let note = notes
+        .iter_mut()
+        .find(|n| n.id == id)
+        .ok_or("Note not found")?;
+
+    note.archived = archived;
+
+    match vault_status {
+        VaultStatus::Unlocked => {
+            let key = state.vault_key.lock().unwrap();
+            let key = key.as_ref().ok_or("Vault key not available")?;
+            storage::write_note_encrypted(&folder, note, key)?;
+        }
+        VaultStatus::Locked => {
+            return Err("Vault is locked. Unlock before saving.".to_string());
+        }
+        VaultStatus::Plaintext => { storage::write_note_atomic(&folder, note)?; }
+    };
 
     Ok(NoteDto::from(&*note))
 }
