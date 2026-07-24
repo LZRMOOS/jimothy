@@ -29,7 +29,7 @@ export function useNotes() {
   }, []);
 
   const loadNotes = useCallback(async () => {
-    const loaded = (await invoke("get_notes")) as Note[];
+    const loaded = (await invoke("reload_notes")) as Note[];
     setNotes(loaded);
     rebuildIndex(loaded);
   }, [rebuildIndex]);

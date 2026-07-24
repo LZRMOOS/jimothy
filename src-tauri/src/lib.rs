@@ -14,6 +14,7 @@ use tauri::{
 };
 use tauri_plugin_autostart::ManagerExt;
 use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut, ShortcutState};
+use tauri_plugin_window_state::{AppHandleExt, StateFlags};
 
 #[tauri::command]
 fn set_tray_visible(app: tauri::AppHandle, visible: bool) -> Result<(), String> {
@@ -71,46 +72,53 @@ pub fn run() {
             None,
         ))
         .menu(|app| {
-            let app_menu = Submenu::with_items(
-                app,
-                "Jimothy",
-                true,
-                &[
-                    &MenuItem::with_id(app, "about", "About Jimothy", true, None::<&str>)?,
-                    &tauri::menu::PredefinedMenuItem::separator(app)?,
-                    &MenuItem::with_id(app, "menu_settings", "Settings...", true, Some("CmdOrCtrl+,"))?,
-                    &tauri::menu::PredefinedMenuItem::separator(app)?,
-                    &tauri::menu::PredefinedMenuItem::hide(app, None)?,
-                    &tauri::menu::PredefinedMenuItem::hide_others(app, None)?,
-                    &tauri::menu::PredefinedMenuItem::show_all(app, None)?,
-                    &tauri::menu::PredefinedMenuItem::separator(app)?,
-                    &tauri::menu::PredefinedMenuItem::quit(app, None)?,
-                ],
-            )?;
-            let edit_menu = Submenu::with_items(
-                app,
-                "Edit",
-                true,
-                &[
-                    &tauri::menu::PredefinedMenuItem::undo(app, None)?,
-                    &tauri::menu::PredefinedMenuItem::redo(app, None)?,
-                    &tauri::menu::PredefinedMenuItem::separator(app)?,
-                    &tauri::menu::PredefinedMenuItem::cut(app, None)?,
-                    &tauri::menu::PredefinedMenuItem::copy(app, None)?,
-                    &tauri::menu::PredefinedMenuItem::paste(app, None)?,
-                    &tauri::menu::PredefinedMenuItem::select_all(app, None)?,
-                ],
-            )?;
-            let file_menu = Submenu::with_items(
-                app,
-                "File",
-                true,
-                &[
-                    &MenuItem::with_id(app, "menu_new_note", "New Note", true, Some("CmdOrCtrl+N"))?,
-                    &MenuItem::with_id(app, "menu_lock", "Lock Vault", true, None::<&str>)?,
-                ],
-            )?;
-            Menu::with_items(app, &[&app_menu, &file_menu, &edit_menu])
+            #[cfg(target_os = "macos")]
+            {
+                let app_menu = Submenu::with_items(
+                    app,
+                    "Jimothy",
+                    true,
+                    &[
+                        &MenuItem::with_id(app, "about", "About Jimothy", true, None::<&str>)?,
+                        &tauri::menu::PredefinedMenuItem::separator(app)?,
+                        &MenuItem::with_id(app, "menu_settings", "Settings...", true, Some("CmdOrCtrl+,"))?,
+                        &tauri::menu::PredefinedMenuItem::separator(app)?,
+                        &tauri::menu::PredefinedMenuItem::hide(app, None)?,
+                        &tauri::menu::PredefinedMenuItem::hide_others(app, None)?,
+                        &tauri::menu::PredefinedMenuItem::show_all(app, None)?,
+                        &tauri::menu::PredefinedMenuItem::separator(app)?,
+                        &tauri::menu::PredefinedMenuItem::quit(app, None)?,
+                    ],
+                )?;
+                let edit_menu = Submenu::with_items(
+                    app,
+                    "Edit",
+                    true,
+                    &[
+                        &tauri::menu::PredefinedMenuItem::undo(app, None)?,
+                        &tauri::menu::PredefinedMenuItem::redo(app, None)?,
+                        &tauri::menu::PredefinedMenuItem::separator(app)?,
+                        &tauri::menu::PredefinedMenuItem::cut(app, None)?,
+                        &tauri::menu::PredefinedMenuItem::copy(app, None)?,
+                        &tauri::menu::PredefinedMenuItem::paste(app, None)?,
+                        &tauri::menu::PredefinedMenuItem::select_all(app, None)?,
+                    ],
+                )?;
+                let file_menu = Submenu::with_items(
+                    app,
+                    "File",
+                    true,
+                    &[
+                        &MenuItem::with_id(app, "menu_new_note", "New Note", true, Some("CmdOrCtrl+N"))?,
+                        &MenuItem::with_id(app, "menu_lock", "Lock Vault", true, None::<&str>)?,
+                    ],
+                )?;
+                return Menu::with_items(app, &[&app_menu, &file_menu, &edit_menu]);
+            }
+            #[cfg(not(target_os = "macos"))]
+            {
+                Menu::new(app)
+            }
         })
         .on_menu_event(|app, event| {
             match event.id().as_ref() {
@@ -281,6 +289,7 @@ pub fn run() {
         })
         .on_window_event(|window, event| {
             if let WindowEvent::CloseRequested { api, .. } = event {
+                let _ = window.app_handle().save_window_state(StateFlags::all());
                 api.prevent_close();
                 let _ = window.hide();
             }

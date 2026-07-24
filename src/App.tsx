@@ -26,6 +26,10 @@ import { useIdleLock } from "./hooks/useIdleLock";
 import type { AppSettings, LocalSettings, Preferences } from "./types";
 import { extractTags, noteHasTag } from "./utils/tags";
 
+const isMac = navigator.platform.toUpperCase().includes("MAC");
+const mod = isMac ? "⌘" : "Ctrl+";
+const shift = isMac ? "⇧" : "Shift+";
+
 function App() {
   const {
     notes,
@@ -1052,11 +1056,11 @@ function App() {
   }, [showSettings, showCommandPalette, sensitivePromptId, editingCodexIcon, selectedId, navigateNote, appSettings.frozenNotes]);
 
   const commands: Command[] = useMemo(() => [
-    { id: "new-note", label: "New Note", shortcut: "⌘N", action: () => { setIsCreateMode(true); setQuery(""); searchInputRef.current?.focus(); } },
-    { id: "daily-note", label: "Daily Note", shortcut: "⌘J", action: handleDailyNote },
-    { id: "find-in-note", label: "Find in Note", shortcut: "⌘F", action: () => window.dispatchEvent(new Event("open-in-note-search")) },
-    { id: "find-replace", label: "Find & Replace", shortcut: "⌘H", action: () => window.dispatchEvent(new Event("open-find-replace")) },
-    { id: "search", label: "Search Notes", shortcut: "⌘⇧F", action: () => { searchInputRef.current?.focus(); searchInputRef.current?.select(); } },
+    { id: "new-note", label: "New Note", shortcut: `${mod}N`, action: () => { setIsCreateMode(true); setQuery(""); searchInputRef.current?.focus(); } },
+    { id: "daily-note", label: "Daily Note", shortcut: `${mod}J`, action: handleDailyNote },
+    { id: "find-in-note", label: "Find in Note", shortcut: `${mod}F`, action: () => window.dispatchEvent(new Event("open-in-note-search")) },
+    { id: "find-replace", label: "Find & Replace", shortcut: `${mod}H`, action: () => window.dispatchEvent(new Event("open-find-replace")) },
+    { id: "search", label: "Search Notes", shortcut: `${mod}${shift}F`, action: () => { searchInputRef.current?.focus(); searchInputRef.current?.select(); } },
     { id: "delete-note", label: "Delete Note", action: handleDelete },
     ...(selectedId ? [
       {
@@ -1090,20 +1094,20 @@ function App() {
       {
         id: "split-view",
         label: splitNoteId === selectedId ? "Close Split View" : "Open in Split View",
-        shortcut: splitNoteId ? "⌘\\" : undefined,
+        shortcut: splitNoteId ? `${mod}\\` : undefined,
         action: () => setSplitNoteId(splitNoteId === selectedId ? null : selectedId),
       },
     ] : []),
-    { id: "settings", label: "Open Settings", shortcut: "⌘,", action: () => setShowSettings(true) },
-    { id: "markdown-ref", label: referencePanel === "markdown" ? "Hide Markdown Reference" : "Markdown Reference", shortcut: "⌘.", action: () => setReferencePanel((s) => s === "markdown" ? null : "markdown") },
-    { id: "controls-ref", label: referencePanel === "controls" ? "Hide Controls Reference" : "Controls Reference", shortcut: "⌘;", action: () => setReferencePanel((s) => s === "controls" ? null : "controls") },
+    { id: "settings", label: "Open Settings", shortcut: `${mod},`, action: () => setShowSettings(true) },
+    { id: "markdown-ref", label: referencePanel === "markdown" ? "Hide Markdown Reference" : "Markdown Reference", shortcut: `${mod}.`, action: () => setReferencePanel((s) => s === "markdown" ? null : "markdown") },
+    { id: "controls-ref", label: referencePanel === "controls" ? "Hide Controls Reference" : "Controls Reference", shortcut: `${mod};`, action: () => setReferencePanel((s) => s === "controls" ? null : "controls") },
     { id: "lock-vault", label: "Lock Vault", action: handleLock },
-    { id: "toggle-sidebar", label: "Toggle Sidebar", shortcut: "⌘/", action: () => setSidebarCollapsed((s) => !s) },
-    { id: "next-note", label: "Next Note", shortcut: "⌘⇧]", action: () => navigateNote(1) },
-    { id: "prev-note", label: "Previous Note", shortcut: "⌘⇧[", action: () => navigateNote(-1) },
-    { id: "zoom-in", label: "Zoom In", shortcut: "⌘+", action: () => handleZoom(10) },
-    { id: "zoom-out", label: "Zoom Out", shortcut: "⌘-", action: () => handleZoom(-10) },
-    { id: "zoom-reset", label: "Reset Zoom", shortcut: "⌘0", action: () => handleSettingsChange({ ...appSettings, zoomLevel: 100 }) },
+    { id: "toggle-sidebar", label: "Toggle Sidebar", shortcut: `${mod}/`, action: () => setSidebarCollapsed((s) => !s) },
+    { id: "next-note", label: "Next Note", shortcut: `${mod}${shift}]`, action: () => navigateNote(1) },
+    { id: "prev-note", label: "Previous Note", shortcut: `${mod}${shift}[`, action: () => navigateNote(-1) },
+    { id: "zoom-in", label: "Zoom In", shortcut: `${mod}+`, action: () => handleZoom(10) },
+    { id: "zoom-out", label: "Zoom Out", shortcut: `${mod}-`, action: () => handleZoom(-10) },
+    { id: "zoom-reset", label: "Reset Zoom", shortcut: `${mod}0`, action: () => handleSettingsChange({ ...appSettings, zoomLevel: 100 }) },
     ...(selectedId && (vaultStatus === "plaintext" || vaultStatus === "unlocked") ? [{
       id: "toggle-sensitive",
       label: (() => {
@@ -1116,13 +1120,13 @@ function App() {
       })(),
       action: () => handleToggleSensitive(selectedId),
     }] : []),
-    ...(splitNoteId ? [{ id: "close-split", label: "Close Split View", shortcut: "⌘\\", action: () => setSplitNoteId(null) }] : []),
-    { id: "all-notes", label: "All Notes", shortcut: "⌘1", action: () => { setActiveCodex(null); setViewingArchive(false); } },
+    ...(splitNoteId ? [{ id: "close-split", label: "Close Split View", shortcut: `${mod}\\`, action: () => setSplitNoteId(null) }] : []),
+    { id: "all-notes", label: "All Notes", shortcut: `${mod}1`, action: () => { setActiveCodex(null); setViewingArchive(false); } },
     { id: "view-archive", label: viewingArchive ? "Exit Archive" : "View Archive", action: () => { setViewingArchive((s) => !s); setActiveCodex(null); } },
     ...codexList.map((c, i) => ({
       id: `codex-${c}`,
       label: `Codex: ${c}`,
-      shortcut: i < 8 ? `⌘${i + 2}` : undefined,
+      shortcut: i < 8 ? `${mod}${i + 2}` : undefined,
       action: () => { setActiveCodex(c); setViewingArchive(false); },
     })),
   ], [handleDelete, handleLock, handleDailyNote, handleTogglePin, handleToggleFreeze, handleToggleArchive, handleZoom, handleSettingsChange, handleToggleSensitive, navigateNote, appSettings, selectedId, selectedNote, splitNoteId, codexList, notes, vaultStatus, referencePanel, viewingArchive]);
@@ -1188,6 +1192,8 @@ function App() {
             handleSettingsChange({ ...appSettings, pinnedCommands: next });
           }}
           onClose={() => setShowCommandPalette(false)}
+          notes={notes}
+          onSelectNote={(id) => setSelectedId(id)}
         />
       )}
       <SearchBar

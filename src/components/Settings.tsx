@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { open } from "@tauri-apps/plugin-dialog";
-import { revealItemInDir } from "@tauri-apps/plugin-opener";
+import { openPath } from "@tauri-apps/plugin-opener";
 import { enable, disable, isEnabled } from "@tauri-apps/plugin-autostart";
 import { invoke } from "@tauri-apps/api/core";
 import { getVersion } from "@tauri-apps/api/app";
@@ -995,7 +995,7 @@ export function Settings({
 
   const handleOpenFolder = async () => {
     if (notesFolder) {
-      await revealItemInDir(notesFolder);
+      await openPath(notesFolder);
     }
   };
 
