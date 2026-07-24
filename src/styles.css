@@ -464,18 +464,6 @@ body {
   color: var(--accent);
 }
 
-.codex-sidebar-item.default-codex {
-  position: relative;
-}
-
-.codex-default-star {
-  position: absolute;
-  top: 1px;
-  right: 1px;
-  font-size: 7px;
-  line-height: 1;
-  color: var(--accent);
-}
 
 .codex-sidebar-letter {
   font-size: 11px;
@@ -1760,10 +1748,10 @@ body {
 }
 
 .shortcut-recorder-btn {
-  padding: 4px 10px;
+  padding: 6px 10px;
   background: var(--accent-subtle);
   border: 1px solid var(--accent);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   font-size: 12px;
   font-family: "JetBrains Mono", monospace;
   color: var(--text-primary);
@@ -1867,7 +1855,7 @@ body {
 }
 
 .macro-input {
-  padding: 5px 8px;
+  padding: 6px 10px;
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-sm);
   background: var(--bg-primary);
@@ -1918,9 +1906,55 @@ body {
   flex: 1;
 }
 
-.btn-sm {
-  padding: 4px 10px;
-  font-size: 11px;
+.btn-sm,
+.settings-section .btn.btn-sm {
+  padding: 6px 10px;
+  font-size: 12px;
+}
+
+.codex-color-picker {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.codex-color-picker input[type="color"] {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  background: none;
+}
+
+.codex-color-picker input[type="color"]::-webkit-color-swatch-wrapper {
+  padding: 2px;
+}
+
+.codex-color-picker input[type="color"]::-webkit-color-swatch {
+  border: none;
+  border-radius: 3px;
+}
+
+.codex-color-reset {
+  width: 20px;
+  height: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+}
+
+.codex-color-reset:hover {
+  background: var(--bg-hover);
+  color: var(--danger);
 }
 
 .color-settings h3 {
@@ -2146,7 +2180,8 @@ body {
   flex-wrap: wrap;
 }
 
-.settings-actions .btn {
+.settings-actions .btn,
+.settings-section .btn {
   min-width: auto;
   padding: 8px 14px;
   font-size: 13px;
@@ -2191,12 +2226,12 @@ body {
 
 .settings-input {
   width: 100%;
-  padding: 9px 12px;
+  padding: 6px 10px;
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-sm);
   background: var(--bg-primary);
   color: var(--text-primary);
-  font-size: 14px;
+  font-size: 12px;
   outline: none;
   transition: border-color var(--transition), box-shadow var(--transition);
 }
