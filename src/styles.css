@@ -1740,6 +1740,125 @@ body {
   color: var(--text-secondary);
 }
 
+/* Macro Editor */
+.macro-editor {
+  margin-top: 8px;
+}
+
+.macro-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+.macro-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 8px;
+  background: var(--bg-tertiary);
+  border-radius: var(--radius-sm);
+}
+
+.macro-trigger {
+  font-family: "JetBrains Mono", monospace;
+  font-size: 11px;
+  padding: 2px 6px;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-strong);
+  border-radius: 3px;
+  color: var(--accent);
+  flex-shrink: 0;
+}
+
+.macro-expansion {
+  font-size: 12px;
+  color: var(--text-secondary);
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.macro-remove {
+  background: none;
+  border: none;
+  color: var(--text-hint);
+  font-size: 16px;
+  cursor: pointer;
+  padding: 0 4px;
+  line-height: 1;
+  transition: color var(--transition);
+}
+
+.macro-remove:hover {
+  color: var(--danger);
+}
+
+.macro-add {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.macro-input {
+  padding: 5px 8px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  font-size: 12px;
+  outline: none;
+  transition: border-color var(--transition);
+}
+
+.macro-input:focus {
+  border-color: var(--accent);
+}
+
+.macro-input-wrapper {
+  display: flex;
+  align-items: center;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--bg-primary);
+  transition: border-color var(--transition);
+}
+
+.macro-input-wrapper:focus-within {
+  border-color: var(--accent);
+}
+
+.macro-input-prefix {
+  padding-left: 8px;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 12px;
+  color: var(--text-hint);
+}
+
+.macro-input-trigger {
+  width: 70px;
+  font-family: "JetBrains Mono", monospace;
+  border: none !important;
+  background: none !important;
+  padding-left: 2px;
+}
+
+.macro-input-trigger:focus {
+  border: none !important;
+  box-shadow: none !important;
+}
+
+.macro-input-expansion {
+  flex: 1;
+}
+
+.btn-sm {
+  padding: 4px 10px;
+  font-size: 11px;
+}
+
 .folder-path {
   font-size: 13px;
   color: var(--text-secondary);

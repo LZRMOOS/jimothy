@@ -89,6 +89,71 @@ function createSearchHighlightExtension(
   });
 }
 
+const BUILTIN_MACROS: Record<string, () => string> = {
+  "/date": () => new Date().toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" }),
+  "/time": () => new Date().toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" }),
+};
+
+function expandMacro(view: any, macrosRef: { current: Record<string, string> }): boolean {
+  const { state } = view;
+  const { from } = state.selection;
+  const $from = state.doc.resolve(from);
+  const textBefore = $from.parent.textBetween(0, $from.parentOffset, undefined, "￼");
+  const match = textBefore.match(/(\/\w+)$/);
+  if (!match) return false;
+
+  const trigger = match[1];
+  let expansion: string | null = null;
+
+  if (BUILTIN_MACROS[trigger]) {
+    expansion = BUILTIN_MACROS[trigger]();
+  } else if (macrosRef.current[trigger]) {
+    expansion = macrosRef.current[trigger];
+  }
+
+  if (!expansion) return false;
+
+  const triggerStart = from - trigger.length;
+  const tr = state.tr.deleteRange(triggerStart, from);
+
+  if (expansion.includes("\n")) {
+    const lines = expansion.split("\n");
+    const nodes = lines.map((line: string) => {
+      const textNode = line ? state.schema.text(line) : undefined;
+      return state.schema.nodes.paragraph.create(null, textNode || undefined);
+    });
+    const fragment = state.schema.nodes.doc.create(null, nodes).content;
+    tr.insert(triggerStart, fragment);
+  } else {
+    tr.insertText(expansion, triggerStart);
+  }
+
+  view.dispatch(tr);
+  return true;
+}
+
+function createMacroExtension(macrosRef: { current: Record<string, string> }) {
+  return Extension.create({
+    name: "macroExpansion",
+    addProseMirrorPlugins() {
+      return [
+        new Plugin({
+          props: {
+            handleTextInput(view, _from, _to, text) {
+              if (text !== " ") return false;
+              return expandMacro(view, macrosRef);
+            },
+            handleKeyDown(view, event) {
+              if (event.key !== "Enter") return false;
+              return expandMacro(view, macrosRef);
+            },
+          },
+        }),
+      ];
+    },
+  });
+}
+
 function CodexPicker({ value, codexList, onChange }: {
   value: string | null;
   codexList: string[];
@@ -208,9 +273,10 @@ type Props = {
   codexList: string[];
   isSensitive?: boolean;
   editorRef?: React.MutableRefObject<any>;
+  macros?: Record<string, string>;
 };
 
-export function Editor({ note, saveStatus, onTitleChange, onBodyChange, onCodexChange, onEditingChange, searchQuery = "", codexList, isSensitive, editorRef }: Props) {
+export function Editor({ note, saveStatus, onTitleChange, onBodyChange, onCodexChange, onEditingChange, searchQuery = "", codexList, isSensitive, editorRef, macros = {} }: Props) {
   const [showCharCount, setShowCharCount] = useState(false);
   const [isTitleFocused, setIsTitleFocused] = useState(false);
   const [showInNoteSearch, setShowInNoteSearch] = useState(false);
@@ -223,9 +289,12 @@ export function Editor({ note, saveStatus, onTitleChange, onBodyChange, onCodexC
   onBodyChangeRef.current = onBodyChange;
   const searchQueryRef = useRef(searchQuery);
   const currentMatchRef = useRef<{ from: number; to: number } | undefined>(undefined);
+  const macrosRef = useRef(macros);
+  macrosRef.current = macros;
   const titleInputRef = useRef<HTMLInputElement>(null);
 
   const [searchExt] = useState(() => createSearchHighlightExtension(searchQueryRef, currentMatchRef));
+  const [macroExt] = useState(() => createMacroExtension(macrosRef));
   const suppressUpdate = useRef(false);
 
   const editor = useEditor({
@@ -254,6 +323,7 @@ export function Editor({ note, saveStatus, onTitleChange, onBodyChange, onCodexC
         transformCopiedText: true,
       }),
       searchExt,
+      macroExt,
     ],
     content: note.body,
     onUpdate: ({ editor }) => {

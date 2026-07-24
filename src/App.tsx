@@ -184,10 +184,15 @@ function App() {
     if (filteredNotes.length > 0) {
       const currentInList = filteredNotes.find((n) => n.id === selectedId);
       if (!currentInList) {
-        setSelectedId(filteredNotes[0].id);
+        // Only override if selected note doesn't exist in full notes list either
+        // (prevents overriding selection of a just-created note before filteredNotes catches up)
+        const existsInNotes = notes.find((n) => n.id === selectedId);
+        if (!existsInNotes) {
+          setSelectedId(filteredNotes[0].id);
+        }
       }
     }
-  }, [filteredNotes, selectedId, setSelectedId, isCreateMode]);
+  }, [filteredNotes, selectedId, setSelectedId, isCreateMode, notes]);
 
   useEffect(() => {
     const appWindow = getCurrentWindow();
@@ -393,13 +398,31 @@ function App() {
     [notes, vaultStatus, appSettings, handleSettingsChange, protectionStatus, protectNote, unprotectNote, loadNotes]
   );
 
+  const focusEditor = useCallback(() => {
+    setTimeout(() => {
+      if (editorRef.current && editorRef.current.view) {
+        editorRef.current.view.dom.focus();
+        const tr = editorRef.current.state.tr.setSelection(
+          editorRef.current.state.selection.constructor.atStart(editorRef.current.state.doc)
+        );
+        editorRef.current.view.dispatch(tr);
+        setEditingNote(true);
+      }
+    }, 100);
+  }, []);
+
   const handleSearchSubmit = useCallback(async () => {
     if (isCreateMode) {
       // In create mode: Enter creates note with query as title
       if (!query.trim()) return;
-      await createNote(query.trim(), activeCodex);
+      const newNote = await createNote(query.trim(), activeCodex);
       setQuery("");
       setIsCreateMode(false);
+      handleSelectNote(newNote.id);
+      if (document.activeElement instanceof HTMLElement) {
+        document.activeElement.blur();
+      }
+      focusEditor();
     } else {
       // In search mode: Enter selects note and exits search (enter browse mode)
       if (selectedId) {
@@ -412,15 +435,20 @@ function App() {
         }
       }
     }
-  }, [isCreateMode, query, selectedId, createNote, activeCodex, handleSelectNote]);
+  }, [isCreateMode, query, selectedId, createNote, activeCodex, handleSelectNote, focusEditor]);
 
   const handleSearchCreate = useCallback(async () => {
     // Cmd+Enter: create new note with search query as title
     if (!query.trim()) return;
-    await createNote(query.trim(), activeCodex);
+    const newNote = await createNote(query.trim(), activeCodex);
     setQuery("");
     setIsCreateMode(false);
-  }, [query, createNote, activeCodex]);
+    handleSelectNote(newNote.id);
+    if (document.activeElement instanceof HTMLElement) {
+      document.activeElement.blur();
+    }
+    focusEditor();
+  }, [query, createNote, activeCodex, handleSelectNote, focusEditor]);
 
   const navigateNote = useCallback((direction: 1 | -1) => {
     // Use the same list that's displayed on screen
@@ -995,6 +1023,7 @@ function App() {
                   ? selectedNote.encrypted
                   : (appSettings.protectedNotes || []).includes(selectedNote.id)
               }
+              macros={appSettings.macros}
             />
           ) : (
             <div className="editor-placeholder">

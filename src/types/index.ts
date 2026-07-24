@@ -32,4 +32,5 @@ export type AppSettings = {
   protectedNotes?: string[];
   zoomLevel?: number;
   globalShortcut?: string;
+  macros?: Record<string, string>;
 };

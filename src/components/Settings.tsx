@@ -8,7 +8,7 @@ import { Dropdown } from "./Dropdown";
 import { PasswordInput } from "./PasswordInput";
 import type { AppSettings, VaultStatus } from "../types";
 
-type SettingsTab = "general" | "keyboard" | "storage" | "security" | "markdown";
+type SettingsTab = "general" | "keyboard" | "macros" | "storage" | "security" | "markdown";
 
 function NoteProtectionSection({
   protectionStatus,
@@ -311,6 +311,63 @@ function ShortcutRecorder({ value, onChange }: { value: string; onChange: (short
   );
 }
 
+function MacroEditor({ macros, onChange }: { macros: Record<string, string>; onChange: (macros: Record<string, string>) => void }) {
+  const [newTrigger, setNewTrigger] = useState("");
+  const [newExpansion, setNewExpansion] = useState("");
+
+  const entries = Object.entries(macros);
+
+  const handleAdd = () => {
+    const raw = newTrigger.trim().replace(/^\//, "");
+    if (!raw || !newExpansion) return;
+    const trigger = `/${raw}`;
+    onChange({ ...macros, [trigger]: newExpansion });
+    setNewTrigger("");
+    setNewExpansion("");
+  };
+
+  const handleRemove = (key: string) => {
+    const next = { ...macros };
+    delete next[key];
+    onChange(next);
+  };
+
+  return (
+    <div className="macro-editor">
+      {entries.length > 0 && (
+        <div className="macro-list">
+          {entries.map(([trigger, expansion]) => (
+            <div key={trigger} className="macro-row">
+              <kbd className="macro-trigger">{trigger}</kbd>
+              <span className="macro-expansion">{expansion}</span>
+              <button className="macro-remove" onClick={() => handleRemove(trigger)} title="Remove">×</button>
+            </div>
+          ))}
+        </div>
+      )}
+      <div className="macro-add">
+        <div className="macro-input-wrapper">
+          <span className="macro-input-prefix">/</span>
+          <input
+            className="macro-input macro-input-trigger"
+            placeholder="trigger"
+            value={newTrigger}
+            onChange={(e) => setNewTrigger(e.target.value.replace(/^\//, ""))}
+            onKeyDown={(e) => { if (e.key === "Enter") handleAdd(); }}
+          />
+        </div>
+        <input
+          className="macro-input macro-input-expansion"
+          placeholder="Expansion text"
+          value={newExpansion}
+          onChange={(e) => setNewExpansion(e.target.value)}
+          onKeyDown={(e) => { if (e.key === "Enter") handleAdd(); }}
+        />
+        <button className="btn secondary btn-sm" onClick={handleAdd} disabled={!newTrigger.trim() || !newExpansion}>Add</button>
+      </div>
+    </div>
+  );
+}
 
 function InfoTooltip({ text, children }: { text?: string; children?: React.ReactNode }) {
   return (
@@ -520,6 +577,7 @@ export function Settings({
   const tabs: { id: SettingsTab; label: string }[] = [
     { id: "general", label: "General" },
     { id: "keyboard", label: "Keyboard" },
+    { id: "macros", label: "Macros" },
     { id: "storage", label: "Storage" },
     { id: "security", label: "Security" },
     { id: "markdown", label: "Markdown" },
@@ -715,6 +773,36 @@ export function Settings({
                   <label>Hide window</label>
                   <kbd className="shortcut-display">Escape</kbd>
                 </div>
+              </div>
+            )}
+
+            {activeTab === "macros" && (
+              <div className="settings-section">
+                <h3>Text Macros</h3>
+                <p className="settings-hint">
+                  Macros expand while you type in the editor. Type a trigger
+                  (like /date) followed by Space or Enter and it will be replaced
+                  with the expansion text.
+                </p>
+                <h3>Built-in</h3>
+                <div className="macro-list">
+                  <div className="macro-row">
+                    <kbd className="macro-trigger">/date</kbd>
+                    <span className="macro-expansion">Inserts today's date (e.g., July 23, 2026)</span>
+                  </div>
+                  <div className="macro-row">
+                    <kbd className="macro-trigger">/time</kbd>
+                    <span className="macro-expansion">Inserts the current time (e.g., 3:45 PM)</span>
+                  </div>
+                </div>
+                <h3>Custom</h3>
+                <p className="settings-hint">
+                  Add your own triggers below. Use letters and numbers for the trigger name.
+                </p>
+                <MacroEditor
+                  macros={settings.macros || {}}
+                  onChange={(macros) => onSettingsChange({ ...settings, macros })}
+                />
               </div>
             )}
 
