@@ -12,6 +12,7 @@ use tauri::{
     tray::{TrayIconBuilder, TrayIconId},
     Emitter, Manager, WindowEvent,
 };
+use tauri_plugin_autostart::ManagerExt;
 use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut, ShortcutState};
 
 #[tauri::command]
@@ -265,6 +266,15 @@ pub fn run() {
                         }
                     }
                 })?;
+            }
+
+            // Show window on startup unless autostart is enabled (launch minimized to tray)
+            let autostart_enabled = app.handle().autolaunch().is_enabled().unwrap_or(false);
+            if !autostart_enabled {
+                if let Some(window) = app.get_webview_window("main") {
+                    let _ = window.show();
+                    let _ = window.set_focus();
+                }
             }
 
             Ok(())
