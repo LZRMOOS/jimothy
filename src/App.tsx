@@ -74,7 +74,7 @@ function App() {
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [editingCodexIcon, setEditingCodexIcon] = useState<string | null>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
-  const [isEditingNote, setIsEditingNote] = useState(false);
+  const [, setIsEditingNote] = useState(false);
   const isEditingNoteRef = useRef(false);
 
   const setEditingNote = useCallback((value: boolean) => {
@@ -158,6 +158,72 @@ function App() {
       document.documentElement.setAttribute("data-theme", theme);
     }
   }, [appSettings.theme]);
+
+  // Custom color overrides
+  useEffect(() => {
+    const root = document.documentElement;
+    const currentTheme = root.getAttribute("data-theme");
+    const isDark = currentTheme === "dark";
+    const colors = isDark ? appSettings.colorsDark : appSettings.colorsLight;
+
+    if (colors?.accent) {
+      root.style.setProperty("--accent", colors.accent);
+      const r = parseInt(colors.accent.slice(1, 3), 16);
+      const g = parseInt(colors.accent.slice(3, 5), 16);
+      const b = parseInt(colors.accent.slice(5, 7), 16);
+      root.style.setProperty("--accent-subtle", `rgba(${r}, ${g}, ${b}, ${isDark ? 0.1 : 0.08})`);
+    } else {
+      root.style.removeProperty("--accent");
+      root.style.removeProperty("--accent-subtle");
+    }
+    if (colors?.accentHover) {
+      root.style.setProperty("--accent-hover", colors.accentHover);
+    } else {
+      root.style.removeProperty("--accent-hover");
+    }
+    if (colors?.bgPrimary) {
+      root.style.setProperty("--bg-primary", colors.bgPrimary);
+      const pr = parseInt(colors.bgPrimary.slice(1, 3), 16);
+      const pg = parseInt(colors.bgPrimary.slice(3, 5), 16);
+      const pb = parseInt(colors.bgPrimary.slice(5, 7), 16);
+      const shift = isDark ? 12 : -8;
+      const clamp = (v: number) => Math.max(0, Math.min(255, v));
+      root.style.setProperty("--bg-tertiary", `rgb(${clamp(pr + shift)}, ${clamp(pg + shift)}, ${clamp(pb + shift)})`);
+      const hoverShift = isDark ? 6 : -4;
+      root.style.setProperty("--bg-hover", `rgb(${clamp(pr + hoverShift)}, ${clamp(pg + hoverShift)}, ${clamp(pb + hoverShift)})`);
+    } else {
+      root.style.removeProperty("--bg-primary");
+      root.style.removeProperty("--bg-tertiary");
+      root.style.removeProperty("--bg-hover");
+    }
+    if (colors?.bgSecondary) {
+      root.style.setProperty("--bg-secondary", colors.bgSecondary);
+    } else {
+      root.style.removeProperty("--bg-secondary");
+    }
+    if (colors?.bgSelected) {
+      root.style.setProperty("--bg-selected", colors.bgSelected);
+    } else {
+      root.style.removeProperty("--bg-selected");
+    }
+    if (colors?.textPrimary) {
+      root.style.setProperty("--text-primary", colors.textPrimary);
+    } else {
+      root.style.removeProperty("--text-primary");
+    }
+    if (colors?.textSecondary) {
+      root.style.setProperty("--text-secondary", colors.textSecondary);
+      const sr = parseInt(colors.textSecondary.slice(1, 3), 16);
+      const sg = parseInt(colors.textSecondary.slice(3, 5), 16);
+      const sb = parseInt(colors.textSecondary.slice(5, 7), 16);
+      const clamp = (v: number) => Math.max(0, Math.min(255, v));
+      const hintShift = isDark ? -20 : 20;
+      root.style.setProperty("--text-hint", `rgb(${clamp(sr + hintShift)}, ${clamp(sg + hintShift)}, ${clamp(sb + hintShift)})`);
+    } else {
+      root.style.removeProperty("--text-secondary");
+      root.style.removeProperty("--text-hint");
+    }
+  }, [appSettings.colorsLight, appSettings.colorsDark, appSettings.theme]);
 
   // Zoom level
   useEffect(() => {
@@ -499,7 +565,7 @@ function App() {
       return;
     }
     // If search is focused, blur it
-    if (document.activeElement === searchInputRef.current) {
+    if (searchInputRef.current && document.activeElement === searchInputRef.current) {
       searchInputRef.current.blur();
       return;
     }

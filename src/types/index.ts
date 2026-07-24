@@ -21,6 +21,16 @@ export type SaveStatus = "idle" | "saving" | "saved" | "error";
 
 export type VaultStatus = "plaintext" | "locked" | "unlocked";
 
+export type ThemeColors = {
+  accent?: string;
+  accentHover?: string;
+  bgPrimary?: string;
+  bgSecondary?: string;
+  bgSelected?: string;
+  textPrimary?: string;
+  textSecondary?: string;
+};
+
 export type AppSettings = {
   notesFolder?: string;
   theme?: "system" | "light" | "dark";
@@ -33,4 +43,6 @@ export type AppSettings = {
   zoomLevel?: number;
   globalShortcut?: string;
   macros?: Record<string, string>;
+  colorsLight?: ThemeColors;
+  colorsDark?: ThemeColors;
 };

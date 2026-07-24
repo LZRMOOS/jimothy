@@ -6,9 +6,9 @@ import { invoke } from "@tauri-apps/api/core";
 import { useUpdater } from "../hooks/useUpdater";
 import { Dropdown } from "./Dropdown";
 import { PasswordInput } from "./PasswordInput";
-import type { AppSettings, VaultStatus } from "../types";
+import type { AppSettings, VaultStatus, ThemeColors } from "../types";
 
-type SettingsTab = "general" | "keyboard" | "macros" | "storage" | "security" | "markdown";
+type SettingsTab = "general" | "keyboard" | "macros" | "colors" | "storage" | "security" | "markdown";
 
 function NoteProtectionSection({
   protectionStatus,
@@ -311,6 +311,142 @@ function ShortcutRecorder({ value, onChange }: { value: string; onChange: (short
   );
 }
 
+const DEFAULT_COLORS_LIGHT: ThemeColors = {
+  accent: "#4f46e5",
+  accentHover: "#4338ca",
+  bgPrimary: "#faf9f7",
+  bgSecondary: "#f4f3f0",
+  bgSelected: "#e6e3de",
+  textPrimary: "#1a1a2e",
+  textSecondary: "#64648c",
+};
+
+const DEFAULT_COLORS_DARK: ThemeColors = {
+  accent: "#818cf8",
+  accentHover: "#a5b4fc",
+  bgPrimary: "#16161e",
+  bgSecondary: "#1e1e28",
+  bgSelected: "#2a2a42",
+  textPrimary: "#e2e2f0",
+  textSecondary: "#9898b8",
+};
+
+function ColorSwatch({ label, value, defaultValue, onChange }: {
+  label: string;
+  value: string | undefined;
+  defaultValue: string;
+  onChange: (color: string | undefined) => void;
+}) {
+  const current = value || defaultValue;
+  return (
+    <div className="color-swatch-row">
+      <label className="color-swatch-label">{label}</label>
+      <div className="color-swatch-controls">
+        <input
+          type="color"
+          className="color-swatch-input"
+          value={current}
+          onChange={(e) => onChange(e.target.value)}
+        />
+        <span className="color-swatch-value">{current}</span>
+        {value && value !== defaultValue && (
+          <button
+            className="color-swatch-reset"
+            onClick={() => onChange(undefined)}
+            title="Reset to default"
+          >
+            Reset
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function ColorSettings({ settings, onSettingsChange }: { settings: AppSettings; onSettingsChange: (s: AppSettings) => void }) {
+  const currentTheme = document.documentElement.getAttribute("data-theme");
+  const isDark = currentTheme === "dark";
+
+  const colors = isDark ? (settings.colorsDark || {}) : (settings.colorsLight || {});
+  const defaults = isDark ? DEFAULT_COLORS_DARK : DEFAULT_COLORS_LIGHT;
+
+  const updateColor = (key: keyof ThemeColors, value: string | undefined) => {
+    const field = isDark ? "colorsDark" : "colorsLight";
+    const current = isDark ? (settings.colorsDark || {}) : (settings.colorsLight || {});
+    const updated = { ...current, [key]: value };
+    if (value === undefined) delete updated[key];
+    onSettingsChange({ ...settings, [field]: Object.keys(updated).length > 0 ? updated : undefined });
+  };
+
+  const handleResetAll = () => {
+    const field = isDark ? "colorsDark" : "colorsLight";
+    onSettingsChange({ ...settings, [field]: undefined });
+  };
+
+  const hasCustom = Object.keys(colors).length > 0;
+
+  return (
+    <div className="color-settings">
+      <p className="settings-hint">
+        Editing colors for <strong>{isDark ? "dark" : "light"}</strong> mode.
+        Switch your theme to customize the other mode.
+      </p>
+      <h3>Accent</h3>
+      <ColorSwatch
+        label="Primary accent"
+        value={colors.accent}
+        defaultValue={defaults.accent!}
+        onChange={(v) => updateColor("accent", v)}
+      />
+      <ColorSwatch
+        label="Accent hover"
+        value={colors.accentHover}
+        defaultValue={defaults.accentHover!}
+        onChange={(v) => updateColor("accentHover", v)}
+      />
+      <h3>Background</h3>
+      <ColorSwatch
+        label="Primary background"
+        value={colors.bgPrimary}
+        defaultValue={defaults.bgPrimary!}
+        onChange={(v) => updateColor("bgPrimary", v)}
+      />
+      <ColorSwatch
+        label="Secondary background"
+        value={colors.bgSecondary}
+        defaultValue={defaults.bgSecondary!}
+        onChange={(v) => updateColor("bgSecondary", v)}
+      />
+      <ColorSwatch
+        label="Selection highlight"
+        value={colors.bgSelected}
+        defaultValue={defaults.bgSelected!}
+        onChange={(v) => updateColor("bgSelected", v)}
+      />
+      <h3>Text</h3>
+      <ColorSwatch
+        label="Primary text"
+        value={colors.textPrimary}
+        defaultValue={defaults.textPrimary!}
+        onChange={(v) => updateColor("textPrimary", v)}
+      />
+      <ColorSwatch
+        label="Secondary text"
+        value={colors.textSecondary}
+        defaultValue={defaults.textSecondary!}
+        onChange={(v) => updateColor("textSecondary", v)}
+      />
+      {hasCustom && (
+        <div className="color-reset-all">
+          <button className="btn primary" onClick={handleResetAll}>
+            Restore Default Colors
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function MacroEditor({ macros, onChange }: { macros: Record<string, string>; onChange: (macros: Record<string, string>) => void }) {
   const [newTrigger, setNewTrigger] = useState("");
   const [newExpansion, setNewExpansion] = useState("");
@@ -578,6 +714,7 @@ export function Settings({
     { id: "general", label: "General" },
     { id: "keyboard", label: "Keyboard" },
     { id: "macros", label: "Macros" },
+    { id: "colors", label: "Colors" },
     { id: "storage", label: "Storage" },
     { id: "security", label: "Security" },
     { id: "markdown", label: "Markdown" },
@@ -803,6 +940,13 @@ export function Settings({
                   macros={settings.macros || {}}
                   onChange={(macros) => onSettingsChange({ ...settings, macros })}
                 />
+              </div>
+            )}
+
+            {activeTab === "colors" && (
+              <div className="settings-section">
+                <h3>Theme Colors</h3>
+                <ColorSettings settings={settings} onSettingsChange={onSettingsChange} />
               </div>
             )}
 

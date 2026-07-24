@@ -15,11 +15,11 @@
  */
 
 :root {
-  --bg-primary: #ffffff;
-  --bg-secondary: #f8f8fa;
-  --bg-tertiary: #f0f0f2;
-  --bg-selected: #e8edf5;
-  --bg-hover: #f0f2f5;
+  --bg-primary: #faf9f7;
+  --bg-secondary: #f4f3f0;
+  --bg-tertiary: #eceae6;
+  --bg-selected: #e6e3de;
+  --bg-hover: #efede9;
   --text-primary: #1a1a2e;
   --text-secondary: #64648c;
   --text-hint: #9898b0;
@@ -1857,6 +1857,92 @@ body {
 .btn-sm {
   padding: 4px 10px;
   font-size: 11px;
+}
+
+.color-settings h3 {
+  margin: 24px 0 10px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.color-settings .settings-hint {
+  margin-bottom: 16px;
+}
+
+.color-settings h3:first-of-type {
+  margin-top: 8px;
+}
+
+.color-swatch-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+.color-swatch-row:last-child {
+  border-bottom: none;
+}
+
+.color-swatch-label {
+  font-size: 13px;
+  color: var(--text-primary);
+}
+
+.color-swatch-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.color-swatch-input {
+  width: 28px;
+  height: 28px;
+  border: 2px solid var(--border-strong);
+  border-radius: 6px;
+  padding: 0;
+  cursor: pointer;
+  background: none;
+  -webkit-appearance: none;
+  appearance: none;
+}
+
+.color-swatch-input::-webkit-color-swatch-wrapper {
+  padding: 2px;
+}
+
+.color-swatch-input::-webkit-color-swatch {
+  border: none;
+  border-radius: 3px;
+}
+
+.color-swatch-value {
+  font-size: 12px;
+  font-family: "JetBrains Mono", monospace;
+  color: var(--text-secondary);
+  min-width: 60px;
+}
+
+.color-swatch-reset {
+  font-size: 11px;
+  color: var(--accent);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.color-swatch-reset:hover {
+  background: var(--accent-subtle);
+}
+
+.color-reset-all {
+  margin-top: 16px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
 }
 
 .folder-path {
