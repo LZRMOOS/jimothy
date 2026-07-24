@@ -4,7 +4,6 @@ import { revealItemInDir } from "@tauri-apps/plugin-opener";
 import { enable, disable, isEnabled } from "@tauri-apps/plugin-autostart";
 import { invoke } from "@tauri-apps/api/core";
 import { getVersion } from "@tauri-apps/api/app";
-import { useUpdater } from "../hooks/useUpdater";
 import { Dropdown } from "./Dropdown";
 import { PasswordInput } from "./PasswordInput";
 import type { AppSettings, VaultStatus, ThemeColors, ColorPreset } from "../types";
@@ -739,6 +738,7 @@ type Props = {
   onDisableProtection: (password: string) => Promise<boolean>;
   protectionError: string | null;
   protectionLoading: boolean;
+  codexList: string[];
 };
 
 export function Settings({
@@ -760,6 +760,7 @@ export function Settings({
   onDisableProtection,
   protectionError,
   protectionLoading,
+  codexList,
 }: Props) {
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
@@ -770,8 +771,6 @@ export function Settings({
   }, [onClose]);
 
   const [activeTab, setActiveTab] = useState<SettingsTab>("general");
-  const { updateState, updateVersion, checkForUpdate, installUpdate } =
-    useUpdater();
   const [autoStart, setAutoStart] = useState(false);
   const [appVersion, setAppVersion] = useState("");
 
@@ -946,36 +945,10 @@ export function Settings({
           <div className="settings-content">
             {activeTab === "general" && (
               <div className="settings-section">
-                <h3>Updates<InfoTooltip><ul><li>Checks for new versions from GitHub releases</li><li>Updates are downloaded and applied on restart</li></ul></InfoTooltip></h3>
+                <h3>Updates</h3>
                 <div className="settings-row">
                   <label>Version {appVersion || "..."}</label>
-                  {updateState === "idle" && (
-                    <button className="btn secondary" onClick={checkForUpdate}>
-                      Check for Updates
-                    </button>
-                  )}
-                  {updateState === "checking" && (
-                    <span className="settings-hint">Checking...</span>
-                  )}
-                  {updateState === "up-to-date" && (
-                    <span className="update-toast success">You're up to date</span>
-                  )}
-                  {updateState === "available" && (
-                    <button className="btn primary" onClick={installUpdate}>
-                      Update to {updateVersion}
-                    </button>
-                  )}
-                  {updateState === "downloading" && (
-                    <span className="settings-hint">Downloading...</span>
-                  )}
-                  {updateState === "ready" && (
-                    <span className="update-toast success">
-                      Restart to finish updating
-                    </span>
-                  )}
-                  {updateState === "error" && (
-                    <span className="update-toast error">Update check failed</span>
-                  )}
+                  <span className="settings-hint">Auto-updates coming soon</span>
                 </div>
 
                 <h3>Behavior</h3>
@@ -1027,6 +1000,24 @@ export function Settings({
                     }
                   />
                 </div>
+                {codexList.length > 0 && (
+                  <div className="settings-row">
+                    <label>Default codex on startup</label>
+                    <Dropdown
+                      options={[
+                        { value: "", label: "None" },
+                        ...codexList.map((c) => ({ value: c, label: c })),
+                      ]}
+                      value={settings.defaultCodex || ""}
+                      onChange={(val) =>
+                        onSettingsChange({
+                          ...settings,
+                          defaultCodex: val || null,
+                        })
+                      }
+                    />
+                  </div>
+                )}
               </div>
             )}
 

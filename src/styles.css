@@ -193,7 +193,8 @@ select:hover {
   transition: background var(--transition);
 }
 
-.dropdown-item:hover {
+.dropdown-item:hover,
+.dropdown-item.highlighted {
   background: var(--bg-hover);
 }
 
@@ -460,6 +461,19 @@ body {
 
 .codex-sidebar-item.active {
   background: var(--accent-subtle);
+  color: var(--accent);
+}
+
+.codex-sidebar-item.default-codex {
+  position: relative;
+}
+
+.codex-default-star {
+  position: absolute;
+  top: 1px;
+  right: 1px;
+  font-size: 7px;
+  line-height: 1;
   color: var(--accent);
 }
 

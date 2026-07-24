@@ -184,6 +184,12 @@ function App() {
     init();
   }, [initFolder, checkExistingFolder, checkVaultStatus, checkProtectionStatus]);
 
+  useEffect(() => {
+    if (initialized && appSettings.defaultCodex && codexList.includes(appSettings.defaultCodex)) {
+      setActiveCodex(appSettings.defaultCodex);
+    }
+  }, [initialized]);
+
   // Tray icon visibility
   useEffect(() => {
     invoke("set_tray_visible", { visible: appSettings.showTrayIcon !== false });
@@ -383,8 +389,8 @@ function App() {
       setAppSettings(newSettings);
       const { showTrayIcon, zoomLevel, globalShortcut } = newSettings;
       const local: LocalSettings = { notesFolder: notesFolder || undefined, showTrayIcon, zoomLevel, globalShortcut };
-      const { theme, confirmDelete, idleLockMinutes, codexIcons, pinnedNotes, protectedNotes, macros, colorsLight, colorsDark, colorPresets } = newSettings;
-      const prefs: Preferences = { theme, confirmDelete, idleLockMinutes, codexIcons, pinnedNotes, protectedNotes, macros, colorsLight, colorsDark, colorPresets };
+      const { theme, confirmDelete, idleLockMinutes, defaultCodex, codexIcons, pinnedNotes, protectedNotes, macros, colorsLight, colorsDark, colorPresets } = newSettings;
+      const prefs: Preferences = { theme, confirmDelete, idleLockMinutes, defaultCodex, codexIcons, pinnedNotes, protectedNotes, macros, colorsLight, colorsDark, colorPresets };
       await Promise.all([
         invoke("save_app_settings", { settingsJson: JSON.stringify(local) }),
         invoke("save_preferences", { prefsJson: JSON.stringify(prefs) }),
@@ -1029,14 +1035,22 @@ function App() {
             ) : (
               <button
                 key={codex}
-                className={`codex-sidebar-item ${activeCodex === codex && !viewingArchive ? "active" : ""}`}
+                className={`codex-sidebar-item ${activeCodex === codex && !viewingArchive ? "active" : ""}${appSettings.defaultCodex === codex ? " default-codex" : ""}`}
                 onClick={() => { setActiveCodex(activeCodex === codex ? null : codex); setViewingArchive(false); }}
                 onDoubleClick={() => setEditingCodexIcon(codex)}
-                title={`${codex} (double-click to set icon)`}
+                onContextMenu={(e) => {
+                  e.preventDefault();
+                  handleSettingsChange({
+                    ...appSettings,
+                    defaultCodex: appSettings.defaultCodex === codex ? null : codex,
+                  });
+                }}
+                title={`${codex}${appSettings.defaultCodex === codex ? " (default)" : ""} (double-click to set icon, right-click to ${appSettings.defaultCodex === codex ? "unset" : "set as"} default)`}
               >
                 <span className="codex-sidebar-letter">
                   {appSettings.codexIcons?.[codex] || codex[0].toUpperCase()}
                 </span>
+                {appSettings.defaultCodex === codex && <span className="codex-default-star">★</span>}
               </button>
             )
           ))}
@@ -1098,6 +1112,7 @@ function App() {
           onDisableProtection={disableProtection}
           protectionError={protectionError}
           protectionLoading={protectionLoading}
+          codexList={codexList}
         />
       ) : (
         <div className="main-content">

@@ -49,6 +49,7 @@ export type Preferences = {
   theme?: "system" | "light" | "dark";
   confirmDelete?: boolean;
   idleLockMinutes?: number;
+  defaultCodex?: string | null;
   codexIcons?: Record<string, string>;
   pinnedNotes?: string[];
   protectedNotes?: string[];

@@ -14,9 +14,17 @@ type Props = {
 
 export function Dropdown({ options, value, onChange, className = "" }: Props) {
   const [open, setOpen] = useState(false);
+  const [highlightIndex, setHighlightIndex] = useState(-1);
   const ref = useRef<HTMLDivElement>(null);
 
   const selected = options.find((o) => o.value === value);
+
+  useEffect(() => {
+    if (open) {
+      const idx = options.findIndex((o) => o.value === value);
+      setHighlightIndex(idx >= 0 ? idx : 0);
+    }
+  }, [open, options, value]);
 
   useEffect(() => {
     if (!open) return;
@@ -32,11 +40,25 @@ export function Dropdown({ options, value, onChange, className = "" }: Props) {
   useEffect(() => {
     if (!open) return;
     const handleKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") setOpen(false);
+      if (e.key === "Escape") {
+        setOpen(false);
+      } else if (e.key === "ArrowDown") {
+        e.preventDefault();
+        setHighlightIndex((i) => Math.min(i + 1, options.length - 1));
+      } else if (e.key === "ArrowUp") {
+        e.preventDefault();
+        setHighlightIndex((i) => Math.max(i - 1, 0));
+      } else if (e.key === "Enter") {
+        e.preventDefault();
+        if (highlightIndex >= 0 && highlightIndex < options.length) {
+          onChange(options[highlightIndex].value);
+          setOpen(false);
+        }
+      }
     };
     document.addEventListener("keydown", handleKey);
     return () => document.removeEventListener("keydown", handleKey);
-  }, [open]);
+  }, [open, highlightIndex, options, onChange]);
 
   return (
     <div className={`dropdown ${className}`} ref={ref}>
@@ -52,14 +74,15 @@ export function Dropdown({ options, value, onChange, className = "" }: Props) {
       </button>
       {open && (
         <div className="dropdown-menu">
-          {options.map((opt) => (
+          {options.map((opt, i) => (
             <button
               key={opt.value}
-              className={`dropdown-item ${opt.value === value ? "selected" : ""}`}
+              className={`dropdown-item${opt.value === value ? " selected" : ""}${i === highlightIndex ? " highlighted" : ""}`}
               onClick={() => {
                 onChange(opt.value);
                 setOpen(false);
               }}
+              onMouseEnter={() => setHighlightIndex(i)}
               type="button"
             >
               {opt.label}
