@@ -98,81 +98,42 @@ function CodexPicker({ value, codexList, onChange }: {
 }) {
   const [editing, setEditing] = useState(false);
   const [inputValue, setInputValue] = useState("");
-  const [showSuggestions, setShowSuggestions] = useState(false);
-  const inputRef = useRef<HTMLInputElement>(null);
-  const dropdownRef = useRef<HTMLDivElement>(null);
-
-  const filteredOptions = codexList.filter(c =>
-    c.toLowerCase().includes(inputValue.toLowerCase())
-  );
-
-  useEffect(() => {
-    if (!editing) return;
-    const handleClickOutside = (e: MouseEvent) => {
-      if (
-        inputRef.current && !inputRef.current.contains(e.target as Node) &&
-        dropdownRef.current && !dropdownRef.current.contains(e.target as Node)
-      ) {
-        const trimmed = inputValue.trim();
-        onChange(trimmed || null);
-        setEditing(false);
-        setShowSuggestions(false);
-      }
-    };
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [editing, inputValue, onChange]);
 
   if (editing) {
     return (
-      <div style={{ position: "relative" }}>
+      <>
         <input
-          ref={inputRef}
           className="codex-input"
           autoFocus
           placeholder="Codex name"
           value={inputValue}
-          onChange={(e) => {
-            setInputValue(e.target.value);
-            setShowSuggestions(true);
-          }}
+          list="codex-options"
+          onChange={(e) => setInputValue(e.target.value)}
           autoComplete="off"
           autoCorrect="off"
           autoCapitalize="off"
           spellCheck="false"
-          onFocus={() => setShowSuggestions(true)}
+          onBlur={() => {
+            const trimmed = inputValue.trim();
+            onChange(trimmed || null);
+            setEditing(false);
+          }}
           onKeyDown={(e) => {
             if (e.key === "Enter") {
               const trimmed = inputValue.trim();
               onChange(trimmed || null);
               setEditing(false);
-              setShowSuggestions(false);
             } else if (e.key === "Escape") {
               setEditing(false);
-              setShowSuggestions(false);
             }
           }}
         />
-        {showSuggestions && filteredOptions.length > 0 && (
-          <div ref={dropdownRef} className="codex-dropdown">
-            {filteredOptions.map((c) => (
-              <button
-                key={c}
-                className="codex-dropdown-item"
-                type="button"
-                onMouseDown={(e) => {
-                  e.preventDefault();
-                  onChange(c);
-                  setEditing(false);
-                  setShowSuggestions(false);
-                }}
-              >
-                {c}
-              </button>
-            ))}
-          </div>
-        )}
-      </div>
+        <datalist id="codex-options">
+          {codexList.map((c) => (
+            <option key={c} value={c} />
+          ))}
+        </datalist>
+      </>
     );
   }
 
