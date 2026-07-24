@@ -31,6 +31,12 @@ export type ThemeColors = {
   textSecondary?: string;
 };
 
+export type ColorPreset = {
+  name: string;
+  mode: "light" | "dark";
+  colors: ThemeColors;
+};
+
 export type AppSettings = {
   notesFolder?: string;
   theme?: "system" | "light" | "dark";
@@ -45,4 +51,5 @@ export type AppSettings = {
   macros?: Record<string, string>;
   colorsLight?: ThemeColors;
   colorsDark?: ThemeColors;
+  colorPresets?: ColorPreset[];
 };

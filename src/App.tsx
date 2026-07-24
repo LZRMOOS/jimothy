@@ -175,35 +175,42 @@ function App() {
       parseInt(hex.slice(5, 7), 16),
     ];
 
-    const props: [string, string | null][] = [];
+    const ALL_PROPS = [
+      "--accent", "--accent-subtle", "--accent-hover",
+      "--bg-primary", "--bg-secondary", "--bg-tertiary", "--bg-hover", "--bg-selected",
+      "--text-primary", "--text-secondary", "--text-hint",
+    ];
+
+    const props: Record<string, string | null> = {};
+    for (const p of ALL_PROPS) props[p] = null;
 
     if (colors?.accent) {
       const [r, g, b] = hexRgb(colors.accent);
-      props.push(["--accent", colors.accent]);
-      props.push(["--accent-subtle", `rgba(${r}, ${g}, ${b}, ${isDark ? 0.1 : 0.08})`]);
+      props["--accent"] = colors.accent;
+      props["--accent-subtle"] = `rgba(${r}, ${g}, ${b}, ${isDark ? 0.1 : 0.08})`;
     }
-    props.push(["--accent-hover", colors?.accentHover ?? null]);
+    if (colors?.accentHover) props["--accent-hover"] = colors.accentHover;
 
     if (colors?.bgPrimary) {
       const [r, g, b] = hexRgb(colors.bgPrimary);
       const shift = isDark ? 12 : -8;
       const hoverShift = isDark ? 6 : -4;
-      props.push(["--bg-primary", colors.bgPrimary]);
-      props.push(["--bg-tertiary", `rgb(${clamp(r + shift)}, ${clamp(g + shift)}, ${clamp(b + shift)})`]);
-      props.push(["--bg-hover", `rgb(${clamp(r + hoverShift)}, ${clamp(g + hoverShift)}, ${clamp(b + hoverShift)})`]);
+      props["--bg-primary"] = colors.bgPrimary;
+      props["--bg-tertiary"] = `rgb(${clamp(r + shift)}, ${clamp(g + shift)}, ${clamp(b + shift)})`;
+      props["--bg-hover"] = `rgb(${clamp(r + hoverShift)}, ${clamp(g + hoverShift)}, ${clamp(b + hoverShift)})`;
     }
-    props.push(["--bg-secondary", colors?.bgSecondary ?? null]);
-    props.push(["--bg-selected", colors?.bgSelected ?? null]);
-    props.push(["--text-primary", colors?.textPrimary ?? null]);
+    if (colors?.bgSecondary) props["--bg-secondary"] = colors.bgSecondary;
+    if (colors?.bgSelected) props["--bg-selected"] = colors.bgSelected;
+    if (colors?.textPrimary) props["--text-primary"] = colors.textPrimary;
 
     if (colors?.textSecondary) {
       const [r, g, b] = hexRgb(colors.textSecondary);
       const hintShift = isDark ? -20 : 20;
-      props.push(["--text-secondary", colors.textSecondary]);
-      props.push(["--text-hint", `rgb(${clamp(r + hintShift)}, ${clamp(g + hintShift)}, ${clamp(b + hintShift)})`]);
+      props["--text-secondary"] = colors.textSecondary;
+      props["--text-hint"] = `rgb(${clamp(r + hintShift)}, ${clamp(g + hintShift)}, ${clamp(b + hintShift)})`;
     }
 
-    for (const [prop, value] of props) {
+    for (const [prop, value] of Object.entries(props)) {
       if (value) {
         root.style.setProperty(prop, value);
       } else {

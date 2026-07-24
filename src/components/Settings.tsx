@@ -7,7 +7,7 @@ import { getVersion } from "@tauri-apps/api/app";
 import { useUpdater } from "../hooks/useUpdater";
 import { Dropdown } from "./Dropdown";
 import { PasswordInput } from "./PasswordInput";
-import type { AppSettings, VaultStatus, ThemeColors } from "../types";
+import type { AppSettings, VaultStatus, ThemeColors, ColorPreset } from "../types";
 
 type SettingsTab = "general" | "keyboard" | "macros" | "colors" | "storage" | "security" | "markdown";
 
@@ -364,10 +364,70 @@ function ColorSwatch({ label, value, defaultValue, onChange }: {
   );
 }
 
+function generateRandomTheme(isDark: boolean): ThemeColors {
+  const hue = Math.random() * 360;
+  const strategy = Math.random();
+  let accentHue: number;
+  if (strategy < 0.33) {
+    accentHue = hue;
+  } else if (strategy < 0.66) {
+    accentHue = (hue + 30 + Math.random() * 30) % 360;
+  } else {
+    accentHue = (hue + 150 + Math.random() * 60) % 360;
+  }
+
+  const hsl = (h: number, s: number, l: number) => {
+    h = ((h % 360) + 360) % 360;
+    s = Math.max(0, Math.min(100, s));
+    l = Math.max(0, Math.min(100, l));
+    const c = (1 - Math.abs(2 * l / 100 - 1)) * (s / 100);
+    const x = c * (1 - Math.abs(((h / 60) % 2) - 1));
+    const m = l / 100 - c / 2;
+    let r = 0, g = 0, b = 0;
+    if (h < 60) { r = c; g = x; }
+    else if (h < 120) { r = x; g = c; }
+    else if (h < 180) { g = c; b = x; }
+    else if (h < 240) { g = x; b = c; }
+    else if (h < 300) { r = x; b = c; }
+    else { r = c; b = x; }
+    const toHex = (v: number) => Math.round((v + m) * 255).toString(16).padStart(2, "0");
+    return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+  };
+
+  if (isDark) {
+    const bgL = 6 + Math.random() * 6;
+    const bgS = 10 + Math.random() * 20;
+    return {
+      accent: hsl(accentHue, 55 + Math.random() * 25, 65 + Math.random() * 10),
+      accentHover: hsl(accentHue, 55 + Math.random() * 25, 75 + Math.random() * 10),
+      bgPrimary: hsl(hue, bgS, bgL),
+      bgSecondary: hsl(hue, bgS, bgL + 4),
+      bgSelected: hsl(hue, bgS + 5, bgL + 12),
+      textPrimary: hsl(hue, 10 + Math.random() * 15, 88 + Math.random() * 7),
+      textSecondary: hsl(hue, 15 + Math.random() * 15, 55 + Math.random() * 10),
+    };
+  } else {
+    const bgL = 94 + Math.random() * 4;
+    const bgS = 5 + Math.random() * 20;
+    return {
+      accent: hsl(accentHue, 60 + Math.random() * 25, 40 + Math.random() * 15),
+      accentHover: hsl(accentHue, 60 + Math.random() * 25, 30 + Math.random() * 15),
+      bgPrimary: hsl(hue, bgS, bgL),
+      bgSecondary: hsl(hue, bgS, bgL - 3),
+      bgSelected: hsl(hue, bgS + 5, bgL - 10),
+      textPrimary: hsl(hue, 15 + Math.random() * 20, 8 + Math.random() * 8),
+      textSecondary: hsl(hue, 10 + Math.random() * 20, 35 + Math.random() * 15),
+    };
+  }
+}
+
 function ColorSettings({ settings, onSettingsChange }: { settings: AppSettings; onSettingsChange: (s: AppSettings) => void }) {
   const [systemDark, setSystemDark] = useState(() =>
     window.matchMedia("(prefers-color-scheme: dark)").matches
   );
+  const [presetName, setPresetName] = useState("");
+  const [selectedPreset, setSelectedPreset] = useState("__default__");
+  const [diceRolling, setDiceRolling] = useState(false);
 
   useEffect(() => {
     const mq = window.matchMedia("(prefers-color-scheme: dark)");
@@ -379,8 +439,13 @@ function ColorSettings({ settings, onSettingsChange }: { settings: AppSettings; 
   const theme = settings.theme || "system";
   const isDark = theme === "system" ? systemDark : theme === "dark";
 
+  useEffect(() => {
+    setSelectedPreset("__default__");
+  }, [isDark]);
+
   const colors = isDark ? (settings.colorsDark || {}) : (settings.colorsLight || {});
   const defaults = isDark ? DEFAULT_COLORS_DARK : DEFAULT_COLORS_LIGHT;
+  const presets = settings.colorPresets || [];
 
   const updateColor = (key: keyof ThemeColors, value: string | undefined) => {
     const field = isDark ? "colorsDark" : "colorsLight";
@@ -390,12 +455,76 @@ function ColorSettings({ settings, onSettingsChange }: { settings: AppSettings; 
     onSettingsChange({ ...settings, [field]: Object.keys(updated).length > 0 ? updated : undefined });
   };
 
-  const handleResetAll = () => {
-    const field = isDark ? "colorsDark" : "colorsLight";
-    onSettingsChange({ ...settings, [field]: undefined });
+  const mode = isDark ? "dark" : "light";
+  const modePresets = presets.filter((p) => p.mode === mode);
+
+  const handlePresetChange = (value: string) => {
+    setSelectedPreset(value);
+    if (value === "__default__") {
+      const field = isDark ? "colorsDark" : "colorsLight";
+      onSettingsChange({ ...settings, [field]: undefined });
+    } else {
+      const preset = modePresets.find((p) => p.name === value);
+      if (preset) {
+        const field = isDark ? "colorsDark" : "colorsLight";
+        onSettingsChange({ ...settings, [field]: preset.colors });
+      }
+    }
   };
 
-  const hasCustom = Object.keys(colors).length > 0;
+  const handleSavePreset = () => {
+    const name = presetName.trim();
+    if (!name) return;
+    const newPreset: ColorPreset = {
+      name,
+      mode,
+      colors: isDark ? (settings.colorsDark || {}) : (settings.colorsLight || {}),
+    };
+    const existing = presets.findIndex((p) => p.name === name && p.mode === mode);
+    let updated: ColorPreset[];
+    if (existing >= 0) {
+      updated = presets.map((p, i) => i === existing ? newPreset : p);
+    } else {
+      updated = [...presets, newPreset];
+    }
+    onSettingsChange({ ...settings, colorPresets: updated });
+    setPresetName("");
+    setSelectedPreset(name);
+  };
+
+  const handleOverwritePreset = () => {
+    if (selectedPreset === "__default__") return;
+    const index = presets.findIndex((p) => p.name === selectedPreset && p.mode === mode);
+    if (index < 0) return;
+    const currentColors = isDark ? (settings.colorsDark || {}) : (settings.colorsLight || {});
+    const updated = presets.map((p, i) => i === index ? { ...p, colors: currentColors } : p);
+    onSettingsChange({ ...settings, colorPresets: updated });
+  };
+
+  const handleDeletePreset = () => {
+    if (selectedPreset === "__default__") return;
+    const index = presets.findIndex((p) => p.name === selectedPreset && p.mode === mode);
+    if (index < 0) return;
+    const updated = presets.filter((_, i) => i !== index);
+    onSettingsChange({ ...settings, colorPresets: updated.length > 0 ? updated : undefined });
+    setSelectedPreset("__default__");
+  };
+
+  const handleRandomize = () => {
+    setDiceRolling(true);
+    const field = isDark ? "colorsDark" : "colorsLight";
+    const generated = generateRandomTheme(isDark);
+    onSettingsChange({ ...settings, [field]: generated });
+    setSelectedPreset("__default__");
+    setTimeout(() => setDiceRolling(false), 600);
+  };
+
+  const presetOptions = [
+    { value: "__default__", label: "Default" },
+    ...modePresets.map((p) => ({ value: p.name, label: p.name })),
+  ];
+
+  const isUserPreset = selectedPreset !== "__default__";
 
   return (
     <div className="color-settings">
@@ -405,6 +534,73 @@ function ColorSettings({ settings, onSettingsChange }: { settings: AppSettings; 
           ? " Your theme is set to system, switch to the other to customize it."
           : ` Switch to ${isDark ? "light" : "dark"} to customize it.`}
       </p>
+
+      <div className="color-presets">
+        <div className="color-preset-row">
+          <Dropdown
+            options={presetOptions}
+            value={selectedPreset}
+            onChange={handlePresetChange}
+            className="color-preset-dropdown"
+          />
+          {isUserPreset && (
+            <div className="color-preset-actions">
+              <button
+                className="color-preset-action"
+                onClick={handleOverwritePreset}
+                title="Save current colors to this preset"
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
+                  <polyline points="17 21 17 13 7 13 7 21"/>
+                  <polyline points="7 3 7 8 15 8"/>
+                </svg>
+              </button>
+              <button
+                className="color-preset-action danger"
+                onClick={handleDeletePreset}
+                title="Delete this preset"
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <polyline points="3 6 5 6 21 6"/>
+                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                </svg>
+              </button>
+            </div>
+          )}
+          <button
+            className={`color-randomize-btn${diceRolling ? " rolling" : ""}`}
+            onClick={handleRandomize}
+            title="Randomize colors"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="2" y="2" width="20" height="20" rx="3"/>
+              <circle cx="8" cy="8" r="1.5" fill="currentColor" stroke="none"/>
+              <circle cx="16" cy="8" r="1.5" fill="currentColor" stroke="none"/>
+              <circle cx="12" cy="12" r="1.5" fill="currentColor" stroke="none"/>
+              <circle cx="8" cy="16" r="1.5" fill="currentColor" stroke="none"/>
+              <circle cx="16" cy="16" r="1.5" fill="currentColor" stroke="none"/>
+            </svg>
+          </button>
+        </div>
+        <div className="color-preset-save">
+          <input
+            className="color-preset-name-input"
+            placeholder="New preset name..."
+            value={presetName}
+            onChange={(e) => setPresetName(e.target.value)}
+            onKeyDown={(e) => { if (e.key === "Enter") handleSavePreset(); }}
+          />
+          <button
+            className="btn secondary"
+            onClick={handleSavePreset}
+            disabled={!presetName.trim()}
+          >
+            Save
+          </button>
+        </div>
+      </div>
+
       <ColorSwatch
         label="Primary accent"
         value={colors.accent}
@@ -447,13 +643,6 @@ function ColorSettings({ settings, onSettingsChange }: { settings: AppSettings; 
         defaultValue={defaults.textSecondary!}
         onChange={(v) => updateColor("textSecondary", v)}
       />
-      {hasCustom && (
-        <div className="color-reset-all">
-          <button className="btn secondary" onClick={handleResetAll}>
-            Reset All to Default
-          </button>
-        </div>
-      )}
     </div>
   );
 }
