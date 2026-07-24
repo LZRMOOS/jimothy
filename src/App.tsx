@@ -389,10 +389,10 @@ function App() {
     if (exactMatch) {
       setSelectedId(exactMatch.id);
     } else {
-      await createNote(query.trim());
+      await createNote(query.trim(), activeCodex);
       setQuery("");
     }
-  }, [query, notes, setSelectedId, createNote]);
+  }, [query, notes, setSelectedId, createNote, activeCodex]);
 
   const navigateNote = useCallback((direction: 1 | -1) => {
     // Use the same list that's displayed on screen
@@ -431,9 +431,13 @@ function App() {
       setShowSettings(false);
       return;
     }
-    // If there's a query, clear it first
+    // If there's a query, clear it and unfocus search
     if (query) {
       setQuery("");
+      // Blur the search input to return focus to previous element
+      if (document.activeElement instanceof HTMLElement) {
+        document.activeElement.blur();
+      }
       return;
     }
     // Otherwise hide the window
@@ -572,6 +576,12 @@ function App() {
         } else if (idx - 1 < codexList.length) {
           setActiveCodex(codexList[idx - 1]);
         }
+      } else if (mod && e.shiftKey && e.key === "]") {
+        e.preventDefault();
+        navigateNote(1);
+      } else if (mod && e.shiftKey && e.key === "[") {
+        e.preventDefault();
+        navigateNote(-1);
       }
     };
     window.addEventListener("keydown", handleKeyDown);
@@ -713,6 +723,7 @@ function App() {
         onArrowDown={handleArrowDown}
         onArrowUp={handleArrowUp}
         onEscape={handleEscape}
+        onCommandPaletteClick={() => setShowCommandPalette(true)}
         onSettingsClick={() => setShowSettings(true)}
       />
       <div className="app-body">

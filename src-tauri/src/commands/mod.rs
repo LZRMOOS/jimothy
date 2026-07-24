@@ -201,12 +201,13 @@ pub fn get_notes(state: State<'_, AppState>) -> Vec<NoteDto> {
 }
 
 #[tauri::command]
-pub fn create_note(title: String, state: State<'_, AppState>) -> Result<NoteDto, String> {
+pub fn create_note(title: String, codex: Option<String>, state: State<'_, AppState>) -> Result<NoteDto, String> {
     let folder = state.folder()?;
 
     let vault_status = state.vault_status.lock().unwrap().clone();
 
     let mut note = Note::new(title);
+    note.codex = codex;
 
     let path = match vault_status {
         VaultStatus::Unlocked => {

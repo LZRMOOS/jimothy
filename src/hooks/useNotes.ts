@@ -64,8 +64,8 @@ export function useNotes() {
   }, [loadNotes]);
 
   const createNote = useCallback(
-    async (title: string): Promise<Note> => {
-      const note = (await invoke("create_note", { title })) as Note;
+    async (title: string, codex?: string | null): Promise<Note> => {
+      const note = (await invoke("create_note", { title, codex: codex || null })) as Note;
       setNotes((prev) => {
         const updated = [note, ...prev];
         rebuildIndex(updated);
