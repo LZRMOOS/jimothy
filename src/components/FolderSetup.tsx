@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { open } from "@tauri-apps/plugin-dialog";
 import { invoke } from "@tauri-apps/api/core";
+import jimothyImg from "../assets/jimothy.png";
 
 type Props = {
   onFolderSelected: (path: string) => void;
@@ -51,21 +52,45 @@ export function FolderSetup({ onFolderSelected }: Props) {
   return (
     <div className="folder-setup">
       <div className="folder-setup-content">
-        <h1>Jimothy</h1>
-        <p>Choose where to store your notes.</p>
-        <p className="hint">
-          Pick a folder inside Dropbox to sync across devices.
+        <img src={jimothyImg} alt="Jimothy" className="folder-setup-mascot" />
+        <h1>Hey there! I'm Jimothy.</h1>
+        <p className="folder-setup-intro">
+          Your new favorite spot for notes, thoughts, and half-baked ideas.
+          Everything lives as plain Markdown files on your computer.
+        </p>
+
+        <div className="folder-setup-features">
+          <div className="folder-setup-feature">
+            <span className="folder-setup-feature-icon">*</span>
+            <span>Keyboard-first, lightning fast</span>
+          </div>
+          <div className="folder-setup-feature">
+            <span className="folder-setup-feature-icon">*</span>
+            <span>Organize with codexes and tags</span>
+          </div>
+          <div className="folder-setup-feature">
+            <span className="folder-setup-feature-icon">*</span>
+            <span>Encrypt notes you want to keep secret</span>
+          </div>
+          <div className="folder-setup-feature">
+            <span className="folder-setup-feature-icon">*</span>
+            <span>Syncs anywhere via Dropbox (or wherever you like)</span>
+          </div>
+        </div>
+
+        <p className="folder-setup-prompt">
+          First things first, pick a home for your notes:
         </p>
 
         <div className="folder-actions">
-          <button className="btn primary" onClick={handleChooseFolder}>
-            Choose Folder…
-          </button>
           {defaultPath && (
-            <button className="btn secondary" onClick={handleUseDefault}>
-              Use Default ({defaultPath.split("/").slice(-2).join("/")})
+            <button className="btn primary" onClick={handleUseDefault}>
+              Get Started ({defaultPath.split("/").slice(-2).join("/")})
             </button>
           )}
+          <button className="btn secondary" onClick={handleChooseFolder}>
+            Choose a Different Folder...
+          </button>
         </div>
 
         {error && <p className="error">{error}</p>}

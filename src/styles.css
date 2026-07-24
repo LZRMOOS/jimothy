@@ -1341,27 +1341,57 @@ body {
 
 .folder-setup-content {
   text-align: center;
-  max-width: 400px;
+  max-width: 420px;
+}
+
+.folder-setup-mascot {
+  width: 88px;
+  height: 88px;
+  margin-bottom: 16px;
+  border-radius: 20px;
 }
 
 .folder-setup-content h1 {
-  font-size: 26px;
+  font-size: 22px;
   font-weight: 700;
-  margin-bottom: 12px;
-  letter-spacing: -0.03em;
+  margin-bottom: 10px;
+  letter-spacing: -0.02em;
 }
 
-.folder-setup-content p {
+.folder-setup-intro {
   color: var(--text-secondary);
-  margin-bottom: 8px;
-  font-size: 14px;
-  line-height: 1.5;
+  font-size: 13px;
+  line-height: 1.6;
+  margin-bottom: 20px;
 }
 
-.folder-setup-content .hint {
+.folder-setup-features {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 24px;
+  text-align: left;
+}
+
+.folder-setup-feature {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.folder-setup-feature-icon {
+  color: var(--accent);
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.folder-setup-prompt {
+  color: var(--text-primary);
   font-size: 13px;
-  color: var(--text-hint);
-  margin-bottom: 28px;
+  font-weight: 500;
+  margin-bottom: 14px;
 }
 
 .folder-actions {
