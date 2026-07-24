@@ -4,7 +4,7 @@ import { highlightMatches } from "../utils/search";
 
 type Props = {
   notes: Note[];
-  allNotes?: Note[];
+  backlinkIndex?: Map<string, { id: string; title: string }[]>;
   selectedId: string | null;
   onSelect: (id: string) => void;
   onDelete: (id: string) => void;
@@ -52,7 +52,7 @@ type ContextMenuState = {
 } | null;
 
 
-export function NotesList({ notes, allNotes, selectedId, onSelect, onDelete, onTogglePin, onToggleSensitive, onToggleArchive, onToggleFreeze, onDuplicate, onOpenSplit, pinnedIds, sensitiveIds, frozenIds = [], searchQuery = "", codexColors, expandedIds: expandedIdsProp, onToggleExpand }: Props) {
+export function NotesList({ notes, backlinkIndex, selectedId, onSelect, onDelete, onTogglePin, onToggleSensitive, onToggleArchive, onToggleFreeze, onDuplicate, onOpenSplit, pinnedIds, sensitiveIds, frozenIds = [], searchQuery = "", codexColors, expandedIds: expandedIdsProp, onToggleExpand }: Props) {
   const [contextMenu, setContextMenu] = useState<ContextMenuState>(null);
   const [localExpanded, setLocalExpanded] = useState<Set<string>>(new Set());
   const expandedIds = expandedIdsProp || localExpanded;
@@ -73,21 +73,6 @@ export function NotesList({ notes, allNotes, selectedId, onSelect, onDelete, onT
     navigator.clipboard.writeText(markdown);
     closeContextMenu();
   };
-
-  const backlinkMap = useMemo(() => {
-    const source = allNotes || notes;
-    const map = new Map<string, { id: string; title: string }[]>();
-    for (const note of notes) {
-      const pattern = `scratch://${note.id}`;
-      const links = source
-        .filter((n) => n.id !== note.id && n.body.includes(pattern))
-        .map((n) => ({ id: n.id, title: n.title || "Untitled" }));
-      if (links.length > 0) {
-        map.set(note.id, links);
-      }
-    }
-    return map;
-  }, [notes, allNotes]);
 
   const toggleExpand = (id: string) => {
     if (onToggleExpand) {
@@ -120,7 +105,7 @@ export function NotesList({ notes, allNotes, selectedId, onSelect, onDelete, onT
   return (
     <div className="notes-list" onClick={closeContextMenu}>
       {sorted.map((note) => {
-        const backlinks = backlinkMap.get(note.id);
+        const backlinks = backlinkIndex?.get(note.id);
         const isExpanded = expandedIds.has(note.id);
 
         return (

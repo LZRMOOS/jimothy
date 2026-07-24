@@ -735,10 +735,6 @@ body {
 }
 
 
-.note-item.pinned {
-  position: relative;
-}
-
 /* Backlink expansion */
 .note-item-footer-right {
   display: flex;

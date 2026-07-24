@@ -167,15 +167,23 @@ function App() {
       .sort((a, b) => a.name.localeCompare(b.name));
   }, [notes]);
 
-  const backlinkSet = useMemo(() => {
-    const set = new Set<string>();
+  const backlinkIndex = useMemo(() => {
+    const SCRATCH_RE = /scratch:\/\/([A-Za-z0-9]+)/g;
+    const map = new Map<string, { id: string; title: string }[]>();
     for (const note of notes) {
-      const pattern = `scratch://${note.id}`;
-      if (notes.some((n) => n.id !== note.id && n.body.includes(pattern))) {
-        set.add(note.id);
+      SCRATCH_RE.lastIndex = 0;
+      let match;
+      while ((match = SCRATCH_RE.exec(note.body)) !== null) {
+        const targetId = match[1];
+        if (targetId === note.id) continue;
+        const list = map.get(targetId) || [];
+        if (!list.some((l) => l.id === note.id)) {
+          list.push({ id: note.id, title: note.title || "Untitled" });
+          map.set(targetId, list);
+        }
       }
     }
-    return set;
+    return map;
   }, [notes]);
 
   const handleToggleExpand = useCallback((id: string) => {
@@ -1073,7 +1081,7 @@ function App() {
           }
         } else if (e.key === "ArrowRight") {
           e.preventDefault();
-          if (selectedId && backlinkSet.has(selectedId) && !expandedBacklinks.has(selectedId)) {
+          if (selectedId && backlinkIndex.has(selectedId) && !expandedBacklinks.has(selectedId)) {
             handleToggleExpand(selectedId);
           }
         } else if (e.key === "ArrowLeft") {
@@ -1089,7 +1097,7 @@ function App() {
 
     window.addEventListener("keydown", handleBrowseKeys);
     return () => window.removeEventListener("keydown", handleBrowseKeys);
-  }, [showSettings, showCommandPalette, sensitivePromptId, editingCodexIcon, selectedId, navigateNote, appSettings.frozenNotes, backlinkSet, expandedBacklinks, handleToggleExpand]);
+  }, [showSettings, showCommandPalette, sensitivePromptId, editingCodexIcon, selectedId, navigateNote, appSettings.frozenNotes, backlinkIndex, expandedBacklinks, handleToggleExpand]);
 
   const commands: Command[] = useMemo(() => [
     { id: "new-note", label: "New Note", shortcut: `${mod}N`, action: () => { setIsCreateMode(true); setQuery(""); searchInputRef.current?.focus(); } },
@@ -1388,7 +1396,7 @@ function App() {
               </div>
               <NotesList
                 notes={displayNotes}
-                allNotes={notes}
+                backlinkIndex={backlinkIndex}
                 selectedId={selectedId}
                 onSelect={handleSelectNote}
                 onDelete={handleDeleteById}

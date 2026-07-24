@@ -1,16 +1,16 @@
 import { Extension } from "@tiptap/core";
 import { Plugin, PluginKey } from "@tiptap/pm/state";
 import { Decoration, DecorationSet } from "@tiptap/pm/view";
+import { isInsideTaskItem, deleteWithSurroundingSpace } from "./taskUtils";
 
-const DUE_REGEX = /!\d{4}-\d{2}-\d{2}/g;
+const DUE_REGEX = /(?:^|\s)(!\d{4}-\d{2}-\d{2})(?=\s|$)/g;
 const pluginKey = new PluginKey("taskDueDate");
 
-function isInsideTaskItem(doc: any, pos: number): boolean {
-  const resolved = doc.resolve(pos);
-  for (let depth = resolved.depth; depth >= 0; depth--) {
-    if (resolved.node(depth).type.name === "taskItem") return true;
-  }
-  return false;
+function isValidDate(dateStr: string): boolean {
+  const d = new Date(dateStr + "T00:00:00");
+  if (isNaN(d.getTime())) return false;
+  const [y, m, day] = dateStr.split("-").map(Number);
+  return d.getFullYear() === y && d.getMonth() + 1 === m && d.getDate() === day;
 }
 
 function getUrgencyColor(dateStr: string): string {
@@ -54,9 +54,12 @@ export function createTaskDueDateExtension() {
               DUE_REGEX.lastIndex = 0;
               let match;
               while ((match = DUE_REGEX.exec(text)) !== null) {
-                const from = pos + match.index;
-                const to = from + match[0].length;
-                const dateStr = match[0].slice(1);
+                const token = match[1];
+                const dateStr = token.slice(1);
+                if (!isValidDate(dateStr)) continue;
+                const tokenStart = match.index + match[0].indexOf(token);
+                const from = pos + tokenStart;
+                const to = from + token.length;
                 const color = getUrgencyColor(dateStr);
                 const label = formatDueLabel(dateStr);
                 decorations.push(
@@ -81,15 +84,16 @@ export function createTaskDueDateExtension() {
             if (!node.isTextblock) return false;
 
             const text = node.textContent;
+            const parentStart = $pos.start();
             DUE_REGEX.lastIndex = 0;
             let match;
             while ((match = DUE_REGEX.exec(text)) !== null) {
-              const from = $pos.start() + match.index;
-              const to = from + match[0].length;
-              if (pos >= from && pos <= to) {
-                const afterTo = to < node.textContent.length + $pos.start() && state.doc.textBetween(to, to + 1) === " " ? to + 1 : to;
-                const beforeFrom = from > $pos.start() && state.doc.textBetween(from - 1, from) === " " ? from - 1 : from;
-                view.dispatch(state.tr.delete(beforeFrom, afterTo));
+              const token = match[1];
+              const tokenStart = match.index + match[0].indexOf(token);
+              const from = parentStart + tokenStart;
+              const to = from + token.length;
+              if (pos >= from && pos < to) {
+                deleteWithSurroundingSpace(view, from, to, parentStart, text.length);
                 return true;
               }
             }

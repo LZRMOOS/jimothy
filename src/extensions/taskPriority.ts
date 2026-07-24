@@ -1,18 +1,11 @@
 import { Extension } from "@tiptap/core";
 import { Plugin, PluginKey } from "@tiptap/pm/state";
 import { Decoration, DecorationSet } from "@tiptap/pm/view";
+import { isInsideTaskItem, deleteWithSurroundingSpace } from "./taskUtils";
 
-const PRIORITY_REGEX = /!(?:high|med|low)/g;
+const PRIORITY_REGEX = /(?:^|\s)(!(?:high|med|low))(?=\s|$)/g;
 const PRIORITIES = ["!high", "!med", "!low"] as const;
 const pluginKey = new PluginKey("taskPriority");
-
-function isInsideTaskItem(doc: any, pos: number): boolean {
-  const resolved = doc.resolve(pos);
-  for (let depth = resolved.depth; depth >= 0; depth--) {
-    if (resolved.node(depth).type.name === "taskItem") return true;
-  }
-  return false;
-}
 
 export function createTaskPriorityExtension() {
   return Extension.create({
@@ -30,9 +23,11 @@ export function createTaskPriorityExtension() {
               PRIORITY_REGEX.lastIndex = 0;
               let match;
               while ((match = PRIORITY_REGEX.exec(text)) !== null) {
-                const from = pos + match.index;
-                const to = from + match[0].length;
-                const level = match[0] as typeof PRIORITIES[number];
+                const token = match[1];
+                const tokenStart = match.index + match[0].indexOf(token);
+                const from = pos + tokenStart;
+                const to = from + token.length;
+                const level = token as typeof PRIORITIES[number];
                 decorations.push(
                   Decoration.inline(from, to, {
                     class: `priority-pill priority-${level.slice(1)}`,
@@ -53,21 +48,21 @@ export function createTaskPriorityExtension() {
             if (!node.isTextblock) return false;
 
             const text = node.textContent;
+            const parentStart = $pos.start();
             PRIORITY_REGEX.lastIndex = 0;
             let match;
             while ((match = PRIORITY_REGEX.exec(text)) !== null) {
-              const from = $pos.start() + match.index;
-              const to = from + match[0].length;
-              if (pos >= from && pos <= to) {
-                const current = match[0] as typeof PRIORITIES[number];
+              const token = match[1];
+              const tokenStart = match.index + match[0].indexOf(token);
+              const from = parentStart + tokenStart;
+              const to = from + token.length;
+              if (pos >= from && pos < to) {
+                const current = token as typeof PRIORITIES[number];
                 const idx = PRIORITIES.indexOf(current);
-                const next = PRIORITIES[(idx + 1) % PRIORITIES.length];
                 if (idx === PRIORITIES.length - 1) {
-                  // After low, remove the priority (and any trailing space)
-                  const afterTo = to < node.textContent.length + $pos.start() && state.doc.textBetween(to, to + 1) === " " ? to + 1 : to;
-                  const beforeFrom = from > $pos.start() && state.doc.textBetween(from - 1, from) === " " ? from - 1 : from;
-                  view.dispatch(state.tr.delete(beforeFrom, afterTo));
+                  deleteWithSurroundingSpace(view, from, to, parentStart, text.length);
                 } else {
+                  const next = PRIORITIES[idx + 1];
                   view.dispatch(state.tr.replaceWith(from, to, state.schema.text(next)));
                 }
                 return true;

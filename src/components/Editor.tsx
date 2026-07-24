@@ -337,6 +337,9 @@ export function Editor({ note, saveStatus, onTitleChange, onBodyChange, onCodexC
     extensions: [
       StarterKit.configure({
         codeBlock: false,
+        link: {
+          autolink: false,
+        },
       }),
       CodeBlockLowlight.configure({
         lowlight,
