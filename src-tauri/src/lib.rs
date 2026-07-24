@@ -147,6 +147,8 @@ pub fn run() {
             commands::get_default_notes_path,
             commands::get_app_settings,
             commands::save_app_settings,
+            commands::get_preferences,
+            commands::save_preferences,
             commands::setup_vault,
             commands::unlock_vault,
             commands::lock_vault,

@@ -355,7 +355,12 @@ export function Editor({ note, saveStatus, onTitleChange, onBodyChange, onCodexC
       const mod = e.metaKey || e.ctrlKey;
       if (mod && e.key === "f" && !e.shiftKey) {
         e.preventDefault();
-        setShowInNoteSearch(true);
+        if (showInNoteSearch) {
+          inNoteSearchRef.current?.focus();
+          inNoteSearchRef.current?.select();
+        } else {
+          setShowInNoteSearch(true);
+        }
       }
     };
     const handleOpenFind = () => {
@@ -367,7 +372,7 @@ export function Editor({ note, saveStatus, onTitleChange, onBodyChange, onCodexC
       window.removeEventListener("keydown", handleKeyDown);
       window.removeEventListener("open-in-note-search", handleOpenFind);
     };
-  }, []);
+  }, [showInNoteSearch]);
 
   useEffect(() => {
     if (showInNoteSearch) {
@@ -408,9 +413,11 @@ export function Editor({ note, saveStatus, onTitleChange, onBodyChange, onCodexC
     const pos = matchPositions[currentMatchIndex];
     if (!pos) return;
     editor.commands.setTextSelection(pos);
-    editor.view.dispatch(
-      editor.view.state.tr.scrollIntoView()
-    );
+    const dom = editor.view.domAtPos(pos.from);
+    if (dom.node) {
+      const el = dom.node instanceof HTMLElement ? dom.node : dom.node.parentElement;
+      el?.scrollIntoView({ block: "center", behavior: "smooth" });
+    }
   }, [currentMatchIndex, matchPositions, editor]);
 
   const cycleMatch = useCallback((direction: 1 | -1) => {

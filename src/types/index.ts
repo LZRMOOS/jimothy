@@ -37,19 +37,24 @@ export type ColorPreset = {
   colors: ThemeColors;
 };
 
-export type AppSettings = {
+export type LocalSettings = {
   notesFolder?: string;
+  showTrayIcon?: boolean;
+  zoomLevel?: number;
+  globalShortcut?: string;
+};
+
+export type Preferences = {
   theme?: "system" | "light" | "dark";
   confirmDelete?: boolean;
   idleLockMinutes?: number;
   codexIcons?: Record<string, string>;
-  showTrayIcon?: boolean;
   pinnedNotes?: string[];
   protectedNotes?: string[];
-  zoomLevel?: number;
-  globalShortcut?: string;
   macros?: Record<string, string>;
   colorsLight?: ThemeColors;
   colorsDark?: ThemeColors;
   colorPresets?: ColorPreset[];
 };
+
+export type AppSettings = LocalSettings & Preferences;

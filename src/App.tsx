@@ -23,7 +23,7 @@ import { useNotes } from "./hooks/useNotes";
 import { useVault } from "./hooks/useVault";
 import { useProtection } from "./hooks/useProtection";
 import { useIdleLock } from "./hooks/useIdleLock";
-import type { AppSettings } from "./types";
+import type { AppSettings, LocalSettings, Preferences } from "./types";
 
 function App() {
   const {
@@ -112,15 +112,51 @@ function App() {
   );
 
   useEffect(() => {
+    const LOCAL_KEYS: (keyof LocalSettings)[] = ["notesFolder", "showTrayIcon", "zoomLevel", "globalShortcut"];
+
     async function init() {
       try {
         const settingsJson = (await invoke("get_app_settings")) as string;
-        const settings = JSON.parse(settingsJson);
-        if (settings.notesFolder) {
-          await initFolder(settings.notesFolder);
-          setNotesFolder(settings.notesFolder);
+        const saved = JSON.parse(settingsJson);
+
+        const local: LocalSettings = {};
+        for (const k of LOCAL_KEYS) {
+          if (k in saved) (local as Record<string, unknown>)[k] = saved[k];
         }
-        setAppSettings((prev) => ({ ...prev, ...settings }));
+
+        if (local.notesFolder) {
+          await initFolder(local.notesFolder);
+          setNotesFolder(local.notesFolder);
+        }
+
+        let prefs: Preferences = {};
+        try {
+          const prefsJson = (await invoke("get_preferences")) as string;
+          prefs = JSON.parse(prefsJson);
+        } catch {
+          // Preferences not available yet (no folder set)
+        }
+
+        // Migration: if local settings contain portable keys, move them
+        const portableFromLocal: Preferences = {};
+        let needsMigration = false;
+        for (const [k, v] of Object.entries(saved)) {
+          if (!LOCAL_KEYS.includes(k as keyof LocalSettings) && v !== undefined) {
+            (portableFromLocal as Record<string, unknown>)[k] = v;
+            needsMigration = true;
+          }
+        }
+
+        if (needsMigration && local.notesFolder) {
+          // Merge: existing preferences take priority over migrated ones
+          const merged = { ...portableFromLocal, ...prefs };
+          prefs = merged;
+          await invoke("save_preferences", { prefsJson: JSON.stringify(prefs) });
+          // Clean portable keys from local settings
+          await invoke("save_app_settings", { settingsJson: JSON.stringify(local) });
+        }
+
+        setAppSettings((prev) => ({ ...prev, ...local, ...prefs }));
       } catch {
         // No settings yet
       }
@@ -331,9 +367,14 @@ function App() {
   const handleSettingsChange = useCallback(
     async (newSettings: AppSettings) => {
       setAppSettings(newSettings);
-      await invoke("save_app_settings", {
-        settingsJson: JSON.stringify({ ...newSettings, notesFolder }),
-      });
+      const { showTrayIcon, zoomLevel, globalShortcut } = newSettings;
+      const local: LocalSettings = { notesFolder: notesFolder || undefined, showTrayIcon, zoomLevel, globalShortcut };
+      const { theme, confirmDelete, idleLockMinutes, codexIcons, pinnedNotes, protectedNotes, macros, colorsLight, colorsDark, colorPresets } = newSettings;
+      const prefs: Preferences = { theme, confirmDelete, idleLockMinutes, codexIcons, pinnedNotes, protectedNotes, macros, colorsLight, colorsDark, colorPresets };
+      await Promise.all([
+        invoke("save_app_settings", { settingsJson: JSON.stringify(local) }),
+        invoke("save_preferences", { prefsJson: JSON.stringify(prefs) }),
+      ]);
     },
     [notesFolder]
   );
@@ -342,9 +383,16 @@ function App() {
     async (path: string) => {
       await initFolder(path);
       setNotesFolder(path);
-      await invoke("save_app_settings", {
-        settingsJson: JSON.stringify({ ...appSettings, notesFolder: path }),
-      });
+      const { showTrayIcon, zoomLevel, globalShortcut } = appSettings;
+      const local: LocalSettings = { notesFolder: path, showTrayIcon, zoomLevel, globalShortcut };
+      await invoke("save_app_settings", { settingsJson: JSON.stringify(local) });
+      try {
+        const prefsJson = (await invoke("get_preferences")) as string;
+        const prefs: Preferences = JSON.parse(prefsJson);
+        setAppSettings((prev) => ({ ...prev, ...prefs, notesFolder: path }));
+      } catch {
+        // New folder, no preferences yet
+      }
     },
     [initFolder, appSettings]
   );

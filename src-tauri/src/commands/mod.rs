@@ -384,8 +384,45 @@ pub fn save_app_settings(settings_json: String) -> Result<(), String> {
     std::fs::create_dir_all(&settings_dir)
         .map_err(|e| format!("Failed to create settings dir: {}", e))?;
     let settings_path = settings_dir.join("settings.json");
-    std::fs::write(&settings_path, settings_json)
-        .map_err(|e| format!("Failed to write settings: {}", e))
+    let temp_path = settings_dir.join("settings.json.tmp");
+    fs::write(&temp_path, &settings_json)
+        .map_err(|e| format!("Failed to write settings: {}", e))?;
+    fs::rename(&temp_path, &settings_path).map_err(|e| {
+        let _ = fs::remove_file(&temp_path);
+        format!("Failed to rename settings file: {}", e)
+    })?;
+    Ok(())
+}
+
+#[tauri::command]
+#[allow(dead_code)]
+pub fn get_preferences(state: State<'_, AppState>) -> Result<String, String> {
+    let folder = state.folder()?;
+    let prefs_path = folder.join(".scratch").join("preferences.json");
+    if prefs_path.exists() {
+        fs::read_to_string(&prefs_path)
+            .map_err(|e| format!("Failed to read preferences: {}", e))
+    } else {
+        Ok("{}".to_string())
+    }
+}
+
+#[tauri::command]
+#[allow(dead_code)]
+pub fn save_preferences(prefs_json: String, state: State<'_, AppState>) -> Result<(), String> {
+    let folder = state.folder()?;
+    let scratch_dir = folder.join(".scratch");
+    fs::create_dir_all(&scratch_dir)
+        .map_err(|e| format!("Failed to create .scratch dir: {}", e))?;
+    let dest = scratch_dir.join("preferences.json");
+    let temp = scratch_dir.join(".tmp-preferences.json");
+    fs::write(&temp, &prefs_json)
+        .map_err(|e| format!("Failed to write preferences: {}", e))?;
+    fs::rename(&temp, &dest).map_err(|e| {
+        let _ = fs::remove_file(&temp);
+        format!("Failed to rename preferences file: {}", e)
+    })?;
+    Ok(())
 }
 
 #[tauri::command]
