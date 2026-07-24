@@ -1733,9 +1733,6 @@ body {
   background: var(--bg-secondary);
 }
 
-/* Old conflict dialog classes - can be removed */
-.conflict-dialog-old {
-
 .conflict-dialog-content {
   background: var(--bg-primary);
   border-radius: var(--radius-lg);
