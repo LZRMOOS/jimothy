@@ -213,22 +213,31 @@ body {
 
 /* Search Bar */
 .search-bar {
-  padding: 5px 160px 4px 180px;
+  padding: 5px 160px 5px 180px;
   background: var(--bg-secondary);
   border-bottom: 1px solid var(--border);
   -webkit-app-region: drag;
+  min-height: 38px;
 }
 
 .search-bar-inner {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 8px;
+}
+
+.search-input-container {
+  flex: 1;
+  -webkit-app-region: no-drag;
+  background: var(--bg-primary);
+  border-radius: 6px;
+  border: 1px solid var(--border);
+  overflow: hidden;
+  transition: border-color var(--transition), box-shadow var(--transition);
 }
 
 .search-input-wrapper {
   position: relative;
-  flex: 1;
-  -webkit-app-region: no-drag;
   display: flex;
   align-items: center;
 }
@@ -270,20 +279,53 @@ body {
   letter-spacing: 0.02em;
 }
 
+.search-helper {
+  position: absolute;
+  right: 32px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  padding: 2px 8px;
+  background: var(--bg-tertiary);
+  border-radius: 10px;
+  font-size: 9px;
+  color: var(--text-muted);
+  pointer-events: none;
+  height: 20px;
+}
+
+.search-helper span {
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  opacity: 0.75;
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  white-space: nowrap;
+}
+
+.helper-icon {
+  font-size: 15px;
+  font-weight: 700;
+  opacity: 1;
+  color: var(--text-primary);
+  line-height: 1;
+}
+
 .search-input {
   width: 100%;
-  padding: 6px 32px 6px 30px;
-  border: 1px solid var(--border-strong);
-  border-radius: var(--radius-sm);
-  background: var(--bg-primary);
+  padding: 6px 140px 6px 30px;
+  border: none;
+  background: transparent;
   color: var(--text-primary);
   font-family: "JetBrains Mono", monospace;
   font-size: 12px;
   outline: none;
-  transition: border-color var(--transition), box-shadow var(--transition);
 }
 
-.search-input:focus {
+.search-input-container:focus-within {
   border-color: var(--accent);
   box-shadow: 0 0 0 3px var(--accent-subtle);
 }
