@@ -739,6 +739,73 @@ body {
   position: relative;
 }
 
+/* Backlink expansion */
+.note-item-footer-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.backlink-toggle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  border: none;
+  background: none;
+  color: var(--text-hint);
+  cursor: pointer;
+  padding: 0;
+  border-radius: 3px;
+  transition: transform var(--transition), color var(--transition);
+}
+
+.backlink-toggle:hover {
+  color: var(--text-primary);
+}
+
+.backlink-toggle.expanded {
+  transform: rotate(90deg);
+}
+
+.backlink-children {
+  padding: 2px 0 4px 20px;
+}
+
+.backlink-child-item {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  cursor: pointer;
+  border-radius: var(--radius-sm);
+  font-size: 11px;
+  color: var(--text-secondary);
+  transition: background var(--transition), color var(--transition);
+}
+
+.backlink-child-item:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.backlink-child-item.selected {
+  background: var(--bg-selected);
+  color: var(--text-primary);
+}
+
+.backlink-child-icon {
+  flex-shrink: 0;
+  opacity: 0.5;
+}
+
+.backlink-child-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .search-highlight {
   background: rgba(251, 191, 36, 0.3);
   color: inherit;
@@ -1932,6 +1999,22 @@ body {
   color: var(--text-hint);
   margin-top: 8px;
   line-height: 1.4;
+}
+
+.settings-link {
+  background: none;
+  border: none;
+  color: var(--accent);
+  cursor: pointer;
+  font-size: inherit;
+  font-family: inherit;
+  padding: 0;
+  text-decoration: underline;
+  text-decoration-style: dotted;
+}
+
+.settings-link:hover {
+  color: var(--accent-hover);
 }
 
 .update-toast {

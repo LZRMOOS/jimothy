@@ -101,6 +101,7 @@ function App() {
   const [showSettings, setShowSettings] = useState(false);
   const [showCommandPalette, setShowCommandPalette] = useState(false);
   const [referencePanel, setReferencePanel] = useState<ReferencePanelMode | null>(null);
+  const [expandedBacklinks, setExpandedBacklinks] = useState<Set<string>>(new Set());
   const [sensitivePromptId, setSensitivePromptId] = useState<string | null>(null);
   const sensitiveUnlockTime = useRef<Record<string, number>>({});
   const [appSettings, setAppSettings] = useState<AppSettings>({
@@ -165,6 +166,26 @@ function App() {
       .map(([name, count]) => ({ name, count }))
       .sort((a, b) => a.name.localeCompare(b.name));
   }, [notes]);
+
+  const backlinkSet = useMemo(() => {
+    const set = new Set<string>();
+    for (const note of notes) {
+      const pattern = `scratch://${note.id}`;
+      if (notes.some((n) => n.id !== note.id && n.body.includes(pattern))) {
+        set.add(note.id);
+      }
+    }
+    return set;
+  }, [notes]);
+
+  const handleToggleExpand = useCallback((id: string) => {
+    setExpandedBacklinks((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
 
   const handleRenameTag = useCallback(async (oldTag: string, newTag: string) => {
     const cleaned = newTag.replace(/[^a-zA-Z0-9_]/g, "");
@@ -1040,7 +1061,7 @@ function App() {
         if (e.key === "ArrowDown" || e.key === "ArrowUp") {
           e.preventDefault();
           navigateNote(e.key === "ArrowDown" ? 1 : -1);
-        } else if (e.key === "Enter" || e.key === "ArrowRight") {
+        } else if (e.key === "Enter") {
           e.preventDefault();
           const isFrozen = selectedId && (appSettings.frozenNotes || []).includes(selectedId);
           if (!isFrozen && editorRef.current && editorRef.current.view && editorRef.current.isEditable) {
@@ -1050,16 +1071,25 @@ function App() {
             );
             editorRef.current.view.dispatch(tr);
           }
+        } else if (e.key === "ArrowRight") {
+          e.preventDefault();
+          if (selectedId && backlinkSet.has(selectedId) && !expandedBacklinks.has(selectedId)) {
+            handleToggleExpand(selectedId);
+          }
         } else if (e.key === "ArrowLeft") {
           e.preventDefault();
-          searchInputRef.current?.focus();
+          if (selectedId && expandedBacklinks.has(selectedId)) {
+            handleToggleExpand(selectedId);
+          } else {
+            searchInputRef.current?.focus();
+          }
         }
       }
     };
 
     window.addEventListener("keydown", handleBrowseKeys);
     return () => window.removeEventListener("keydown", handleBrowseKeys);
-  }, [showSettings, showCommandPalette, sensitivePromptId, editingCodexIcon, selectedId, navigateNote, appSettings.frozenNotes]);
+  }, [showSettings, showCommandPalette, sensitivePromptId, editingCodexIcon, selectedId, navigateNote, appSettings.frozenNotes, backlinkSet, expandedBacklinks, handleToggleExpand]);
 
   const commands: Command[] = useMemo(() => [
     { id: "new-note", label: "New Note", shortcut: `${mod}N`, action: () => { setIsCreateMode(true); setQuery(""); searchInputRef.current?.focus(); } },
@@ -1358,6 +1388,7 @@ function App() {
               </div>
               <NotesList
                 notes={displayNotes}
+                allNotes={notes}
                 selectedId={selectedId}
                 onSelect={handleSelectNote}
                 onDelete={handleDeleteById}
@@ -1376,6 +1407,8 @@ function App() {
                 }
                 searchQuery={query}
                 codexColors={appSettings.codexColors}
+                expandedIds={expandedBacklinks}
+                onToggleExpand={handleToggleExpand}
               />
             </div>
           )}
