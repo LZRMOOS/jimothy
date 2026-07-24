@@ -110,7 +110,7 @@ export function createNoteLinkExtension(
       return ["span", mergeAttributes(HTMLAttributes, {
         "data-type": "noteLink",
         class: "note-link",
-      }), HTMLAttributes.label || ""];
+      }), `@${HTMLAttributes.label || ""}`];
     },
 
     addProseMirrorPlugins() {
@@ -239,7 +239,7 @@ export function createNoteLinkExtension(
                   const textToken = tokens[idx + 1];
                   const currentNote = notesRef.current.find((n) => n.id === id);
                   const label = currentNote?.title || textToken?.content || id;
-                  if (textToken) textToken.content = label;
+                  if (textToken) textToken.content = `@${label}`;
                   return `<span data-type="noteLink" data-id="${id}" data-label="${label}" class="note-link">`;
                 }
                 return defaultLinkOpen(tokens, idx, options, env, self);
