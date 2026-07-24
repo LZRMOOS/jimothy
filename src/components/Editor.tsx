@@ -268,6 +268,7 @@ type Props = {
 };
 
 type TocHeading = { level: number; text: string; pos: number };
+type Backlink = { id: string; title: string };
 
 export function Editor({ note, saveStatus, onTitleChange, onBodyChange, onCodexChange, onEditingChange, searchQuery = "", codexList, isSensitive, editorRef, macros = {}, allNotes = [], onNavigateToNote, frozen, onToggleFreeze, tocDefault }: Props) {
   const [showCharCount, setShowCharCount] = useState(false);
@@ -625,6 +626,13 @@ export function Editor({ note, saveStatus, onTitleChange, onBodyChange, onCodexC
   const wordCount = useMemo(() => note.body.trim() ? note.body.trim().split(/\s+/).length : 0, [note.body]);
   const charCount = useMemo(() => note.body.replace(/\s/g, "").length, [note.body]);
 
+  const backlinks: Backlink[] = useMemo(() => {
+    const pattern = `scratch://${note.id}`;
+    return allNotes
+      .filter((n) => n.id !== note.id && n.body.includes(pattern))
+      .map((n) => ({ id: n.id, title: n.title || "Untitled" }));
+  }, [note.id, allNotes]);
+
   const createdDate = new Date(note.created_at);
   const createdStr = createdDate.toLocaleString(undefined, {
     month: "short",
@@ -802,6 +810,29 @@ export function Editor({ note, saveStatus, onTitleChange, onBodyChange, onCodexC
       <div className="editor-content-area">
         <div className="editor-body" ref={editorBodyRef}>
           <EditorContent editor={editor} />
+          {backlinks.length > 0 && (
+            <div className="editor-backlinks">
+              <div className="editor-backlinks-header">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M9 17H7A5 5 0 0 1 7 7h2" />
+                  <path d="M15 7h2a5 5 0 0 1 0 10h-2" />
+                  <line x1="8" y1="12" x2="16" y2="12" />
+                </svg>
+                <span>{backlinks.length} backlink{backlinks.length !== 1 ? "s" : ""}</span>
+              </div>
+              <div className="editor-backlinks-list">
+                {backlinks.map((bl) => (
+                  <button
+                    key={bl.id}
+                    className="editor-backlink-item"
+                    onClick={() => onNavigateToNote?.(bl.id)}
+                  >
+                    {bl.title}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
         {showToc && headings.length > 0 && (
           <div className="editor-toc">

@@ -1218,6 +1218,48 @@ body {
   font-size: 11px;
 }
 
+.editor-backlinks {
+  margin-top: 32px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+.editor-backlinks-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-hint);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 8px;
+}
+
+.editor-backlinks-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.editor-backlink-item {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  font-size: 12px;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+}
+
+.editor-backlink-item:hover {
+  color: var(--accent);
+  border-color: var(--accent);
+}
+
 .editor-footer {
   display: flex;
   align-items: center;
