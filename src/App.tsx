@@ -598,7 +598,7 @@ function App() {
         setIsCreateMode(true);
         setQuery("");
         searchInputRef.current?.focus();
-      } else if (mod && !e.shiftKey && key === "f") {
+      } else if (mod && e.shiftKey && key === "f") {
         e.preventDefault();
         searchInputRef.current?.focus();
         searchInputRef.current?.select();

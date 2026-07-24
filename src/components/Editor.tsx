@@ -8,7 +8,7 @@ import TaskItem from "@tiptap/extension-task-item";
 import { Markdown } from "tiptap-markdown";
 import { common, createLowlight } from "lowlight";
 import { Extension } from "@tiptap/core";
-import { Plugin, PluginKey } from "@tiptap/pm/state";
+import { Plugin } from "@tiptap/pm/state";
 import { Decoration, DecorationSet } from "@tiptap/pm/view";
 import type { Note, SaveStatus } from "../types";
 import { buildSearchPattern } from "../utils/search";
@@ -30,9 +30,7 @@ function highlightMatches(text: string, query: string): React.ReactNode {
 
 const lowlight = createLowlight(common);
 
-const searchHighlightKey = new PluginKey("searchHighlight");
-
-function buildDecorations(doc: any, query: string): DecorationSet {
+function buildDecorations(doc: any, query: string, currentMatch?: { from: number; to: number }): DecorationSet {
   const regex = buildSearchPattern(query);
   if (!regex) return DecorationSet.empty;
   const decorations: Decoration[] = [];
@@ -40,49 +38,49 @@ function buildDecorations(doc: any, query: string): DecorationSet {
   doc.descendants((node: any, pos: number) => {
     if (!node.isText) return;
     const text = node.text || "";
-    regex.lastIndex = 0; // Reset regex state for each text node
+    regex.lastIndex = 0;
     let match;
     while ((match = regex.exec(text)) !== null) {
+      const from = pos + match.index;
+      const to = pos + match.index + match[0].length;
+      const isCurrent = currentMatch && from === currentMatch.from && to === currentMatch.to;
       decorations.push(
-        Decoration.inline(pos + match.index, pos + match.index + match[0].length, {
-          class: "search-highlight",
+        Decoration.inline(from, to, {
+          class: isCurrent ? "search-highlight search-highlight-current" : "search-highlight",
         })
       );
     }
   });
 
-  console.log('Search decorations:', query, decorations.length, 'matches');
   return DecorationSet.create(doc, decorations);
 }
 
-function createSearchHighlightExtension(queryRef: { current: string }) {
+function createSearchHighlightExtension(
+  queryRef: { current: string },
+  currentMatchRef: { current: { from: number; to: number } | undefined }
+) {
+  let cachedDecos: DecorationSet = DecorationSet.empty;
+  let cachedQuery = "";
+  let cachedDoc: any = null;
+  let cachedMatchFrom = -1;
+
   return Extension.create({
     name: "searchHighlight",
     addProseMirrorPlugins() {
       return [
         new Plugin({
-          key: searchHighlightKey,
-          state: {
-            init(_, { doc }) {
-              const decos = buildDecorations(doc, queryRef.current);
-              return decos;
-            },
-            apply(tr, oldDecoSet, oldState, newState) {
-              const meta = tr.getMeta(searchHighlightKey);
-              if (meta || tr.docChanged) {
-                const decos = buildDecorations(newState.doc, queryRef.current);
-                return decos;
-              }
-              // Map old decorations to new positions
-              if (oldDecoSet) {
-                return oldDecoSet.map(tr.mapping, tr.doc);
-              }
-              return oldDecoSet;
-            },
-          },
           props: {
             decorations(state) {
-              return searchHighlightKey.getState(state);
+              const query = queryRef.current;
+              const matchFrom = currentMatchRef.current?.from ?? -1;
+              if (query === cachedQuery && state.doc === cachedDoc && matchFrom === cachedMatchFrom) {
+                return cachedDecos;
+              }
+              cachedQuery = query;
+              cachedDoc = state.doc;
+              cachedMatchFrom = matchFrom;
+              cachedDecos = buildDecorations(state.doc, query, currentMatchRef.current);
+              return cachedDecos;
             },
           },
         }),
@@ -164,17 +162,22 @@ type Props = {
   editorRef?: React.MutableRefObject<any>;
 };
 
-export function Editor({ note, saveStatus, onTitleChange, onBodyChange, onCodexChange, onEditingChange, focusTrigger, searchQuery = "", codexList, isSensitive, editorRef }: Props) {
+export function Editor({ note, saveStatus, onTitleChange, onBodyChange, onCodexChange, onEditingChange, searchQuery = "", codexList, isSensitive, editorRef }: Props) {
   const [showCharCount, setShowCharCount] = useState(false);
   const [isTitleFocused, setIsTitleFocused] = useState(false);
+  const [showInNoteSearch, setShowInNoteSearch] = useState(false);
+  const [inNoteQuery, setInNoteQuery] = useState("");
+  const [currentMatchIndex, setCurrentMatchIndex] = useState(0);
+  const [matchPositions, setMatchPositions] = useState<{ from: number; to: number }[]>([]);
+  const inNoteSearchRef = useRef<HTMLInputElement>(null);
   const noteIdRef = useRef(note.id);
   const onBodyChangeRef = useRef(onBodyChange);
   onBodyChangeRef.current = onBodyChange;
   const searchQueryRef = useRef(searchQuery);
-  searchQueryRef.current = searchQuery;
+  const currentMatchRef = useRef<{ from: number; to: number } | undefined>(undefined);
   const titleInputRef = useRef<HTMLInputElement>(null);
 
-  const [searchExt] = useState(() => createSearchHighlightExtension(searchQueryRef));
+  const [searchExt] = useState(() => createSearchHighlightExtension(searchQueryRef, currentMatchRef));
   const suppressUpdate = useRef(false);
 
   const editor = useEditor({
@@ -210,21 +213,22 @@ export function Editor({ note, saveStatus, onTitleChange, onBodyChange, onCodexC
       const md = (editor.storage as any).markdown.getMarkdown();
       onBodyChangeRef.current(md);
     },
-    onFocus: ({ editor }) => {
+    onFocus: () => {
       onEditingChange?.(true);
     },
   });
 
+  // Update the combined query ref: in-note search takes priority over global search
+  searchQueryRef.current = inNoteQuery.trim() ? inNoteQuery : searchQuery;
+  currentMatchRef.current = matchPositions.length > 0 ? matchPositions[currentMatchIndex] : undefined;
+
+  const matchCount = matchPositions.length;
   useEffect(() => {
-    if (!editor || !editor.view) return;
-    // Force recreate decorations by updating plugin state
-    const { state } = editor.view;
-    const pluginState = searchHighlightKey.getState(state);
-    if (pluginState !== undefined) {
-      const tr = state.tr.setMeta(searchHighlightKey, { forceUpdate: true });
-      editor.view.dispatch(tr);
-    }
-  }, [searchQuery, editor]);
+    if (!editor || editor.isDestroyed || !editor.view) return;
+    // Dispatch a no-op transaction to force ProseMirror to re-read decorations
+    const tr = editor.view.state.tr.setMeta("searchHighlightUpdate", true);
+    editor.view.dispatch(tr);
+  }, [searchQuery, inNoteQuery, currentMatchIndex, matchCount, editor]);
 
   // Expose editor instance via ref
   useEffect(() => {
@@ -232,6 +236,76 @@ export function Editor({ note, saveStatus, onTitleChange, onBodyChange, onCodexC
       editorRef.current = editor;
     }
   }, [editor, editorRef]);
+
+  // Cmd+F in-note search handler
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const mod = e.metaKey || e.ctrlKey;
+      if (mod && e.key === "f" && !e.shiftKey) {
+        e.preventDefault();
+        setShowInNoteSearch(true);
+        setTimeout(() => inNoteSearchRef.current?.focus(), 0);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, []);
+
+  // Find all matches in document when in-note query changes
+  useEffect(() => {
+    if (!editor || !inNoteQuery.trim()) {
+      setMatchPositions([]);
+      setCurrentMatchIndex(0);
+      return;
+    }
+    const regex = buildSearchPattern(inNoteQuery);
+    if (!regex) {
+      setMatchPositions([]);
+      setCurrentMatchIndex(0);
+      return;
+    }
+    const positions: { from: number; to: number }[] = [];
+    editor.state.doc.descendants((node, pos) => {
+      if (!node.isText) return;
+      const text = node.text || "";
+      regex.lastIndex = 0;
+      let match;
+      while ((match = regex.exec(text)) !== null) {
+        positions.push({ from: pos + match.index, to: pos + match.index + match[0].length });
+      }
+    });
+    setMatchPositions(positions);
+    setCurrentMatchIndex(positions.length > 0 ? 0 : 0);
+  }, [inNoteQuery, editor]);
+
+  // Scroll to current match and highlight it
+  useEffect(() => {
+    if (!editor || matchPositions.length === 0) return;
+    const pos = matchPositions[currentMatchIndex];
+    if (!pos) return;
+    editor.commands.setTextSelection(pos);
+    editor.view.dispatch(
+      editor.view.state.tr.scrollIntoView()
+    );
+  }, [currentMatchIndex, matchPositions, editor]);
+
+  const cycleMatch = useCallback((direction: 1 | -1) => {
+    if (matchPositions.length === 0) return;
+    setCurrentMatchIndex((prev) => {
+      const next = prev + direction;
+      if (next < 0) return matchPositions.length - 1;
+      if (next >= matchPositions.length) return 0;
+      return next;
+    });
+  }, [matchPositions]);
+
+  const closeInNoteSearch = useCallback(() => {
+    setShowInNoteSearch(false);
+    setInNoteQuery("");
+    setMatchPositions([]);
+    setCurrentMatchIndex(0);
+    editor?.commands.focus();
+  }, [editor]);
 
   useEffect(() => {
     if (!editor) return;
@@ -319,6 +393,69 @@ export function Editor({ note, saveStatus, onTitleChange, onBodyChange, onCodexC
           {statusLabel && <span className={`save-status ${saveStatus}`}>{statusLabel}</span>}
         </div>
       </div>
+      {showInNoteSearch && (
+        <div className="in-note-search">
+          <svg className="in-note-search-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="11" cy="11" r="8" />
+            <line x1="21" y1="21" x2="16.65" y2="16.65" />
+          </svg>
+          <input
+            ref={inNoteSearchRef}
+            type="text"
+            className="in-note-search-input"
+            placeholder="Find in note..."
+            value={inNoteQuery}
+            onChange={(e) => setInNoteQuery(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                cycleMatch(e.shiftKey ? -1 : 1);
+              } else if (e.key === "Escape") {
+                e.preventDefault();
+                closeInNoteSearch();
+              }
+            }}
+            autoComplete="off"
+            spellCheck="false"
+          />
+          {inNoteQuery && (
+            <span className="in-note-search-count">
+              {matchPositions.length > 0
+                ? `${currentMatchIndex + 1}/${matchPositions.length}`
+                : "0/0"}
+            </span>
+          )}
+          <button
+            className="in-note-search-btn"
+            onClick={() => cycleMatch(-1)}
+            title="Previous (Shift+Enter)"
+            disabled={matchPositions.length === 0}
+          >
+            <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5">
+              <path d="M8 7L5 3L2 7" />
+            </svg>
+          </button>
+          <button
+            className="in-note-search-btn"
+            onClick={() => cycleMatch(1)}
+            title="Next (Enter)"
+            disabled={matchPositions.length === 0}
+          >
+            <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5">
+              <path d="M2 3L5 7L8 3" />
+            </svg>
+          </button>
+          <button
+            className="in-note-search-btn"
+            onClick={closeInNoteSearch}
+            title="Close (Esc)"
+          >
+            <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5">
+              <path d="M2 2L8 8M8 2L2 8" />
+            </svg>
+          </button>
+        </div>
+      )}
       <div className="editor-body">
         <EditorContent editor={editor} />
       </div>

@@ -682,6 +682,14 @@ body {
   background: rgba(251, 191, 36, 0.25);
 }
 
+.search-highlight-current {
+  background: rgba(251, 191, 36, 0.6);
+}
+
+[data-theme="dark"] .search-highlight-current {
+  background: rgba(251, 191, 36, 0.5);
+}
+
 /* Editor */
 .editor {
   flex: 1;
@@ -1001,6 +1009,70 @@ body {
 .editor-body .tiptap pre .hljs-selector-class,
 .editor-body .tiptap pre .hljs-selector-id { color: #818cf8; }
 .editor-body .tiptap pre .hljs-params { color: #60a5fa; }
+
+/* In-Note Search */
+.in-note-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px;
+  background: var(--bg-secondary);
+  border-bottom: 1px solid var(--border);
+}
+
+.in-note-search-icon {
+  color: var(--text-hint);
+  flex-shrink: 0;
+}
+
+.in-note-search-input {
+  flex: 1;
+  border: none;
+  background: transparent;
+  color: var(--text-primary);
+  font-size: 12px;
+  outline: none;
+}
+
+.in-note-search-input::placeholder {
+  color: var(--text-hint);
+}
+
+.in-note-search-count {
+  font-size: 10px;
+  color: var(--text-hint);
+  white-space: nowrap;
+  min-width: 32px;
+  text-align: center;
+}
+
+.in-note-search-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border: none;
+  background: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  border-radius: 3px;
+  transition: background var(--transition), color var(--transition);
+}
+
+.in-note-search-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.in-note-search-btn:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+.in-note-search-btn:disabled:hover {
+  background: none;
+}
 
 .editor-footer {
   display: flex;
