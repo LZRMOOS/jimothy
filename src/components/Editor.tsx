@@ -15,6 +15,8 @@ import { buildSearchPattern, highlightMatches } from "../utils/search";
 import { createNoteLinkExtension } from "../extensions/noteLink";
 import { createMentionExtension } from "../extensions/mention";
 import { createTagHighlightExtension } from "../extensions/tagHighlight";
+import { createTaskPriorityExtension } from "../extensions/taskPriority";
+import { createTaskDueDateExtension } from "../extensions/taskDueDate";
 import { extractTags } from "../utils/tags";
 
 const lowlight = createLowlight(common);
@@ -356,6 +358,8 @@ export function Editor({ note, saveStatus, onTitleChange, onBodyChange, onCodexC
       noteLinkExt,
       mentionExt,
       tagExt,
+      createTaskPriorityExtension(),
+      createTaskDueDateExtension(),
     ],
     content: note.body,
     onUpdate: ({ editor }) => {

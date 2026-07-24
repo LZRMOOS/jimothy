@@ -3117,6 +3117,43 @@ body {
   font-size: 0.9em;
 }
 
+/* Task priority pills */
+.priority-pill {
+  border-radius: 3px;
+  padding: 1px 5px;
+  font-size: 0.8em;
+  font-weight: 600;
+  cursor: pointer;
+  user-select: none;
+  letter-spacing: 0.02em;
+}
+
+.priority-high {
+  color: #dc2626;
+  background: rgba(220, 38, 38, 0.12);
+}
+
+.priority-med {
+  color: #d97706;
+  background: rgba(217, 119, 6, 0.12);
+}
+
+.priority-low {
+  color: #16a34a;
+  background: rgba(22, 163, 74, 0.12);
+}
+
+/* Task due date pills */
+.due-date-pill {
+  border-radius: 3px;
+  padding: 1px 5px;
+  font-size: 0.8em;
+  font-weight: 600;
+  cursor: pointer;
+  user-select: none;
+  letter-spacing: 0.02em;
+}
+
 .note-link-popup {
   position: fixed;
   z-index: 1000;
