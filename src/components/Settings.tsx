@@ -314,9 +314,9 @@ function ShortcutRecorder({ value, onChange }: { value: string; onChange: (short
 const DEFAULT_COLORS_LIGHT: ThemeColors = {
   accent: "#4f46e5",
   accentHover: "#4338ca",
-  bgPrimary: "#faf9f7",
-  bgSecondary: "#f4f3f0",
-  bgSelected: "#e6e3de",
+  bgPrimary: "#f5f4f1",
+  bgSecondary: "#efeee9",
+  bgSelected: "#e0ddd7",
   textPrimary: "#1a1a2e",
   textSecondary: "#64648c",
 };
@@ -364,8 +364,19 @@ function ColorSwatch({ label, value, defaultValue, onChange }: {
 }
 
 function ColorSettings({ settings, onSettingsChange }: { settings: AppSettings; onSettingsChange: (s: AppSettings) => void }) {
-  const currentTheme = document.documentElement.getAttribute("data-theme");
-  const isDark = currentTheme === "dark";
+  const [systemDark, setSystemDark] = useState(() =>
+    window.matchMedia("(prefers-color-scheme: dark)").matches
+  );
+
+  useEffect(() => {
+    const mq = window.matchMedia("(prefers-color-scheme: dark)");
+    const handler = (e: MediaQueryListEvent) => setSystemDark(e.matches);
+    mq.addEventListener("change", handler);
+    return () => mq.removeEventListener("change", handler);
+  }, []);
+
+  const theme = settings.theme || "system";
+  const isDark = theme === "system" ? systemDark : theme === "dark";
 
   const colors = isDark ? (settings.colorsDark || {}) : (settings.colorsLight || {});
   const defaults = isDark ? DEFAULT_COLORS_DARK : DEFAULT_COLORS_LIGHT;
@@ -388,10 +399,11 @@ function ColorSettings({ settings, onSettingsChange }: { settings: AppSettings; 
   return (
     <div className="color-settings">
       <p className="settings-hint">
-        Editing colors for <strong>{isDark ? "dark" : "light"}</strong> mode.
-        Switch your theme to customize the other mode.
+        Customizing <strong>{isDark ? "dark" : "light"}</strong> theme colors.
+        {theme === "system"
+          ? " Your theme is set to system, switch to the other to customize it."
+          : ` Switch to ${isDark ? "light" : "dark"} to customize it.`}
       </p>
-      <h3>Accent</h3>
       <ColorSwatch
         label="Primary accent"
         value={colors.accent}
@@ -404,7 +416,6 @@ function ColorSettings({ settings, onSettingsChange }: { settings: AppSettings; 
         defaultValue={defaults.accentHover!}
         onChange={(v) => updateColor("accentHover", v)}
       />
-      <h3>Background</h3>
       <ColorSwatch
         label="Primary background"
         value={colors.bgPrimary}
@@ -423,7 +434,6 @@ function ColorSettings({ settings, onSettingsChange }: { settings: AppSettings; 
         defaultValue={defaults.bgSelected!}
         onChange={(v) => updateColor("bgSelected", v)}
       />
-      <h3>Text</h3>
       <ColorSwatch
         label="Primary text"
         value={colors.textPrimary}
@@ -438,8 +448,8 @@ function ColorSettings({ settings, onSettingsChange }: { settings: AppSettings; 
       />
       {hasCustom && (
         <div className="color-reset-all">
-          <button className="btn primary" onClick={handleResetAll}>
-            Restore Default Colors
+          <button className="btn secondary" onClick={handleResetAll}>
+            Reset All to Default
           </button>
         </div>
       )}
@@ -776,19 +786,6 @@ export function Settings({
                   )}
                 </div>
 
-                <h3>Appearance</h3>
-                <div className="settings-row">
-                  <label>Theme</label>
-                  <Dropdown
-                    value={settings.theme || "system"}
-                    onChange={(v) => handleThemeChange(v as "system" | "light" | "dark")}
-                    options={[
-                      { value: "system", label: "System" },
-                      { value: "light", label: "Light" },
-                      { value: "dark", label: "Dark" },
-                    ]}
-                  />
-                </div>
                 <h3>Behavior</h3>
                 <div className="settings-row">
                   <label htmlFor="confirm-delete">
@@ -945,7 +942,20 @@ export function Settings({
 
             {activeTab === "colors" && (
               <div className="settings-section">
-                <h3>Theme Colors</h3>
+                <h3>Appearance</h3>
+                <div className="settings-row">
+                  <label>Theme</label>
+                  <Dropdown
+                    value={settings.theme || "system"}
+                    onChange={(v) => handleThemeChange(v as "system" | "light" | "dark")}
+                    options={[
+                      { value: "system", label: "System" },
+                      { value: "light", label: "Light" },
+                      { value: "dark", label: "Dark" },
+                    ]}
+                  />
+                </div>
+                <h3>Colors</h3>
                 <ColorSettings settings={settings} onSettingsChange={onSettingsChange} />
               </div>
             )}
