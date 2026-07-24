@@ -188,7 +188,7 @@ export function NotesList({ notes, allNotes, selectedId, onSelect, onDelete, onT
                   <div
                     key={bl.id}
                     className={`backlink-child-item ${bl.id === selectedId ? "selected" : ""}`}
-                    onClick={() => onSelect(bl.id)}
+                    onClick={() => { toggleExpand(note.id); onSelect(bl.id); }}
                   >
                     <svg className="backlink-child-icon" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                       <path d="M9 17H7A5 5 0 0 1 7 7h2"/>
