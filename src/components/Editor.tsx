@@ -13,6 +13,8 @@ import { Decoration, DecorationSet } from "@tiptap/pm/view";
 import type { Note, SaveStatus } from "../types";
 import { buildSearchPattern, highlightMatches } from "../utils/search";
 import { createNoteLinkExtension } from "../extensions/noteLink";
+import { createTagHighlightExtension } from "../extensions/tagHighlight";
+import { extractTags } from "../utils/tags";
 
 const lowlight = createLowlight(common);
 
@@ -312,6 +314,7 @@ export function Editor({ note, saveStatus, onTitleChange, onBodyChange, onCodexC
   const [searchExt] = useState(() => createSearchHighlightExtension(searchQueryRef, currentMatchRef));
   const [macroExt] = useState(() => createMacroExtension(macrosRef));
   const [noteLinkExt] = useState(() => createNoteLinkExtension(notesListRef, onNavigateRef));
+  const [tagExt] = useState(() => createTagHighlightExtension());
   const suppressUpdate = useRef(false);
 
   const editor = useEditor({
@@ -343,6 +346,7 @@ export function Editor({ note, saveStatus, onTitleChange, onBodyChange, onCodexC
       searchExt,
       macroExt,
       noteLinkExt,
+      tagExt,
     ],
     content: note.body,
     onUpdate: ({ editor }) => {
@@ -650,6 +654,8 @@ export function Editor({ note, saveStatus, onTitleChange, onBodyChange, onCodexC
     minute: "2-digit",
   });
 
+  const tags = useMemo(() => extractTags(note.body), [note.body]);
+
   const titleHasMatch = searchQuery && buildSearchPattern(searchQuery)?.test(localTitle);
 
   return (
@@ -684,7 +690,16 @@ export function Editor({ note, saveStatus, onTitleChange, onBodyChange, onCodexC
               {highlightMatches(localTitle, searchQuery)}
             </div>
           )}
-          <span className="editor-created">Created {createdStr}</span>
+          <div className="editor-created-row">
+            <span className="editor-created">Created {createdStr}</span>
+            {tags.length > 0 && (
+              <span className="editor-tags">
+                {tags.map((tag) => (
+                  <span key={tag} className="editor-tag">#{tag}</span>
+                ))}
+              </span>
+            )}
+          </div>
         </div>
         <div className="editor-status">
           {frozen && <span className="frozen-status" onClick={onToggleFreeze} title="Click to unfreeze">Frozen</span>}

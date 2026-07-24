@@ -24,6 +24,7 @@ import { useVault } from "./hooks/useVault";
 import { useProtection } from "./hooks/useProtection";
 import { useIdleLock } from "./hooks/useIdleLock";
 import type { AppSettings, LocalSettings, Preferences } from "./types";
+import { extractTags, noteHasTag } from "./utils/tags";
 
 function App() {
   const {
@@ -129,6 +130,61 @@ function App() {
     Array.from(new Set(notes.filter((n) => !n.archived).map((n) => n.codex).filter(Boolean) as string[])).sort(),
     [notes]
   );
+
+  const codexCounts = useMemo(() => {
+    const counts: Record<string, number> = {};
+    for (const n of notes) {
+      if (n.archived || !n.codex) continue;
+      counts[n.codex] = (counts[n.codex] || 0) + 1;
+    }
+    return counts;
+  }, [notes]);
+
+  const allTags = useMemo(() => {
+    const tagSet = new Set<string>();
+    for (const n of notes) {
+      if (n.archived) continue;
+      for (const t of extractTags(n.body)) tagSet.add(t);
+    }
+    return Array.from(tagSet).sort();
+  }, [notes]);
+
+  const allTagsWithCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const n of notes) {
+      if (n.archived) continue;
+      for (const t of extractTags(n.body)) {
+        counts.set(t, (counts.get(t) || 0) + 1);
+      }
+    }
+    return Array.from(counts.entries())
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => a.name.localeCompare(b.name));
+  }, [notes]);
+
+  const handleRenameTag = useCallback(async (oldTag: string, newTag: string) => {
+    const cleaned = newTag.replace(/[^a-zA-Z0-9_]/g, "");
+    if (!cleaned) return;
+    const regex = new RegExp(`((?:^|[\\s(]))#${oldTag}\\b`, "g");
+    const toUpdate = notes.filter((n) => !n.archived && noteHasTag(n.body, oldTag));
+    await Promise.all(toUpdate.map((note) => {
+      const newBody = note.body.replace(regex, `$1#${cleaned}`);
+      if (newBody === note.body) return null;
+      return invoke("save_note", { id: note.id, title: note.title, body: newBody, codex: note.codex ?? null });
+    }));
+    await loadNotes();
+  }, [notes, loadNotes]);
+
+  const handleDeleteTag = useCallback(async (tag: string) => {
+    const regex = new RegExp(`((?:^|[\\s(]))#${tag}\\b`, "g");
+    const toUpdate = notes.filter((n) => !n.archived && noteHasTag(n.body, tag));
+    await Promise.all(toUpdate.map((note) => {
+      const newBody = note.body.replace(regex, "$1");
+      if (newBody === note.body) return null;
+      return invoke("save_note", { id: note.id, title: note.title, body: newBody.replace(/  +/g, " "), codex: note.codex ?? null });
+    }));
+    await loadNotes();
+  }, [notes, loadNotes]);
 
   useIdleLock(
     vaultStatus === "unlocked" && (appSettings.idleLockMinutes ?? 0) > 0,
@@ -295,7 +351,22 @@ function App() {
 
   const filteredNotes = useMemo(() => {
     if (isCreateMode) return activeNotes;
-    let results = search(query).filter((n) => viewingArchive ? n.archived : !n.archived);
+    const tagTokens: string[] = [];
+    const textParts: string[] = [];
+    for (const token of query.trim().split(/\s+/)) {
+      if (/^#[a-zA-Z]\w*$/.test(token)) {
+        tagTokens.push(token.slice(1));
+      } else if (token) {
+        textParts.push(token);
+      }
+    }
+    const textQuery = textParts.join(" ");
+    let results = textQuery
+      ? search(textQuery).filter((n) => viewingArchive ? n.archived : !n.archived)
+      : activeNotes;
+    for (const tag of tagTokens) {
+      results = results.filter((n) => noteHasTag(n.body, tag));
+    }
     if (activeCodex && !viewingArchive) {
       results = results.filter((n) => n.codex === activeCodex);
     }
@@ -409,6 +480,28 @@ function App() {
     },
     [notesFolder]
   );
+
+  const handleRenameCodex = useCallback(async (oldName: string, newName: string) => {
+    if (!newName.trim()) return;
+    const toRename = notes.filter((n) => n.codex === oldName);
+    await Promise.all(toRename.map((n) =>
+      invoke("save_note", { id: n.id, title: n.title, body: n.body, codex: newName.trim() })
+    ));
+    const updatedSettings = { ...appSettings };
+    let settingsChanged = false;
+    if (updatedSettings.defaultCodex === oldName) {
+      updatedSettings.defaultCodex = newName.trim();
+      settingsChanged = true;
+    }
+    if (updatedSettings.dailyNoteCodex === oldName) {
+      updatedSettings.dailyNoteCodex = newName.trim();
+      settingsChanged = true;
+    }
+    if (settingsChanged) {
+      handleSettingsChange(updatedSettings);
+    }
+    await loadNotes();
+  }, [notes, loadNotes, appSettings, handleSettingsChange]);
 
   const handleChangeFolder = useCallback(
     async (path: string) => {
@@ -1109,6 +1202,7 @@ function App() {
         onCommandPaletteClick={() => setShowCommandPalette(true)}
         onSettingsClick={() => setShowSettings(true)}
         isCreateMode={isCreateMode}
+        activeTags={allTags}
       />
       <div className="app-body">
       {!sidebarCollapsed && (
@@ -1220,6 +1314,11 @@ function App() {
           protectionError={protectionError}
           protectionLoading={protectionLoading}
           codexList={codexList}
+          allTags={allTagsWithCounts}
+          onRenameTag={handleRenameTag}
+          onDeleteTag={handleDeleteTag}
+          onRenameCodex={handleRenameCodex}
+          codexCounts={codexCounts}
         />
       ) : (
         <div className="main-content">

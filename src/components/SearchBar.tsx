@@ -1,4 +1,4 @@
-import { forwardRef } from "react";
+import { forwardRef, useMemo, useState, useCallback, useEffect, useRef } from "react";
 
 type Props = {
   value: string;
@@ -11,6 +11,7 @@ type Props = {
   onSettingsClick?: () => void;
   onCommandPaletteClick?: () => void;
   isCreateMode?: boolean;
+  activeTags?: string[];
 };
 
 export const SearchBar = forwardRef<HTMLInputElement, Props>(
@@ -26,9 +27,64 @@ export const SearchBar = forwardRef<HTMLInputElement, Props>(
       onSettingsClick,
       onCommandPaletteClick,
       isCreateMode,
+      activeTags = [],
     },
     ref
   ) => {
+    const tagSet = useMemo(() => new Set(activeTags.map((t) => t.toLowerCase())), [activeTags]);
+
+    const highlightedValue = useMemo(() => {
+      if (!value || tagSet.size === 0) return null;
+      const parts = value.split(/(\s+)/);
+      let hasMatch = false;
+      const rendered = parts.map((part, i) => {
+        if (/^#[a-zA-Z]\w*$/.test(part) && tagSet.has(part.slice(1).toLowerCase())) {
+          hasMatch = true;
+          return <span key={i} className="search-tag-pill">{part}</span>;
+        }
+        return <span key={i}>{part}</span>;
+      });
+      return hasMatch ? rendered : null;
+    }, [value, tagSet]);
+
+    const [tagSuggestions, setTagSuggestions] = useState<string[]>([]);
+    const [selectedSuggestion, setSelectedSuggestion] = useState(0);
+    const [tagQuery, setTagQuery] = useState<{ start: number; fragment: string } | null>(null);
+    const suggestionsRef = useRef<HTMLDivElement>(null);
+
+    const updateTagSuggestions = useCallback((inputValue: string, cursorPos: number) => {
+      const before = inputValue.slice(0, cursorPos);
+      const match = before.match(/#([a-zA-Z]\w*)$/);
+      if (match) {
+        const fragment = match[1].toLowerCase();
+        const start = cursorPos - match[0].length;
+        const matches = activeTags.filter((t) => t.toLowerCase().startsWith(fragment));
+        setTagQuery({ start, fragment });
+        setTagSuggestions(matches.slice(0, 8));
+        setSelectedSuggestion(0);
+      } else {
+        setTagQuery(null);
+        setTagSuggestions([]);
+      }
+    }, [activeTags]);
+
+    const applyTagSuggestion = useCallback((tag: string) => {
+      if (!tagQuery) return;
+      const before = value.slice(0, tagQuery.start);
+      const after = value.slice(tagQuery.start + 1 + tagQuery.fragment.length);
+      const newValue = before + "#" + tag + (after.startsWith(" ") ? "" : " ") + after;
+      onChange(newValue);
+      setTagSuggestions([]);
+      setTagQuery(null);
+    }, [tagQuery, value, onChange]);
+
+    useEffect(() => {
+      if (tagSuggestions.length > 0 && suggestionsRef.current) {
+        const selected = suggestionsRef.current.children[selectedSuggestion] as HTMLElement;
+        selected?.scrollIntoView({ block: "nearest" });
+      }
+    }, [selectedSuggestion, tagSuggestions.length]);
+
     return (
       <div className="search-bar" data-tauri-drag-region>
         <div className="search-bar-inner">
@@ -44,31 +100,76 @@ export const SearchBar = forwardRef<HTMLInputElement, Props>(
                 className="search-input"
                 placeholder={isCreateMode ? "Type note title and press Enter..." : "Search notes or type a title to create..."}
                 value={value}
-              onChange={(e) => onChange(e.target.value)}
+              onChange={(e) => {
+                onChange(e.target.value);
+                updateTagSuggestions(e.target.value, e.target.selectionStart || 0);
+              }}
               autoComplete="off"
               autoCorrect="off"
               autoCapitalize="off"
               spellCheck="false"
               onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                e.preventDefault();
-                if (e.metaKey || e.ctrlKey) {
-                  onCreate();
-                } else {
-                  onSubmit();
+                if (tagSuggestions.length > 0) {
+                  if (e.key === "ArrowDown") {
+                    e.preventDefault();
+                    setSelectedSuggestion((s) => (s + 1) % tagSuggestions.length);
+                    return;
+                  } else if (e.key === "ArrowUp") {
+                    e.preventDefault();
+                    setSelectedSuggestion((s) => (s - 1 + tagSuggestions.length) % tagSuggestions.length);
+                    return;
+                  } else if (e.key === "Enter" || e.key === "Tab") {
+                    e.preventDefault();
+                    applyTagSuggestion(tagSuggestions[selectedSuggestion]);
+                    return;
+                  } else if (e.key === "Escape") {
+                    e.preventDefault();
+                    setTagSuggestions([]);
+                    setTagQuery(null);
+                    return;
+                  }
                 }
-              } else if (e.key === "ArrowDown") {
-                e.preventDefault();
-                onArrowDown();
-              } else if (e.key === "ArrowUp") {
-                e.preventDefault();
-                onArrowUp();
-              } else if (e.key === "Escape") {
-                e.preventDefault();
-                onEscape();
-              }
-            }}
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  if (e.metaKey || e.ctrlKey) {
+                    onCreate();
+                  } else {
+                    onSubmit();
+                  }
+                } else if (e.key === "ArrowDown") {
+                  e.preventDefault();
+                  onArrowDown();
+                } else if (e.key === "ArrowUp") {
+                  e.preventDefault();
+                  onArrowUp();
+                } else if (e.key === "Escape") {
+                  e.preventDefault();
+                  onEscape();
+                }
+              }}
           />
+              {highlightedValue && (
+                <div className="search-input-overlay" aria-hidden="true">
+                  {highlightedValue}
+                </div>
+              )}
+              {tagSuggestions.length > 0 && (
+                <div className="search-tag-suggestions" ref={suggestionsRef}>
+                  {tagSuggestions.map((tag, i) => (
+                    <div
+                      key={tag}
+                      className={`search-tag-suggestion ${i === selectedSuggestion ? "selected" : ""}`}
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        applyTagSuggestion(tag);
+                      }}
+                      onMouseEnter={() => setSelectedSuggestion(i)}
+                    >
+                      #{tag}
+                    </div>
+                  ))}
+                </div>
+              )}
               {(value || isCreateMode) && (
                 <div className="search-helper">
                   {isCreateMode ? (

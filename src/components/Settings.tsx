@@ -8,7 +8,7 @@ import { Dropdown } from "./Dropdown";
 import { PasswordInput } from "./PasswordInput";
 import type { AppSettings, VaultStatus, ThemeColors, ColorPreset } from "../types";
 
-type SettingsTab = "general" | "keyboard" | "macros" | "colors" | "storage" | "security" | "markdown";
+type SettingsTab = "general" | "organization" | "keyboard" | "macros" | "colors" | "storage" | "security" | "markdown";
 
 function NoteProtectionSection({
   protectionStatus,
@@ -704,6 +704,164 @@ function MacroEditor({ macros, onChange }: { macros: Record<string, string>; onC
   );
 }
 
+function CodexList({ codexList, codexCounts, onRenameCodex }: {
+  codexList: string[];
+  codexCounts: Record<string, number>;
+  onRenameCodex?: (oldName: string, newName: string) => void;
+}) {
+  const [editingCodex, setEditingCodex] = useState<string | null>(null);
+  const [editValue, setEditValue] = useState("");
+
+  const startRename = (name: string) => {
+    setEditingCodex(name);
+    setEditValue(name);
+  };
+
+  const submitRename = (oldName: string) => {
+    const cleaned = editValue.trim();
+    if (cleaned && cleaned !== oldName && onRenameCodex) {
+      onRenameCodex(oldName, cleaned);
+    }
+    setEditingCodex(null);
+    setEditValue("");
+  };
+
+  return (
+    <div className="org-list">
+      {codexList.map((codex) => {
+        const count = codexCounts[codex] || 0;
+        return (
+          <div key={codex} className="org-list-item">
+            {editingCodex === codex ? (
+              <div className="org-list-edit">
+                <input
+                  className="org-list-edit-input"
+                  value={editValue}
+                  onChange={(e) => setEditValue(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") submitRename(codex);
+                    if (e.key === "Escape") setEditingCodex(null);
+                  }}
+                  autoFocus
+                />
+                <button className="btn secondary btn-sm" onClick={() => submitRename(codex)}>Save</button>
+                <button className="btn secondary btn-sm" onClick={() => setEditingCodex(null)}>Cancel</button>
+              </div>
+            ) : (
+              <>
+                <span className="org-list-name">{codex}</span>
+                <span className="org-list-count">{count} {count === 1 ? "note" : "notes"}</span>
+                <div className="org-list-actions">
+                  {onRenameCodex && (
+                    <button
+                      className="org-list-action"
+                      onClick={() => startRename(codex)}
+                      title="Rename codex"
+                    >
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                      </svg>
+                    </button>
+                  )}
+                </div>
+              </>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function TagsList({ allTags, onRenameTag, onDeleteTag }: {
+  allTags: { name: string; count: number }[];
+  onRenameTag?: (oldTag: string, newTag: string) => void;
+  onDeleteTag?: (tag: string) => void;
+}) {
+  const [editingTag, setEditingTag] = useState<string | null>(null);
+  const [editValue, setEditValue] = useState("");
+  const [confirmingDelete, setConfirmingDelete] = useState<string | null>(null);
+
+  const startRename = (name: string) => {
+    setEditingTag(name);
+    setEditValue(name);
+    setConfirmingDelete(null);
+  };
+
+  const submitRename = (oldName: string) => {
+    const cleaned = editValue.replace(/[^a-zA-Z0-9_]/g, "");
+    if (cleaned && cleaned !== oldName && onRenameTag) {
+      onRenameTag(oldName, cleaned);
+    }
+    setEditingTag(null);
+    setEditValue("");
+  };
+
+  return (
+    <div className="org-list">
+      {allTags.map(({ name, count }) => (
+        <div key={name} className="org-list-item">
+          {editingTag === name ? (
+            <div className="org-list-edit">
+              <span className="org-list-hash">#</span>
+              <input
+                className="org-list-edit-input"
+                value={editValue}
+                onChange={(e) => setEditValue(e.target.value.replace(/[^a-zA-Z0-9_]/g, ""))}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") submitRename(name);
+                  if (e.key === "Escape") setEditingTag(null);
+                }}
+                autoFocus
+              />
+              <button className="btn secondary btn-sm" onClick={() => submitRename(name)}>Save</button>
+              <button className="btn secondary btn-sm" onClick={() => setEditingTag(null)}>Cancel</button>
+            </div>
+          ) : confirmingDelete === name ? (
+            <div className="org-list-edit">
+              <span className="org-list-name">Remove #{name} from all notes?</span>
+              <button className="btn danger btn-sm" onClick={() => { onDeleteTag?.(name); setConfirmingDelete(null); }}>Remove</button>
+              <button className="btn secondary btn-sm" onClick={() => setConfirmingDelete(null)}>Cancel</button>
+            </div>
+          ) : (
+            <>
+              <span className="org-list-name">#{name}</span>
+              <span className="org-list-count">{count} {count === 1 ? "note" : "notes"}</span>
+              <div className="org-list-actions">
+                {onRenameTag && (
+                  <button
+                    className="org-list-action"
+                    onClick={() => startRename(name)}
+                    title="Rename tag"
+                  >
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+                    </svg>
+                  </button>
+                )}
+                {onDeleteTag && (
+                  <button
+                    className="org-list-action danger"
+                    onClick={() => { setConfirmingDelete(name); setEditingTag(null); }}
+                    title="Remove from all notes"
+                  >
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <polyline points="3 6 5 6 21 6"/>
+                      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+                    </svg>
+                  </button>
+                )}
+              </div>
+            </>
+          )}
+        </div>
+      ))}
+    </div>
+  );
+}
+
 function InfoTooltip({ text, children }: { text?: string; children?: React.ReactNode }) {
   return (
     <span className="settings-tooltip-wrapper">
@@ -739,6 +897,11 @@ type Props = {
   protectionError: string | null;
   protectionLoading: boolean;
   codexList: string[];
+  allTags: { name: string; count: number }[];
+  onRenameTag?: (oldTag: string, newTag: string) => void;
+  onDeleteTag?: (tag: string) => void;
+  onRenameCodex?: (oldName: string, newName: string) => void;
+  codexCounts: Record<string, number>;
 };
 
 export function Settings({
@@ -761,6 +924,11 @@ export function Settings({
   protectionError,
   protectionLoading,
   codexList,
+  allTags,
+  onRenameTag,
+  onDeleteTag,
+  onRenameCodex,
+  codexCounts,
 }: Props) {
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
@@ -913,6 +1081,7 @@ export function Settings({
 
   const tabs: { id: SettingsTab; label: string }[] = [
     { id: "general", label: "General" },
+    { id: "organization", label: "Organization" },
     { id: "keyboard", label: "Controls" },
     { id: "macros", label: "Macros" },
     { id: "colors", label: "Colors" },
@@ -1010,10 +1179,17 @@ export function Settings({
                     }
                   />
                 </div>
+              </div>
+            )}
 
-                {codexList.length > 0 && (
+            {activeTab === "organization" && (
+              <div className="settings-section">
+                <h3>Codexes</h3>
+                <p className="settings-hint">
+                  Codexes are collections for grouping notes. Create one by assigning a codex name to any note.
+                </p>
+                {codexList.length > 0 ? (
                   <>
-                    <h3>Codexes</h3>
                     <div className="settings-row">
                       <label>Default codex on startup</label>
                       <Dropdown
@@ -1030,7 +1206,20 @@ export function Settings({
                         }
                       />
                     </div>
+                    <CodexList codexList={codexList} codexCounts={codexCounts} onRenameCodex={onRenameCodex} />
                   </>
+                ) : (
+                  <p className="settings-hint">No codexes yet.</p>
+                )}
+
+                <h3>Tags</h3>
+                <p className="settings-hint">
+                  Tags are extracted from note content. Use #tagname in your notes to tag them.
+                </p>
+                {allTags.length > 0 ? (
+                  <TagsList allTags={allTags} onRenameTag={onRenameTag} onDeleteTag={onDeleteTag} />
+                ) : (
+                  <p className="settings-hint">No tags yet. Use #tagname in your notes to create tags.</p>
                 )}
 
                 <h3>Daily Notes</h3>
