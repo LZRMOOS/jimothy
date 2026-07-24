@@ -196,12 +196,15 @@ export function createNoteLinkExtension(
         }),
         new Plugin({
           props: {
-            handleClick(view, pos) {
-              const resolved = view.state.doc.resolve(pos);
-              const node = resolved.nodeAfter || resolved.nodeBefore;
-              if (node?.type.name === "noteLink" && node.attrs.id) {
-                navigateRef.current(node.attrs.id);
-                return true;
+            handleClick(view, pos, event) {
+              const target = event.target as HTMLElement;
+              if (target?.closest?.('.note-link')) {
+                const resolved = view.state.doc.resolve(pos);
+                const node = resolved.nodeAfter;
+                if (node?.type.name === "noteLink" && node.attrs.id) {
+                  navigateRef.current(node.attrs.id);
+                  return true;
+                }
               }
               return false;
             },
