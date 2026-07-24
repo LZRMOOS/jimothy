@@ -3,6 +3,7 @@ import { open } from "@tauri-apps/plugin-dialog";
 import { revealItemInDir } from "@tauri-apps/plugin-opener";
 import { enable, disable, isEnabled } from "@tauri-apps/plugin-autostart";
 import { invoke } from "@tauri-apps/api/core";
+import { getVersion } from "@tauri-apps/api/app";
 import { useUpdater } from "../hooks/useUpdater";
 import { Dropdown } from "./Dropdown";
 import { PasswordInput } from "./PasswordInput";
@@ -583,9 +584,11 @@ export function Settings({
   const { updateState, updateVersion, checkForUpdate, installUpdate } =
     useUpdater();
   const [autoStart, setAutoStart] = useState(false);
+  const [appVersion, setAppVersion] = useState("");
 
   useEffect(() => {
     isEnabled().then(setAutoStart).catch(() => {});
+    getVersion().then(setAppVersion).catch(() => {});
   }, []);
 
   // Encryption setup form
@@ -756,7 +759,7 @@ export function Settings({
               <div className="settings-section">
                 <h3>Updates<InfoTooltip><ul><li>Checks for new versions from GitHub releases</li><li>Updates are downloaded and applied on restart</li></ul></InfoTooltip></h3>
                 <div className="settings-row">
-                  <label>Version 0.1.0</label>
+                  <label>Version {appVersion || "..."}</label>
                   {updateState === "idle" && (
                     <button className="btn secondary" onClick={checkForUpdate}>
                       Check for Updates
