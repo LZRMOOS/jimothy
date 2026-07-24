@@ -12,6 +12,7 @@ import { Plugin } from "@tiptap/pm/state";
 import { Decoration, DecorationSet } from "@tiptap/pm/view";
 import type { Note, SaveStatus } from "../types";
 import { buildSearchPattern } from "../utils/search";
+import { createNoteLinkExtension } from "../extensions/noteLink";
 
 function highlightMatches(text: string, query: string): React.ReactNode {
   const regex = buildSearchPattern(query);
@@ -274,9 +275,11 @@ type Props = {
   isSensitive?: boolean;
   editorRef?: React.MutableRefObject<any>;
   macros?: Record<string, string>;
+  allNotes?: Note[];
+  onNavigateToNote?: (id: string) => void;
 };
 
-export function Editor({ note, saveStatus, onTitleChange, onBodyChange, onCodexChange, onEditingChange, searchQuery = "", codexList, isSensitive, editorRef, macros = {} }: Props) {
+export function Editor({ note, saveStatus, onTitleChange, onBodyChange, onCodexChange, onEditingChange, searchQuery = "", codexList, isSensitive, editorRef, macros = {}, allNotes = [], onNavigateToNote }: Props) {
   const [showCharCount, setShowCharCount] = useState(false);
   const [isTitleFocused, setIsTitleFocused] = useState(false);
   const [showInNoteSearch, setShowInNoteSearch] = useState(false);
@@ -292,9 +295,14 @@ export function Editor({ note, saveStatus, onTitleChange, onBodyChange, onCodexC
   const macrosRef = useRef(macros);
   macrosRef.current = macros;
   const titleInputRef = useRef<HTMLInputElement>(null);
+  const notesListRef = useRef(allNotes.map((n) => ({ id: n.id, title: n.title })));
+  notesListRef.current = allNotes.filter((n) => n.id !== note.id).map((n) => ({ id: n.id, title: n.title }));
+  const onNavigateRef = useRef(onNavigateToNote || (() => {}));
+  onNavigateRef.current = onNavigateToNote || (() => {});
 
   const [searchExt] = useState(() => createSearchHighlightExtension(searchQueryRef, currentMatchRef));
   const [macroExt] = useState(() => createMacroExtension(macrosRef));
+  const [noteLinkExt] = useState(() => createNoteLinkExtension(notesListRef, onNavigateRef));
   const suppressUpdate = useRef(false);
 
   const editor = useEditor({
@@ -324,6 +332,7 @@ export function Editor({ note, saveStatus, onTitleChange, onBodyChange, onCodexC
       }),
       searchExt,
       macroExt,
+      noteLinkExt,
     ],
     content: note.body,
     onUpdate: ({ editor }) => {

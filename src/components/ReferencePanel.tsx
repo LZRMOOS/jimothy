@@ -76,6 +76,7 @@ function MarkdownReference({ macros }: { macros?: Record<string, string> }) {
         <tbody>
           <tr><td className="ref-syntax">[text](url)</td><td>Hyperlink</td></tr>
           <tr><td className="ref-syntax">![alt](url)</td><td>Image</td></tr>
+          <tr><td className="ref-syntax">@note name</td><td>Link to note</td></tr>
         </tbody>
       </table>
       <h4>Macros</h4>

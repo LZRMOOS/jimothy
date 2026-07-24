@@ -1119,6 +1119,8 @@ function App() {
                   : (appSettings.protectedNotes || []).includes(selectedNote.id)
               }
               macros={appSettings.macros}
+              allNotes={notes}
+              onNavigateToNote={handleSelectNote}
             />
           ) : (
             <div className="editor-placeholder">
