@@ -13,12 +13,13 @@ When working on this codebase:
 ## Project Context
 
 **What is Jimothy?**
-A keyboard-first desktop notes app with local Markdown storage, internal note linking, text macros, optional encryption (vault + per-note protection), and Dropbox sync compatibility. Built with Tauri 2, React 19, and Rust.
+A keyboard-first desktop notes app with local Markdown storage, internal note linking, dictionary mentions, inline tags, task management (priority/due dates), text macros, scratchpad quick-capture, split view, backlinks, daily notes, optional encryption (vault + per-note protection), and Dropbox sync compatibility. Built with Tauri 2, React 19, and Rust.
 
 **Tech Stack:**
 - Frontend: React 19, TypeScript 5.8, Tiptap editor (with custom extensions), tiptap-markdown, MiniSearch, Vite 7
 - Backend: Rust with Tauri 2.0, XChaCha20-Poly1305 crypto, Argon2id KDF
 - Platform: macOS + Windows desktop
+- Current version: 0.4.0
 
 ## Common Agent Tasks
 
@@ -43,13 +44,18 @@ A keyboard-first desktop notes app with local Markdown storage, internal note li
 - Optimistic UI: Update local state immediately, backend confirms async
 
 **Files to check:**
-- `src/App.tsx` - Main app layout, state, keyboard handlers, reference panels
-- `src/components/Settings.tsx` - Settings modal with tabs (General, Controls, Macros, Colors, Storage, Security, Markdown)
-- `src/components/Editor.tsx` - Tiptap editor integration (note links, in-note search, macros)
-- `src/extensions/noteLink.tsx` - Internal note link extension (@mention autocomplete)
-- `src/components/ReferencePanel.tsx` - Markdown/controls reference side panel
-- `src/components/CommandPalette.tsx` - Cmd+K quick actions
-- `src/components/NotesList.tsx` - Note list with search results
+- `src/App.tsx` - Main app layout, state, keyboard handlers, command palette actions, split view, daily note
+- `src/components/Settings.tsx` - Settings modal with tabs (General, Organization, Controls, Macros, Dictionary, Colors, Storage, Security, Markdown)
+- `src/components/Editor.tsx` - Tiptap editor integration (note links, mentions, tags, find & replace, macros, table of contents)
+- `src/extensions/noteLink.tsx` - Internal note link extension (`[[` autocomplete)
+- `src/extensions/mention.tsx` - Dictionary `@` mention extension
+- `src/extensions/tagHighlight.ts` - Inline `#tag` highlighting with custom colors
+- `src/extensions/taskPriority.ts` - Task priority pills (!high, !med, !low)
+- `src/extensions/taskDueDate.ts` - Task due date pills (!YYYY-MM-DD)
+- `src/components/ReferencePanel.tsx` - Tabbed reference panel (Markdown + Controls)
+- `src/components/CommandPalette.tsx` - Cmd+K quick actions with pinnable favorites and note search
+- `src/components/NotesList.tsx` - Note list with search, backlinks, context menu (delete, pin, archive, freeze, duplicate)
+- `src/components/Scratchpad.tsx` - Floating quick-capture window
 
 ### 2. Backend Changes (Rust/Tauri)
 
@@ -74,11 +80,12 @@ A keyboard-first desktop notes app with local Markdown storage, internal note li
 - Use `.lock().unwrap()` to access mutex contents
 
 **Common modules:**
-- `commands/` - All Tauri IPC command handlers (CRUD, vault, protection, settings)
+- `commands/` - All Tauri IPC command handlers (CRUD, vault, protection, settings, scratchpad)
 - `crypto/` - Argon2id key derivation, XChaCha20-Poly1305 encryption
 - `storage/` - Atomic file writes, note loading, .pnote handling, trash
-- `notes/` - Note struct with ULID id, serialization to/from Markdown + frontmatter
+- `notes/` - Note struct with ULID id, serialization to/from Markdown + frontmatter (includes `archived` field)
 - `watcher/` - Filesystem watcher for external file changes
+- `lib.rs` - App setup, menu, tray, global shortcuts, scratchpad window, autostart plugin
 
 ### 3. Adding New Features
 
@@ -103,7 +110,8 @@ A keyboard-first desktop notes app with local Markdown storage, internal note li
 3. Update `NoteDto` in `src-tauri/src/commands/mod.rs`
 4. Update TypeScript `Note` type in `src/types/index.ts`
 5. Update UI in `src/components/Editor.tsx` or wherever displayed
-6. Test create, save, load, encrypted vault, and protected note flows
+6. If it's a per-note preference (like pinned/frozen), add to `Preferences` type and manage in App.tsx
+7. Test create, save, load, encrypted vault, and protected note flows
 
 ### 4. Encryption/Security Changes
 
@@ -137,17 +145,20 @@ A keyboard-first desktop notes app with local Markdown storage, internal note li
 - Check responsiveness (window resize to minimum dimensions)
 
 **UI components structure:**
-- `SearchBar.tsx` - Search input at top (Cmd+Shift+F)
-- `NotesList.tsx` - Sidebar with note list, codex filtering, pinned notes
-- `Editor.tsx` - Tiptap WYSIWYG editor with note links, in-note search, macros
-- `ReferencePanel.tsx` - Side panel for markdown reference (Cmd+.) or controls reference (Cmd+;)
-- `Settings.tsx` - Modal with tabs (General, Controls, Macros, Colors, Storage, Security, Markdown)
-- `CommandPalette.tsx` - Cmd+K quick actions
+- `SearchBar.tsx` - Search input at top (Cmd+Shift+F) with #tag and @mention filtering
+- `NotesList.tsx` - Sidebar with note list, codex filtering, pinned notes, backlink expansion, context menu
+- `Editor.tsx` - Tiptap WYSIWYG editor with note links, mentions, tags, find & replace, macros, table of contents, freeze
+- `ReferencePanel.tsx` - Tabbed reference panel (Cmd+.) with Markdown and Controls tabs
+- `Settings.tsx` - Modal with tabs (General, Organization, Controls, Macros, Dictionary, Colors, Storage, Security, Markdown)
+- `CommandPalette.tsx` - Cmd+K quick actions with pinnable favorites and note search
+- `Scratchpad.tsx` - Floating quick-capture window with entries list
+- `FolderSetup.tsx` - Welcome/setup screen with sync folder hints
 - `PasswordInput.tsx` - Reusable password input with show/hide toggle
 
 **CSS/Styling:**
 - Main styles in `src/styles.css` with CSS custom properties for theming
-- Light and dark themes with user-customizable accent/background colors
+- Light and dark themes with user-customizable accent/background colors, color presets
+- Custom codex colors and tag colors
 - Tauri titlebar style set to "Overlay" with hidden title
 - System tray icon and native menu bar on macOS
 
@@ -155,8 +166,9 @@ A keyboard-first desktop notes app with local Markdown storage, internal note li
 
 **Storage model:**
 - Notes are Markdown files with YAML frontmatter
-- Frontmatter contains: id (ULID), title, created_at, updated_at, codex, pinned, etc.
+- Frontmatter contains: id (ULID), title, created_at, updated_at, codex, archived, etc.
 - Body is plain Markdown text
+- Per-note state (pinned, frozen, protected) stored in preferences.json, not in the note file
 
 **File naming:**
 - Sanitize title for filename (handle spaces, special chars, Windows reserved names)
@@ -211,8 +223,12 @@ cargo test --manifest-path src-tauri/Cargo.toml
 - Encrypt vault → lock → unlock → notes still readable
 - Protect note → lock app → unlock → need re-auth to view note
 - Delete note → check trash folder → restore from trash
+- Archive note → verify hidden from main list → unarchive
+- Freeze note → verify editor is read-only → unfreeze
 - External file change → watcher detects → notes reload
 - Dropbox conflict file appears → conflict dialog shown
+- Scratchpad entries → persist across app restart
+- Daily note → creates with correct format and codex
 
 ### 8. Debugging Tips
 
@@ -337,6 +353,7 @@ function MyComponent() {
 - Skip manual UI testing for UI changes
 - Change the `scratch://` URI scheme in note links (kept for backwards compatibility)
 - Change the `.scratch/` internal directory name (kept for backwards compatibility)
+- Store per-note state (pinned, frozen) in the note file itself (use preferences.json)
 
 ✅ **Do:**
 - Run `npm run typecheck` before committing
@@ -346,8 +363,9 @@ function MyComponent() {
 - Clear keys from memory on lock
 - Emit events for async notifications (file changes, conflicts, etc.)
 - Check both light and dark themes for UI changes
-- Use custom DOM events for cross-component communication (e.g., `open-in-note-search`)
+- Use custom DOM events for cross-component communication (e.g., `open-in-note-search`, `open-find-replace`, `toggle-toc`)
 - Use `useEffect` for focus management rather than setTimeout hacks
+- Add new user-facing features to the command palette where appropriate
 
 ## File Organization
 
@@ -359,7 +377,7 @@ function MyComponent() {
 
 src/
   components/         # React components (*.tsx)
-  extensions/         # Tiptap editor extensions (noteLink.tsx)
+  extensions/         # Tiptap editor extensions (noteLink, mention, tagHighlight, taskPriority, taskDueDate)
   hooks/              # React hooks (*.ts)
   types/              # TypeScript types (index.ts)
   utils/              # Utilities (search.ts, etc.)
@@ -370,7 +388,7 @@ src/
 src-tauri/
   src/
     commands/
-      mod.rs          # All Tauri IPC commands
+      mod.rs          # All Tauri IPC commands (notes, vault, protection, settings, scratchpad)
     crypto/
       mod.rs          # Encryption/decryption
     notes/
@@ -383,7 +401,8 @@ src-tauri/
       mod.rs          # OS-specific code
       macos.rs
       windows.rs
-    lib.rs            # App setup, menu, tray
+    power_events.rs   # macOS sleep/lock detection
+    lib.rs            # App setup, menu, tray, scratchpad window, autostart
     main.rs           # Entry point
   tauri.conf.json     # Tauri config
   Cargo.toml          # Rust dependencies
@@ -393,7 +412,7 @@ src-tauri/
 
 ### Internal Note Links
 - Extension: `src/extensions/noteLink.tsx`
-- Uses `@tiptap/suggestion` for `@` autocomplete trigger
+- Uses `@tiptap/suggestion` for `[[` autocomplete trigger
 - Links stored as standard markdown: `[Title](scratch://id)` (the `scratch://` URI is kept for backwards compat)
 - Title resolution via `notesRef` closure at parse and serialize time (rename-proof)
 - `ReactRenderer` from `@tiptap/react` renders suggestion popup
@@ -401,22 +420,70 @@ src-tauri/
 - Click navigation checks `event.target.closest('.note-link')` to avoid false triggers
 - Shows codex pill in autocomplete dropdown
 
-### Reference Panels
+### Dictionary Mentions
+- Extension: `src/extensions/mention.tsx`
+- Uses `@tiptap/suggestion` for `@` autocomplete trigger
+- Renders as `<span data-type="mention">` with `.mention` class
+- Also decorates existing `@word` patterns that match the dictionary
+- Dictionary list managed in Settings > Dictionary tab
+
+### Inline Tags
+- Extension: `src/extensions/tagHighlight.ts`
+- Decorates `#tag` patterns inline with configurable colors
+- Tags are filterable in the search bar (type `#tag` to filter notes)
+- Tag colors managed in Settings > Organization tab
+
+### Task Priority & Due Date
+- Extensions: `src/extensions/taskPriority.ts` and `src/extensions/taskDueDate.ts`
+- Render colored pills inside task list items
+- Priority: `!high` (red), `!med` (orange), `!low` (green)
+- Due date: `!YYYY-MM-DD` with color shift (green→orange→red as deadline approaches)
+
+### Scratchpad
+- Separate Tauri window (not the main app window)
+- Toggled with global shortcut (default Cmd+Option+Space, customizable)
+- Entries stored in `.scratch/scratchpad.json`
+- Quick text input with Cmd+Enter to save, Escape to hide
+- Entries can be copied or deleted
+
+### Backlinks
+- Built from note link index in App.tsx
+- Displayed as expandable children under notes in NotesList
+- Keyboard nav: → to expand, ← to collapse, Enter on child to navigate
+
+### Split View
+- Cmd+\ toggles a second editor pane showing another note
+- Also available via command palette ("Split View") or context menu ("Open in Split")
+
+### Daily Note
+- Cmd+J creates or opens today's daily note
+- Configurable title format (default: `{date}`) and codex assignment
+- Settings in Organization tab: `dailyNoteFormat` and `dailyNoteCodex`
+
+### Reference Panel
 - Component: `src/components/ReferencePanel.tsx`
-- Two modes: `"markdown"` (Cmd+.) and `"controls"` (Cmd+;)
-- Only one active at a time (toggling one closes the other)
+- Single panel with two tabs: Markdown and Controls
+- Toggled with Cmd+. (boolean show/hide state)
 - Positioned as 240px side panel within main-content flex container
 - Content mirrors what's in Settings Markdown and Controls tabs
 
 ### Text Macros
 - Built-in: /date, /time (expand to current date/time)
-- Custom user-defined macros stored in settings
+- Custom user-defined macros stored in preferences
 - Implemented in Editor.tsx as Tiptap input rules
 
 ### Color Customization
 - Users can override accent and background colors per theme
+- Color presets: save and load named color configurations
+- Custom codex colors (sidebar color per codex)
+- Custom tag colors (inline tag highlight colors)
 - ColorSettings component derives light/dark from `settings.theme` + `matchMedia`
 - CSS custom properties updated dynamically
+
+### Settings Architecture
+- **Local settings** (`settings.json` in app config dir): device-specific (notesFolder, showTrayIcon, zoomLevel, shortcuts)
+- **Preferences** (`preferences.json` in .scratch/): portable, synced across devices (theme, macros, codex icons, colors, pinned/frozen lists, etc.)
+- Frontend merges both into a single `AppSettings` object for convenience
 
 ## Questions to Ask
 

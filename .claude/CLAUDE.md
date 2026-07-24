@@ -13,10 +13,10 @@ A fast, keyboard-first desktop notes app built with Tauri 2, React, TypeScript, 
 ### Frontend (src/)
 - **React 19** with TypeScript
 - **Tiptap** WYSIWYG Markdown editor with syntax highlighting, task lists, macros
-- **Tiptap extensions**: Custom note link extension (`src/extensions/noteLink.tsx`) using @tiptap/suggestion
+- **Tiptap extensions**: Note links (`noteLink.tsx`), dictionary mentions (`mention.tsx`), inline tags (`tagHighlight.ts`), task priority (`taskPriority.ts`), task due date (`taskDueDate.ts`)
 - **tiptap-markdown** for Markdown serialization (storage.markdown.serialize/parse)
 - **MiniSearch** for full-text search with highlighted results
-- **Components**: SearchBar, NotesList, Editor, Settings, CommandPalette, ReferencePanel, PasswordInput, etc.
+- **Components**: SearchBar, NotesList, Editor, Settings, CommandPalette, ReferencePanel, Scratchpad, PasswordInput, FolderSetup, etc.
 - **Hooks**: useNotes, useVault, useProtection, useIdleLock, useUpdater, useEventListener
 - **Types**: TypeScript definitions in src/types/
 
@@ -60,27 +60,39 @@ Two independent layers of encryption:
 
 ### Editor
 - WYSIWYG Markdown editing via Tiptap with syntax highlighting, task lists, code blocks
-- **Internal note links**: Type `@` to trigger autocomplete, links stored as `[Title](scratch://id)` markdown
+- **Internal note links**: Type `[[` to trigger autocomplete, links stored as `[Title](scratch://id)` markdown
   - ID-based linking survives note renames (title resolved at parse/serialize time)
   - Autocomplete popup with codex pill, flips above cursor near viewport bottom
   - Click handler checks `.note-link` DOM target to prevent false navigation
   - Displayed with `@` prefix in editor to distinguish from normal links
+- **Dictionary mentions**: Type `@` to insert mentions from a user-defined dictionary
+- **Inline tags**: Type `#tag` for searchable, color-coded inline tags
+- **Task extensions**: Priority pills (!high, !med, !low) and due date pills (!YYYY-MM-DD) in checkboxes
 - **Text macros**: /date, /time, and user-defined custom macros that expand as you type
-- **In-note search**: Cmd+F for find within current note with match cycling (Cmd+G / Cmd+Shift+G)
+- **Find & replace**: Cmd+F for find, Cmd+H for find & replace with match cycling (Cmd+] / Cmd+[)
+- **Freeze notes**: Lock a note to prevent accidental edits
 - **Copy as plain text**: Copied text strips markdown formatting (transformCopiedText: false)
 - Word and character count display
 
 ### UI/UX
 - Keyboard-first: Cmd+Shift+Space toggles window, Cmd+N new note, Cmd+K command palette
-- Codexes: group notes into collections with collapsible sidebar and custom emoji icons
+- **Scratchpad**: Floating quick-capture window (Cmd+Option+Space) for jotting notes without opening the main app
+- **Split view**: Cmd+\ to view two notes side by side
+- **Table of contents**: Cmd+T toggleable sidebar for notes with headings
+- **Backlinks**: Expandable backlink list under each note showing notes that link to it
+- **Daily note**: Cmd+J to create/open today's daily note (configurable codex and title format)
+- Codexes: group notes into collections with collapsible sidebar, custom emoji icons, and custom colors
 - Pinned notes: star notes to pin at top
-- Themes: system, light, or dark with customizable accent/background colors per theme
-- Command palette (Cmd+K) for quick actions (search, pin, protect, copy as markdown, reference panels, etc.)
-- **Reference panels**: Cmd+. for markdown/macros reference, Cmd+; for keyboard shortcuts (only one active at a time)
+- **Archive**: Archive notes to hide them from the main list without deleting
+- **Duplicate notes**: Right-click context menu or command palette
+- Themes: system, light, or dark with customizable accent/background colors per theme, color presets
+- Command palette (Cmd+K) for quick actions with pinnable favorites and note search
+- **Reference panel**: Cmd+. toggles a tabbed side panel with Markdown and Controls reference tabs
 - Zoom support (Cmd+/- for text size)
-- System tray with hide-on-close behavior
+- System tray with hide-on-close behavior, launch minimized to tray when autostart enabled
 - Native macOS menu bar with standard shortcuts
-- Settings with tabs: General, Controls, Macros, Colors, Storage, Security, Markdown
+- Settings with tabs: General, Organization, Controls, Macros, Dictionary, Colors, Storage, Security, Markdown
+- **Settings split**: Local settings (device-specific, in app config dir) vs portable preferences (synced in .scratch/preferences.json)
 - When writing, use a more fun, quirky straightforward language, do not use em-dashes.
 
 ## Development Workflow
@@ -104,8 +116,8 @@ cargo test --manifest-path src-tauri/Cargo.toml  # Rust tests
 ### File Structure
 ```
 src/
-  components/     React UI components
-  extensions/     Tiptap editor extensions (noteLink.tsx)
+  components/     React UI components (Editor, NotesList, Settings, Scratchpad, etc.)
+  extensions/     Tiptap editor extensions (noteLink, mention, tagHighlight, taskPriority, taskDueDate)
   hooks/          Custom React hooks for state/side effects
   types/          TypeScript type definitions
   utils/          Utility functions (search, etc.)
@@ -120,7 +132,7 @@ src-tauri/
     storage/      File I/O, atomic writes, trash
     watcher/      Filesystem watcher
     platform/     OS-specific code
-    lib.rs        App initialization, menu, tray, plugins
+    lib.rs        App initialization, menu, tray, plugins, scratchpad window
   tauri.conf.json  Tauri configuration (app metadata, bundle settings)
   Cargo.toml      Rust dependencies
 ```
@@ -155,9 +167,25 @@ src-tauri/
 - Links stored as `[Title](scratch://id)` (standard markdown, valid format)
 - `scratch://` URI scheme distinguishes from normal links (kept for backwards compatibility)
 - Title resolved from `notesRef` at parse and serialize time (survives renames)
-- `@tiptap/suggestion` handles the `@` trigger and autocomplete popup
+- `@tiptap/suggestion` handles the `[[` trigger and autocomplete popup
 - `ReactRenderer` from `@tiptap/react` renders the suggestion dropdown
 - Click navigation via ProseMirror plugin checking `.note-link` class on DOM target
+
+### Dictionary Mentions
+- Extension: `src/extensions/mention.tsx`
+- Triggered with `@` in the editor, shows autocomplete from user-defined dictionary
+- Rendered as styled `<span data-type="mention">` elements
+- Dictionary managed in Settings > Dictionary tab
+
+### Inline Tags
+- Extension: `src/extensions/tagHighlight.ts`
+- `#tag` syntax highlighted inline with configurable per-tag colors
+- Tags are searchable via the search bar (`#tag` filters)
+- Tag colors configured in Settings > Organization tab
+
+### Task Extensions
+- Priority: `src/extensions/taskPriority.ts` - renders colored pills (!high=red, !med=orange, !low=green) in task items
+- Due date: `src/extensions/taskDueDate.ts` - renders date pills (!YYYY-MM-DD) that shift color as deadline approaches
 
 ### Optimistic UI
 - Title changes update locally before backend save completes
@@ -171,8 +199,9 @@ All commands defined in `src-tauri/src/commands/mod.rs`:
 - `set_notes_folder(path)` - Initialize notes folder, load notes
 - `get_notes_folder()` - Get current notes folder path
 - `get_notes()` - Get all notes (returns Vec<NoteDto>)
-- `create_note(title)` - Create new note
+- `create_note(title, codex)` - Create new note
 - `save_note(id, title, body, codex)` - Save note changes
+- `set_note_archived(id, archived)` - Archive/unarchive a note
 - `delete_note(id)` - Move note to trash
 - `reload_notes()` - Reload all notes from disk
 - `restore_from_trash(filename)` - Restore trashed note
@@ -200,13 +229,22 @@ All commands defined in `src-tauri/src/commands/mod.rs`:
 - `change_protection_password(current, new_password)` - Re-encrypt protected notes
 
 ### Settings
-- `get_app_settings()` - Load settings.json from config dir
+- `get_app_settings()` - Load settings.json from config dir (local/device-specific settings)
 - `save_app_settings(settings_json)` - Save settings to config dir
+- `get_preferences(state)` - Load preferences.json from notes folder (.scratch/preferences.json, portable/synced)
+- `save_preferences(prefs_json, state)` - Save preferences to notes folder
 - `get_default_notes_path()` - Get default notes path (Dropbox or ~/Jimothy)
+
+### Scratchpad
+- `get_scratchpad_entries()` - Get all quick-capture entries
+- `append_scratchpad_entry(text)` - Add a new scratchpad entry
+- `delete_scratchpad_entry(id)` - Delete a scratchpad entry
 
 ### System
 - `set_tray_visible(visible)` - Show/hide system tray icon
+- `open_scratchpad()` - Toggle the scratchpad window
 - `update_global_shortcut(shortcut)` - Change the global toggle-window shortcut
+- `update_capture_shortcut(shortcut)` - Change the scratchpad capture shortcut
 
 ## Configuration Files
 
@@ -222,6 +260,8 @@ All commands defined in `src-tauri/src/commands/mod.rs`:
   .scratch/
     vault.json              # Vault config (Argon2 params, verification record)
     protection.json         # Protection config
+    preferences.json        # Portable preferences (synced across devices)
+    scratchpad.json         # Quick-capture entries
     trash/                  # Deleted notes
 ```
 
@@ -229,25 +269,31 @@ All commands defined in `src-tauri/src/commands/mod.rs`:
 
 ### Global
 - `Cmd+Shift+Space` - Toggle window (customizable)
+- `Cmd+Option+Space` - Toggle scratchpad (customizable)
 
 ### Search & Navigation
-- `Cmd+Shift+F` / `Cmd+L` - Focus notes search
-- `Cmd+F` - Find in current note (in-note search)
-- `Cmd+G` / `Cmd+Shift+G` - Next/previous in-note match
+- `Cmd+Shift+F` - Search notes
+- `Cmd+F` - Find in current note
+- `Cmd+H` - Find & replace in current note
+- `Cmd+]` / `Cmd+[` - Next/previous match
 - `Cmd+N` - New note
+- `Cmd+J` - Daily note
 - `Cmd+K` - Command palette
 - `Cmd+/` - Toggle codex sidebar
 - `Cmd+1` - All notes
 - `Cmd+2-9` - Switch codex
 - `Cmd+Shift+]` / `Cmd+Shift+[` - Next/previous note
 
-### App
-- `Cmd+,` - Settings
-- `Cmd+.` - Toggle markdown reference panel
-- `Cmd+;` - Toggle controls reference panel
+### View
+- `Cmd+T` - Toggle table of contents
+- `Cmd+\` - Toggle split view
 - `Cmd+=` / `Cmd+-` - Zoom in/out
 - `Cmd+0` - Reset zoom
-- `Escape` - Close panel / hide window
+
+### App
+- `Cmd+,` - Settings
+- `Cmd+.` - Toggle reference panel
+- `Cmd+W` / `Escape` - Banish window
 
 ## Release Process
 
@@ -313,10 +359,13 @@ git push && git push --tags
 2. Consider migration path for existing vaults
 3. Test with both vault and protection systems
 
-### Adding keyboard shortcuts
+### Adding or changing keyboard shortcuts / reference content
 1. Global shortcuts: Register in `src-tauri/src/lib.rs` setup
 2. App shortcuts: Handle in React components or native menu
-3. Document in README.md and Settings Controls tab
+3. Update ALL locations where shortcuts/syntax are displayed:
+   - `src/components/ReferencePanel.tsx` (Markdown and Controls tabs)
+   - `src/components/Settings.tsx` (Controls tab and Markdown tab)
+   - Documentation (README.md, CLAUDE.md, AGENTS.md)
 
 ### Adding a Tiptap extension
 1. Create `src/extensions/myExtension.tsx`
