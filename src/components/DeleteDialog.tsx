@@ -26,10 +26,10 @@ export function DeleteDialog({ onConfirm, onCancel }: DeleteDialogProps) {
         <h2>Delete Note</h2>
         <p>Delete this note? This cannot be undone.</p>
         <div className="conflict-actions">
-          <button className="conflict-btn secondary" onClick={onCancel}>
+          <button className="btn secondary conflict-btn" onClick={onCancel}>
             No
           </button>
-          <button className="conflict-btn primary" onClick={onConfirm}>
+          <button className="btn primary conflict-btn" onClick={onConfirm}>
             Yes
           </button>
         </div>

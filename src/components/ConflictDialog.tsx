@@ -33,13 +33,13 @@ export function ConflictDialog({ noteId, onChoice }: ConflictDialogProps) {
         </p>
         <p className="conflict-note-id">Note: {noteId}</p>
         <div className="conflict-actions">
-          <button className="conflict-btn primary" onClick={handleKeepLocal}>
+          <button className="btn primary conflict-btn" onClick={handleKeepLocal}>
             Keep Local
           </button>
-          <button className="conflict-btn" onClick={handleKeepExternal}>
+          <button className="btn secondary conflict-btn" onClick={handleKeepExternal}>
             Keep External
           </button>
-          <button className="conflict-btn secondary" onClick={handleDismiss}>
+          <button className="btn secondary conflict-btn" onClick={handleDismiss}>
             Dismiss
           </button>
         </div>

@@ -1,3 +1,19 @@
+/**
+ * Scratch App Styles
+ *
+ * Organization:
+ * 1. CSS Variables & Themes
+ * 2. Global Resets & Utilities
+ * 3. Layout (App, Sidebar, Panels)
+ * 4. Components (Search, Notes, Editor, Settings, etc.)
+ * 5. Modals & Overlays
+ *
+ * Design System:
+ * - Use var(--*) for colors, spacing, and transitions
+ * - Prefer .btn, .card utility classes over custom styles
+ * - Keep dark theme support with [data-theme="dark"]
+ */
+
 :root {
   --bg-primary: #ffffff;
   --bg-secondary: #f8f8fa;
@@ -49,6 +65,27 @@
   margin: 0;
   padding: 0;
   box-sizing: border-box;
+}
+
+/* Utility Classes */
+.card {
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-md);
+}
+
+.card-lg {
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-lg);
+}
+
+.focus-ring:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-subtle);
+  outline: none;
 }
 
 input, button, select, textarea {
@@ -1007,6 +1044,31 @@ body {
   color: var(--text-primary);
   outline: none;
   width: 120px;
+  transition: border-color var(--transition), box-shadow var(--transition);
+}
+
+.codex-input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-subtle);
+}
+
+/* Datalist styling - limited browser support */
+option {
+  background: var(--bg-primary);
+  color: var(--text-primary);
+  padding: 4px 8px;
+  font-size: 11px;
+}
+
+/* Webkit-specific datalist styling */
+datalist {
+  position: absolute;
+  background: var(--bg-primary);
+  border: 1px solid var(--border-strong);
+  border-radius: 6px;
+  box-shadow: var(--shadow-lg);
+  max-height: 200px;
+  overflow-y: auto;
 }
 
 .editor-placeholder {
@@ -1701,37 +1763,12 @@ body {
 
 .conflict-btn {
   padding: 8px 16px;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  background: var(--bg-secondary);
-  color: var(--text-primary);
   font-size: 13px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: all var(--transition);
+  min-width: auto;
+  border-radius: 6px;
 }
 
-.conflict-btn:hover {
-  background: var(--bg-hover);
-}
-
-.conflict-btn.primary {
-  background: var(--accent);
-  color: white;
-  border-color: var(--accent);
-}
-
-.conflict-btn.primary:hover {
-  background: var(--accent-hover);
-}
-
-.conflict-btn.secondary {
-  background: transparent;
-}
-
-.conflict-btn.secondary:hover {
-  background: var(--bg-secondary);
-}
+/* Conflict dialog uses existing .btn variants */
 
 .conflict-dialog-content {
   background: var(--bg-primary);
