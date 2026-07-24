@@ -229,6 +229,8 @@ body {
   position: relative;
   flex: 1;
   -webkit-app-region: no-drag;
+  display: flex;
+  align-items: center;
 }
 
 .search-icon {
@@ -240,9 +242,37 @@ body {
   pointer-events: none;
 }
 
+.search-bar-action-btn {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  background: none;
+  border: none;
+  color: var(--text-hint);
+  cursor: pointer;
+  padding: 4px 6px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  border-radius: 4px;
+  transition: background var(--transition), color var(--transition);
+}
+
+.search-bar-action-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.shortcut-hint {
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
 .search-input {
   width: 100%;
-  padding: 6px 12px 6px 30px;
+  padding: 6px 32px 6px 30px;
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-sm);
   background: var(--bg-primary);
@@ -489,9 +519,28 @@ body {
   color: var(--text-hint);
 }
 
+.note-item-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
 .note-item-date {
   font-size: 11px;
   color: var(--text-hint);
+}
+
+.note-codex-pill {
+  font-size: 10px;
+  padding: 2px 6px;
+  background: var(--bg-tertiary);
+  color: var(--text-secondary);
+  border-radius: 3px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100px;
 }
 
 .note-item-header {

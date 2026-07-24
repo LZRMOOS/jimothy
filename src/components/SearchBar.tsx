@@ -8,6 +8,7 @@ type Props = {
   onArrowUp: () => void;
   onEscape: () => void;
   onSettingsClick?: () => void;
+  onCommandPaletteClick?: () => void;
 };
 
 export const SearchBar = forwardRef<HTMLInputElement, Props>(
@@ -20,6 +21,7 @@ export const SearchBar = forwardRef<HTMLInputElement, Props>(
       onArrowUp,
       onEscape,
       onSettingsClick,
+      onCommandPaletteClick,
     },
     ref
   ) => {
@@ -58,6 +60,27 @@ export const SearchBar = forwardRef<HTMLInputElement, Props>(
               }
             }}
           />
+          {onCommandPaletteClick && (
+            <button
+              className="search-bar-action-btn"
+              onClick={onCommandPaletteClick}
+              title="Command Palette (Cmd+K)"
+              aria-label="Command Palette"
+            >
+              <svg
+                width="13"
+                height="13"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M18 3a3 3 0 0 0-3 3v12a3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3H6a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3V6a3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3h12a3 3 0 0 0 3-3 3 3 0 0 0-3-3z"/>
+              </svg>
+            </button>
+          )}
           </div>
           {onSettingsClick && (
             <button
