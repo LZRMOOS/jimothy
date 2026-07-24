@@ -9,6 +9,7 @@ type Props = {
   onDelete: (id: string) => void;
   onTogglePin: (id: string) => void;
   onToggleSensitive?: (id: string) => void;
+  onToggleArchive?: (id: string) => void;
   pinnedIds: string[];
   sensitiveIds: string[];
   searchQuery?: string;
@@ -43,7 +44,7 @@ type ContextMenuState = {
 } | null;
 
 
-export function NotesList({ notes, selectedId, onSelect, onDelete, onTogglePin, onToggleSensitive, pinnedIds, sensitiveIds, searchQuery = "" }: Props) {
+export function NotesList({ notes, selectedId, onSelect, onDelete, onTogglePin, onToggleSensitive, onToggleArchive, pinnedIds, sensitiveIds, searchQuery = "" }: Props) {
   const [contextMenu, setContextMenu] = useState<ContextMenuState>(null);
 
   const handleContextMenu = (e: React.MouseEvent, noteId: string) => {
@@ -64,6 +65,12 @@ export function NotesList({ notes, selectedId, onSelect, onDelete, onTogglePin, 
     closeContextMenu();
   };
 
+  const sorted = useMemo(() => {
+    const pinned = notes.filter((n) => pinnedIds.includes(n.id));
+    const unpinned = notes.filter((n) => !pinnedIds.includes(n.id));
+    return [...pinned, ...unpinned];
+  }, [notes, pinnedIds]);
+
   if (notes.length === 0) {
     return (
       <div className="notes-list-empty">
@@ -72,12 +79,6 @@ export function NotesList({ notes, selectedId, onSelect, onDelete, onTogglePin, 
       </div>
     );
   }
-
-  const sorted = useMemo(() => {
-    const pinned = notes.filter((n) => pinnedIds.includes(n.id));
-    const unpinned = notes.filter((n) => !pinnedIds.includes(n.id));
-    return [...pinned, ...unpinned];
-  }, [notes, pinnedIds]);
 
   return (
     <div className="notes-list" onClick={closeContextMenu}>
@@ -157,6 +158,18 @@ export function NotesList({ notes, selectedId, onSelect, onDelete, onTogglePin, 
           >
             Copy as Markdown
           </button>
+          {onToggleArchive && (
+            <button
+              className="context-menu-item subtle"
+              onClick={() => {
+                onToggleArchive(contextMenu.noteId);
+                closeContextMenu();
+              }}
+            >
+              {notes.find((n) => n.id === contextMenu.noteId)?.archived
+                ? "Unarchive Note" : "Archive Note"}
+            </button>
+          )}
           <button
             className="context-menu-item danger"
             onClick={() => {
