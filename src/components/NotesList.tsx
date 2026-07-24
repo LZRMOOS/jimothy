@@ -68,6 +68,16 @@ export function NotesList({ notes, selectedId, onSelect, onDelete, onTogglePin, 
 
   const closeContextMenu = () => setContextMenu(null);
 
+  const handleCopyMarkdown = (noteId: string) => {
+    const note = notes.find(n => n.id === noteId);
+    if (!note) return;
+
+    // Format as markdown with title and body
+    const markdown = `# ${note.title}\n\n${note.body}`;
+    navigator.clipboard.writeText(markdown);
+    closeContextMenu();
+  };
+
   if (notes.length === 0) {
     return (
       <div className="notes-list-empty">
@@ -119,7 +129,12 @@ export function NotesList({ notes, selectedId, onSelect, onDelete, onTogglePin, 
               highlightMatches(getPreview(note.body), searchQuery)
             )}
           </div>
-          <div className="note-item-date">{formatDate(note.updated_at)}</div>
+          <div className="note-item-footer">
+            <div className="note-item-date">{formatDate(note.updated_at)}</div>
+            {note.codex && (
+              <div className="note-codex-pill">{note.codex}</div>
+            )}
+          </div>
         </div>
       ))}
       {contextMenu && (
@@ -148,6 +163,12 @@ export function NotesList({ notes, selectedId, onSelect, onDelete, onTogglePin, 
                 ? "Remove File Protection" : "Protect File"}
             </button>
           )}
+          <button
+            className="context-menu-item"
+            onClick={() => handleCopyMarkdown(contextMenu.noteId)}
+          >
+            Copy as Markdown
+          </button>
           <button
             className="context-menu-item danger"
             onClick={() => {
