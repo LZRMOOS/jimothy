@@ -24,6 +24,7 @@ export function SensitivePrompt({
   const [password, setPassword] = useState("");
   const [errorCount, setErrorCount] = useState(0);
   const [shake, setShake] = useState(false);
+  const [emptyError, setEmptyError] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -56,7 +57,15 @@ export function SensitivePrompt({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!password.trim()) return;
+    if (!password.trim()) {
+      setEmptyError(true);
+      setShake(true);
+      setTimeout(() => {
+        setShake(false);
+        setEmptyError(false);
+      }, 500);
+      return;
+    }
     try {
       const valid = onVerify
         ? await onVerify(password)
@@ -91,13 +100,14 @@ export function SensitivePrompt({
             placeholder="Password"
             value={password}
             onChange={setPassword}
-            error={errorCount > 0}
+            error={errorCount > 0 || emptyError}
           />
-          <button className="btn primary unlock-btn" type="submit" disabled={!password.trim()}>
+          <button className="btn primary unlock-btn" type="submit">
             Unlock
           </button>
         </form>
-        {errorCount > 0 && <p className="unlock-error">Invalid password</p>}
+        {emptyError && <p className="unlock-error">Password required</p>}
+        {errorCount > 0 && !emptyError && <p className="unlock-error">Invalid password</p>}
       </div>
     </div>
   );
