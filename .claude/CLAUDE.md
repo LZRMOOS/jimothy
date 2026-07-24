@@ -12,10 +12,12 @@ A fast, keyboard-first desktop notes app built with Tauri 2, React, TypeScript, 
 
 ### Frontend (src/)
 - **React 19** with TypeScript
-- **Tiptap** WYSIWYG Markdown editor with syntax highlighting, task lists
+- **Tiptap** WYSIWYG Markdown editor with syntax highlighting, task lists, macros
+- **Tiptap extensions**: Custom note link extension (`src/extensions/noteLink.tsx`) using @tiptap/suggestion
+- **tiptap-markdown** for Markdown serialization (storage.markdown.serialize/parse)
 - **MiniSearch** for full-text search with highlighted results
-- **Components**: SearchBar, NotesList, Editor, Settings, CommandPalette, PasswordInput, etc.
-- **Hooks**: useNotes, useVault, useProtection, useIdleLock, useUpdater
+- **Components**: SearchBar, NotesList, Editor, Settings, CommandPalette, ReferencePanel, PasswordInput, etc.
+- **Hooks**: useNotes, useVault, useProtection, useIdleLock, useUpdater, useEventListener
 - **Types**: TypeScript definitions in src/types/
 
 ### Backend (src-tauri/)
@@ -56,16 +58,29 @@ Two independent layers of encryption:
 - All protected files share one password
 - Can coexist with vault encryption for "extra sensitive" notes
 
+### Editor
+- WYSIWYG Markdown editing via Tiptap with syntax highlighting, task lists, code blocks
+- **Internal note links**: Type `@` to trigger autocomplete, links stored as `[Title](scratch://id)` markdown
+  - ID-based linking survives note renames (title resolved at parse/serialize time)
+  - Autocomplete popup with codex pill, flips above cursor near viewport bottom
+  - Click handler checks `.note-link` DOM target to prevent false navigation
+  - Displayed with `@` prefix in editor to distinguish from normal links
+- **Text macros**: /date, /time, and user-defined custom macros that expand as you type
+- **In-note search**: Cmd+F for find within current note with match cycling (Cmd+G / Cmd+Shift+G)
+- **Copy as plain text**: Copied text strips markdown formatting (transformCopiedText: false)
+- Word and character count display
+
 ### UI/UX
 - Keyboard-first: Cmd+Shift+Space toggles window, Cmd+N new note, Cmd+K command palette
 - Codexes: group notes into collections with collapsible sidebar and custom emoji icons
 - Pinned notes: star notes to pin at top
-- Themes: system, light, or dark
-- Command palette (Cmd+K) for quick actions
+- Themes: system, light, or dark with customizable accent/background colors per theme
+- Command palette (Cmd+K) for quick actions (search, pin, protect, copy as markdown, reference panels, etc.)
+- **Reference panels**: Cmd+. for markdown/macros reference, Cmd+; for keyboard shortcuts (only one active at a time)
 - Zoom support (Cmd+/- for text size)
 - System tray with hide-on-close behavior
 - Native macOS menu bar with standard shortcuts
-- Update settings page with keyboard controls when changing hotkeys
+- Settings with tabs: General, Controls, Macros, Colors, Storage, Security, Markdown
 - When writing, use a more fun, quirky straightforward language, do not use em-dashes.
 
 ## Development Workflow
@@ -90,6 +105,7 @@ cargo test --manifest-path src-tauri/Cargo.toml  # Rust tests
 ```
 src/
   components/     React UI components
+  extensions/     Tiptap editor extensions (noteLink.tsx)
   hooks/          Custom React hooks for state/side effects
   types/          TypeScript type definitions
   utils/          Utility functions (search, etc.)
@@ -134,6 +150,14 @@ src-tauri/
 - **Conflict detection**: Check for Dropbox conflict files (` (Conflicted Copy)`), emit event
 - **Trash**: Move to `{notes_folder}/.scratch/trash/` instead of permanent delete
 - **Watcher**: Debounced filesystem events trigger `reload_notes` command
+
+### Internal Note Links
+- Links stored as `[Title](scratch://id)` (standard markdown, valid format)
+- `scratch://` URI scheme distinguishes from normal links (kept for backwards compatibility)
+- Title resolved from `notesRef` at parse and serialize time (survives renames)
+- `@tiptap/suggestion` handles the `@` trigger and autocomplete popup
+- `ReactRenderer` from `@tiptap/react` renders the suggestion dropdown
+- Click navigation via ProseMirror plugin checking `.note-link` class on DOM target
 
 ### Optimistic UI
 - Title changes update locally before backend save completes
@@ -182,6 +206,7 @@ All commands defined in `src-tauri/src/commands/mod.rs`:
 
 ### System
 - `set_tray_visible(visible)` - Show/hide system tray icon
+- `update_global_shortcut(shortcut)` - Change the global toggle-window shortcut
 
 ## Configuration Files
 
@@ -203,21 +228,26 @@ All commands defined in `src-tauri/src/commands/mod.rs`:
 ## Keyboard Shortcuts
 
 ### Global
-- `Cmd+Shift+Space` - Toggle window
+- `Cmd+Shift+Space` - Toggle window (customizable)
 
-### Navigation
+### Search & Navigation
+- `Cmd+Shift+F` / `Cmd+L` - Focus notes search
+- `Cmd+F` - Find in current note (in-note search)
+- `Cmd+G` / `Cmd+Shift+G` - Next/previous in-note match
 - `Cmd+N` - New note
 - `Cmd+K` - Command palette
-- `Cmd+F` / `Cmd+L` - Focus search
 - `Cmd+/` - Toggle codex sidebar
 - `Cmd+1` - All notes
 - `Cmd+2-9` - Switch codex
+- `Cmd+Shift+]` / `Cmd+Shift+[` - Next/previous note
 
 ### App
 - `Cmd+,` - Settings
+- `Cmd+.` - Toggle markdown reference panel
+- `Cmd+;` - Toggle controls reference panel
 - `Cmd+=` / `Cmd+-` - Zoom in/out
 - `Cmd+0` - Reset zoom
-- `Escape` - Close settings / hide window
+- `Escape` - Close panel / hide window
 
 ## Release Process
 
@@ -286,7 +316,14 @@ git push && git push --tags
 ### Adding keyboard shortcuts
 1. Global shortcuts: Register in `src-tauri/src/lib.rs` setup
 2. App shortcuts: Handle in React components or native menu
-3. Document in README.md and Settings keyboard tab
+3. Document in README.md and Settings Controls tab
+
+### Adding a Tiptap extension
+1. Create `src/extensions/myExtension.tsx`
+2. Use @tiptap/core `Node.create()` or `Extension.create()`
+3. For autocomplete: use `@tiptap/suggestion` with ReactRenderer for popup
+4. Register in Editor.tsx `useEditor({ extensions: [...] })`
+5. Handle markdown serialization via `tiptap-markdown` storage options
 
 ## Troubleshooting
 
