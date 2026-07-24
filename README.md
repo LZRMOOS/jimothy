@@ -1,4 +1,4 @@
-# Scratch
+# Jimothy
 
 A fast, keyboard-first desktop notes app. Cross-platform (macOS + Windows), Dropbox-compatible, locally-stored, with optional encryption.
 
@@ -8,9 +8,11 @@ Built with Tauri 2, React, TypeScript, and Rust.
 
 - **Keyboard-first** — global shortcut (Cmd+Shift+Space) toggles the window, Cmd+N new note, Cmd+K command palette
 - **Instant search** — full-text search via MiniSearch with highlighted results in the editor
-- **WYSIWYG Markdown** — Tiptap editor with syntax highlighting, task lists, and word/char count
+- **WYSIWYG Markdown** — Tiptap editor with syntax highlighting, task lists, code blocks, and word/char count
+- **Internal note links** — type @ to link to other notes with autocomplete; links survive title renames
 - **Codexes** — group notes into collections with a collapsible icon sidebar and custom emoji icons
 - **Pinned notes** — star notes to pin them at the top of the list
+- **Text macros** — /date, /time, and custom macros that expand as you type
 - **Local storage** — plain Markdown files with YAML frontmatter, compatible with any sync service
 - **Dropbox sync** — detects and handles Dropbox conflict files automatically
 - **Vault encryption** — XChaCha20-Poly1305 with Argon2id key derivation; encrypts all notes, locks on sleep/idle/manually
@@ -18,13 +20,15 @@ Built with Tauri 2, React, TypeScript, and Rust.
 - **Auto-updates** — built-in updater checks for new releases
 - **System tray** — hide-on-close, tray menu for quick actions
 - **Native menu bar** — macOS app menu with standard keyboard shortcuts
-- **Command palette** — Cmd+K for quick actions
+- **Command palette** — Cmd+K for quick actions (search, pin, protect, copy as markdown, etc.)
+- **Reference panels** — Cmd+. for markdown reference, Cmd+; for keyboard shortcuts
 - **Zoom** — Cmd+/- to adjust text size
-- **Themes** — system, light, or dark
+- **Themes** — system, light, or dark with customizable colors
+- **In-note search** — Cmd+F to find within the current note with match cycling
 
 ## Security Model
 
-Scratch offers two layers of encryption that can be used independently or together:
+Jimothy offers two layers of encryption that can be used independently or together:
 
 ### Vault Encryption
 
@@ -50,7 +54,7 @@ When vault encryption is enabled, file protection acts as an additional re-authe
 ### Setup
 
 ```sh
-git clone <repo-url> && cd scratch
+git clone <repo-url> && cd jimothy
 npm install
 ```
 
@@ -72,9 +76,11 @@ cargo test --manifest-path src-tauri/Cargo.toml   # Rust
 
 ```
 src/                    React frontend
-  components/           SearchBar, NotesList, Editor, Settings, PasswordInput, etc.
+  components/           SearchBar, NotesList, Editor, Settings, CommandPalette, ReferencePanel, etc.
+  extensions/           Tiptap editor extensions (note links)
   hooks/                useNotes, useVault, useProtection, useIdleLock, useUpdater
   types/                TypeScript type definitions
+  utils/                Utility functions (search)
 
 src-tauri/              Rust backend
   src/
@@ -94,21 +100,24 @@ src-tauri/              Rust backend
 - **ULID identifiers** — sortable, unique, embedded in frontmatter
 - **Filename sanitization** — handles Windows reserved names, Unicode normalization, invalid characters
 - **Vault key in memory only** — never persisted; cleared on lock/sleep/idle timeout
-- **Shared PasswordInput** — single component with eye toggle used across all auth flows
 - **Optimistic UI** — title changes update locally before backend save completes
+- **ID-based note links** — `[Title](scratch://id)` format survives renames and is valid markdown
 
 ## Settings
 
-Accessible via Cmd+, or the gear icon. Tabs:
+Accessible via Cmd+, or the command palette. Tabs:
 
 | Tab | Options |
 |-----|---------|
-| General | Theme (system/light/dark), confirm before delete, check for updates |
-| Keyboard | Full shortcut reference (global, navigation, codex, notes, app) |
-| Storage | Notes folder path, change folder, open in Finder |
+| General | Auto-updates, confirm before delete, launch at login, menu bar icon |
+| Controls | Full shortcut reference (global, search, notes, view, app) |
+| Macros | Built-in (/date, /time) and custom text expansion macros |
+| Colors | Theme (system/light/dark), custom color overrides per theme |
+| Storage | Notes folder path, change folder, open in Finder, rebuild index |
 | Security | Vault encryption, auto-lock timeout, file protection, change password |
+| Markdown | Syntax reference for formatting, code blocks, lists, links, note links |
 
-Settings stored at `~/Library/Application Support/scratch/settings.json` (macOS) or `%APPDATA%/scratch/settings.json` (Windows).
+Settings stored at `~/Library/Application Support/jimothy/settings.json` (macOS) or `%APPDATA%/jimothy/settings.json` (Windows).
 
 ## Keyboard Shortcuts
 
@@ -117,14 +126,18 @@ Settings stored at `~/Library/Application Support/scratch/settings.json` (macOS)
 | Cmd+Shift+Space | Toggle window |
 | Cmd+N | New note |
 | Cmd+K | Command palette |
-| Cmd+F / Cmd+L | Focus search |
+| Cmd+F | Find in note |
+| Cmd+Shift+F / Cmd+L | Search notes |
 | Cmd+/ | Toggle codex sidebar |
 | Cmd+1 | All notes |
 | Cmd+2–9 | Switch codex |
+| Cmd+Shift+] / [ | Next/previous note |
 | Cmd+, | Settings |
+| Cmd+. | Markdown reference panel |
+| Cmd+; | Controls reference panel |
 | Cmd+= / Cmd+- | Zoom in/out |
 | Cmd+0 | Reset zoom |
-| Escape | Close settings / hide window |
+| Escape | Close panel / hide window |
 
 ## Releasing
 
@@ -133,13 +146,13 @@ Settings stored at `~/Library/Application Support/scratch/settings.json` (macOS)
 1. Generate a Tauri updater signing keypair:
 
    ```sh
-   npx tauri signer generate -w ~/.tauri/scratch.key
+   npx tauri signer generate -w ~/.tauri/jimothy.key
    ```
 
 2. Update `src-tauri/tauri.conf.json` — set `plugins.updater.endpoints` to your GitHub repo URL:
 
    ```json
-   "endpoints": ["https://github.com/YOUR_USER/scratch/releases/latest/download/latest.json"]
+   "endpoints": ["https://github.com/LZRMOOS/jimothy/releases/latest/download/latest.json"]
    ```
 
 3. Set `plugins.updater.pubkey` to the public key from step 1.
@@ -148,7 +161,7 @@ Settings stored at `~/Library/Application Support/scratch/settings.json` (macOS)
 
    | Secret | Purpose |
    |--------|---------|
-   | `TAURI_SIGNING_PRIVATE_KEY` | Updater signing key (contents of `~/.tauri/scratch.key`) |
+   | `TAURI_SIGNING_PRIVATE_KEY` | Updater signing key (contents of `~/.tauri/jimothy.key`) |
    | `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` | Password for the signing key |
    | `APPLE_CERTIFICATE` | Base64-encoded .p12 certificate |
    | `APPLE_CERTIFICATE_PASSWORD` | Certificate password |
