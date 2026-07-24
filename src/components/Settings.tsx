@@ -916,6 +916,14 @@ export function Settings({
                   <kbd className="shortcut-display">{mod}+,</kbd>
                 </div>
                 <div className="settings-row">
+                  <label>Markdown reference</label>
+                  <kbd className="shortcut-display">{mod}+.</kbd>
+                </div>
+                <div className="settings-row">
+                  <label>Controls reference</label>
+                  <kbd className="shortcut-display">{mod}+;</kbd>
+                </div>
+                <div className="settings-row">
                   <label>Hide window</label>
                   <kbd className="shortcut-display">Escape</kbd>
                 </div>

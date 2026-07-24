@@ -2280,3 +2280,94 @@ body {
   flex-direction: column;
   gap: 10px;
 }
+
+/* Reference Panel (Cmd+. / Cmd+;) */
+.reference-panel {
+  width: 240px;
+  min-width: 240px;
+  border-left: 1px solid var(--border);
+  background: var(--bg-secondary);
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  font-size: 12px;
+}
+
+.reference-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 14px 8px;
+  position: sticky;
+  top: 0;
+  background: var(--bg-secondary);
+  z-index: 1;
+}
+
+.reference-panel-header h3 {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-secondary);
+}
+
+.reference-panel-close {
+  background: none;
+  border: none;
+  color: var(--text-hint);
+  font-size: 18px;
+  cursor: pointer;
+  padding: 0 4px;
+  line-height: 1;
+}
+
+.reference-panel-close:hover {
+  color: var(--text-primary);
+}
+
+.reference-panel-body {
+  padding: 0 14px 14px;
+}
+
+.reference-panel-body h4 {
+  margin: 12px 0 6px;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-hint);
+}
+
+.reference-panel-body h4:first-child {
+  margin-top: 0;
+}
+
+.ref-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.ref-table td {
+  padding: 3px 0;
+  vertical-align: top;
+  color: var(--text-secondary);
+}
+
+.ref-table td:first-child {
+  white-space: nowrap;
+  padding-right: 12px;
+}
+
+.ref-table .ref-syntax {
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 11px;
+  color: var(--text-primary);
+}
+
+.ref-table .ref-key {
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 11px;
+  color: var(--text-primary);
+}

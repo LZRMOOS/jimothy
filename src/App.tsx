@@ -17,6 +17,8 @@ import { ConflictDialog } from "./components/ConflictDialog";
 import type { ConflictChoice } from "./components/ConflictDialog";
 import { DeleteDialog } from "./components/DeleteDialog";
 import { Settings } from "./components/Settings";
+import { ReferencePanel } from "./components/ReferencePanel";
+import type { ReferencePanelMode } from "./components/ReferencePanel";
 import { useNotes } from "./hooks/useNotes";
 import { useVault } from "./hooks/useVault";
 import { useProtection } from "./hooks/useProtection";
@@ -90,6 +92,7 @@ function App() {
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showCommandPalette, setShowCommandPalette] = useState(false);
+  const [referencePanel, setReferencePanel] = useState<ReferencePanelMode | null>(null);
   const [sensitivePromptId, setSensitivePromptId] = useState<string | null>(null);
   const sensitiveUnlockTime = useRef<Record<string, number>>({});
   const [appSettings, setAppSettings] = useState<AppSettings>({
@@ -706,6 +709,12 @@ function App() {
       } else if (mod && e.key === ",") {
         e.preventDefault();
         setShowSettings((s) => !s);
+      } else if (mod && e.key === ".") {
+        e.preventDefault();
+        setReferencePanel((s) => s === "markdown" ? null : "markdown");
+      } else if (mod && e.key === ";") {
+        e.preventDefault();
+        setReferencePanel((s) => s === "controls" ? null : "controls");
       } else if (mod && e.key === "/") {
         e.preventDefault();
         setSidebarCollapsed((s) => !s);
@@ -800,6 +809,8 @@ function App() {
       action: () => handleTogglePin(selectedId),
     }] : []),
     { id: "settings", label: "Open Settings", shortcut: "⌘,", action: () => setShowSettings(true) },
+    { id: "markdown-ref", label: "Markdown Reference", shortcut: "⌘.", action: () => setReferencePanel((s) => s === "markdown" ? null : "markdown") },
+    { id: "controls-ref", label: "Controls Reference", shortcut: "⌘;", action: () => setReferencePanel((s) => s === "controls" ? null : "controls") },
     { id: "lock-vault", label: "Lock Vault", action: handleLock },
     { id: "toggle-sidebar", label: "Toggle Sidebar", shortcut: "⌘/", action: () => setSidebarCollapsed((s) => !s) },
     { id: "next-note", label: "Next Note", shortcut: "⌘⇧]", action: () => navigateNote(1) },
@@ -1103,6 +1114,13 @@ function App() {
             <div className="editor-placeholder">
               <p>Select a note or create one</p>
             </div>
+          )}
+          {referencePanel && (
+            <ReferencePanel
+              mode={referencePanel}
+              macros={appSettings.macros}
+              onClose={() => setReferencePanel(null)}
+            />
           )}
         </div>
       )}
