@@ -2,7 +2,7 @@
 name = "jimothy"
 version = "0.3.0"
 description = "A fast, keyboard-first cross-platform notes app"
-authors = ["you"]
+authors = ["Wei D"]
 edition = "2021"
 
 [lib]
