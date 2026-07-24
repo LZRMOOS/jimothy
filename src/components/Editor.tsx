@@ -96,42 +96,89 @@ function CodexPicker({ value, codexList, onChange }: {
 }) {
   const [editing, setEditing] = useState(false);
   const [inputValue, setInputValue] = useState("");
+  const [highlightIndex, setHighlightIndex] = useState(-1);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const filtered = codexList.filter(
+    (c) => c.toLowerCase().includes(inputValue.toLowerCase()) && c !== inputValue
+  );
+
+  const commit = useCallback((val: string) => {
+    const trimmed = val.trim();
+    onChange(trimmed || null);
+    setEditing(false);
+  }, [onChange]);
+
+  useEffect(() => {
+    if (!editing) return;
+    const handleClickOutside = (e: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
+        commit(inputValue);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [editing, inputValue, commit]);
 
   if (editing) {
     return (
-      <>
+      <div className="codex-picker" ref={containerRef}>
         <input
+          ref={inputRef}
           className="codex-input"
           autoFocus
           placeholder="Codex name"
           value={inputValue}
-          list="codex-options"
-          onChange={(e) => setInputValue(e.target.value)}
-          autoComplete="off"
+          onChange={(e) => {
+            setInputValue(e.target.value);
+            setHighlightIndex(-1);
+          }}
+          name="codex-picker-nonce"
+          autoComplete="nope"
           autoCorrect="off"
           autoCapitalize="off"
           spellCheck="false"
-          onBlur={() => {
-            const trimmed = inputValue.trim();
-            onChange(trimmed || null);
-            setEditing(false);
-          }}
+          role="combobox"
+          aria-autocomplete="list"
+          aria-expanded={filtered.length > 0}
           onKeyDown={(e) => {
             if (e.key === "Enter") {
-              const trimmed = inputValue.trim();
-              onChange(trimmed || null);
-              setEditing(false);
+              e.preventDefault();
+              if (highlightIndex >= 0 && highlightIndex < filtered.length) {
+                commit(filtered[highlightIndex]);
+              } else {
+                commit(inputValue);
+              }
             } else if (e.key === "Escape") {
               setEditing(false);
+            } else if (e.key === "ArrowDown") {
+              e.preventDefault();
+              setHighlightIndex((i) => Math.min(i + 1, filtered.length - 1));
+            } else if (e.key === "ArrowUp") {
+              e.preventDefault();
+              setHighlightIndex((i) => Math.max(i - 1, -1));
             }
           }}
         />
-        <datalist id="codex-options">
-          {codexList.map((c) => (
-            <option key={c} value={c} />
-          ))}
-        </datalist>
-      </>
+        {filtered.length > 0 && (
+          <div className="codex-picker-menu">
+            {filtered.map((c, i) => (
+              <button
+                key={c}
+                className={`codex-picker-item${i === highlightIndex ? " highlighted" : ""}${c === value ? " selected" : ""}`}
+                onMouseDown={(e) => {
+                  e.preventDefault();
+                  commit(c);
+                }}
+                onMouseEnter={() => setHighlightIndex(i)}
+              >
+                {c}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
     );
   }
 
@@ -140,6 +187,7 @@ function CodexPicker({ value, codexList, onChange }: {
       className="editor-meta codex-label"
       onClick={() => {
         setInputValue(value || "");
+        setHighlightIndex(-1);
         setEditing(true);
       }}
     >

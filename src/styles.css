@@ -1076,12 +1076,14 @@ body {
 
 .editor-footer {
   display: flex;
+  align-items: center;
   justify-content: space-between;
   padding: 8px 20px;
   border-top: 1px solid var(--border);
   font-size: 11px;
   color: var(--text-hint);
   letter-spacing: 0.02em;
+  overflow: visible;
 }
 
 .editor-count {
@@ -1124,23 +1126,53 @@ body {
   box-shadow: 0 0 0 2px var(--accent-subtle);
 }
 
-/* Datalist styling - limited browser support */
-option {
-  background: var(--bg-primary);
-  color: var(--text-primary);
-  padding: 4px 8px;
-  font-size: 11px;
+/* Codex Picker Dropdown */
+.codex-picker {
+  position: relative;
 }
 
-/* Webkit-specific datalist styling */
-datalist {
+.codex-picker-menu {
   position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  margin-bottom: 6px;
+  min-width: 160px;
   background: var(--bg-primary);
   border: 1px solid var(--border-strong);
-  border-radius: 6px;
+  border-radius: var(--radius-sm);
   box-shadow: var(--shadow-lg);
+  padding: 4px 0;
+  z-index: 200;
   max-height: 200px;
   overflow-y: auto;
+}
+
+[data-theme="dark"] .codex-picker-menu {
+  background: var(--bg-secondary);
+}
+
+.codex-picker-item {
+  display: block;
+  width: 100%;
+  padding: 8px 12px;
+  border: none;
+  background: none;
+  color: var(--text-primary);
+  font-size: 12px;
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--transition);
+}
+
+.codex-picker-item:hover,
+.codex-picker-item.highlighted {
+  background: var(--bg-hover);
+}
+
+.codex-picker-item.selected {
+  background: var(--accent-subtle);
+  color: var(--accent);
 }
 
 .editor-placeholder {
