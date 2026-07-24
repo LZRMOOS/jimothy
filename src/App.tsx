@@ -803,14 +803,24 @@ function App() {
     { id: "find-in-note", label: "Find in Note", shortcut: "⌘F", action: () => window.dispatchEvent(new Event("open-in-note-search")) },
     { id: "search", label: "Search Notes", shortcut: "⌘⇧F", action: () => { searchInputRef.current?.focus(); searchInputRef.current?.select(); } },
     { id: "delete-note", label: "Delete Note", shortcut: "⌘⌫", action: handleDelete },
-    ...(selectedId ? [{
-      id: "pin-note",
-      label: (appSettings.pinnedNotes || []).includes(selectedId) ? "Unpin Note" : "Pin Note",
-      action: () => handleTogglePin(selectedId),
-    }] : []),
+    ...(selectedId ? [
+      {
+        id: "pin-note",
+        label: (appSettings.pinnedNotes || []).includes(selectedId) ? "Unpin Note" : "Pin Note",
+        action: () => handleTogglePin(selectedId),
+      },
+      {
+        id: "copy-markdown",
+        label: "Copy as Markdown",
+        action: () => {
+          const md = editorRef.current?.storage?.markdown?.getMarkdown?.() ?? selectedNote?.body ?? "";
+          navigator.clipboard.writeText(md);
+        },
+      },
+    ] : []),
     { id: "settings", label: "Open Settings", shortcut: "⌘,", action: () => setShowSettings(true) },
-    { id: "markdown-ref", label: "Markdown Reference", shortcut: "⌘.", action: () => setReferencePanel((s) => s === "markdown" ? null : "markdown") },
-    { id: "controls-ref", label: "Controls Reference", shortcut: "⌘;", action: () => setReferencePanel((s) => s === "controls" ? null : "controls") },
+    { id: "markdown-ref", label: referencePanel === "markdown" ? "Hide Markdown Reference" : "Markdown Reference", shortcut: "⌘.", action: () => setReferencePanel((s) => s === "markdown" ? null : "markdown") },
+    { id: "controls-ref", label: referencePanel === "controls" ? "Hide Controls Reference" : "Controls Reference", shortcut: "⌘;", action: () => setReferencePanel((s) => s === "controls" ? null : "controls") },
     { id: "lock-vault", label: "Lock Vault", action: handleLock },
     { id: "toggle-sidebar", label: "Toggle Sidebar", shortcut: "⌘/", action: () => setSidebarCollapsed((s) => !s) },
     { id: "next-note", label: "Next Note", shortcut: "⌘⇧]", action: () => navigateNote(1) },
@@ -837,7 +847,7 @@ function App() {
       shortcut: i < 8 ? `⌘${i + 2}` : undefined,
       action: () => setActiveCodex(c),
     })),
-  ], [handleDelete, handleLock, handleTogglePin, handleZoom, handleSettingsChange, handleToggleSensitive, navigateNote, appSettings, selectedId, codexList, notes, vaultStatus]);
+  ], [handleDelete, handleLock, handleTogglePin, handleZoom, handleSettingsChange, handleToggleSensitive, navigateNote, appSettings, selectedId, selectedNote, codexList, notes, vaultStatus, referencePanel]);
 
   if (!initialized) {
     return <div className="loading">Loading…</div>;
