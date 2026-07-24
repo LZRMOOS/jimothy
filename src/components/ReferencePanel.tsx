@@ -71,12 +71,14 @@ function MarkdownReference({ macros }: { macros?: Record<string, string> }) {
           <tr><td className="ref-syntax">- [x] done</td><td>Completed task</td></tr>
         </tbody>
       </table>
-      <h4>Links</h4>
+      <h4>Links & References</h4>
       <table className="ref-table">
         <tbody>
           <tr><td className="ref-syntax">[text](url)</td><td>Hyperlink</td></tr>
           <tr><td className="ref-syntax">![alt](url)</td><td>Image</td></tr>
-          <tr><td className="ref-syntax">@note name</td><td>Link to note</td></tr>
+          <tr><td className="ref-syntax">[[note name</td><td>Link to note (autocomplete)</td></tr>
+          <tr><td className="ref-syntax">#tag</td><td>Tag (searchable)</td></tr>
+          <tr><td className="ref-syntax">@name</td><td>Dictionary mention</td></tr>
         </tbody>
       </table>
       <h4>Macros</h4>
@@ -105,6 +107,8 @@ function ControlsReference() {
           <tr><td className="ref-key">{mod}[</td><td>Previous match</td></tr>
           <tr><td className="ref-key">{mod}⇧F</td><td>Search notes</td></tr>
           <tr><td className="ref-key">{mod}K</td><td>Command palette</td></tr>
+          <tr><td className="ref-key">#tag</td><td>Filter by tag</td></tr>
+          <tr><td className="ref-key">@name</td><td>Filter by dictionary</td></tr>
         </tbody>
       </table>
       <h4>Notes</h4>
@@ -113,9 +117,19 @@ function ControlsReference() {
           <tr><td className="ref-key">{mod}N</td><td>New note</td></tr>
           <tr><td className="ref-key">{mod}J</td><td>Daily note</td></tr>
           <tr><td className="ref-key">↑ ↓</td><td>Navigate notes</td></tr>
-          <tr><td className="ref-key">Enter / →</td><td>Edit note</td></tr>
+          <tr><td className="ref-key">Enter</td><td>Edit note</td></tr>
+          <tr><td className="ref-key">→</td><td>Expand backlinks</td></tr>
+          <tr><td className="ref-key">←</td><td>Collapse backlinks</td></tr>
           <tr><td className="ref-key">{mod}⇧]</td><td>Next note</td></tr>
           <tr><td className="ref-key">{mod}⇧[</td><td>Previous note</td></tr>
+        </tbody>
+      </table>
+      <h4>Editor</h4>
+      <table className="ref-table">
+        <tbody>
+          <tr><td className="ref-key">[[</td><td>Link to note</td></tr>
+          <tr><td className="ref-key">@</td><td>Dictionary mention</td></tr>
+          <tr><td className="ref-key">/macro</td><td>Expand macro</td></tr>
         </tbody>
       </table>
       <h4>View</h4>

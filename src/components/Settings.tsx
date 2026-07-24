@@ -1356,10 +1356,15 @@ export function Settings({
                 </div>
                 <div className="settings-row">
                   <label>Edit note</label>
-                  <span>
-                    <kbd className="shortcut-display">Enter</kbd>{" "}
-                    <kbd className="shortcut-display">→</kbd>
-                  </span>
+                  <kbd className="shortcut-display">Enter</kbd>
+                </div>
+                <div className="settings-row">
+                  <label>Expand backlinks</label>
+                  <kbd className="shortcut-display">→</kbd>
+                </div>
+                <div className="settings-row">
+                  <label>Collapse backlinks</label>
+                  <kbd className="shortcut-display">←</kbd>
                 </div>
                 <div className="settings-row">
                   <label>Next note</label>
@@ -1368,6 +1373,19 @@ export function Settings({
                 <div className="settings-row">
                   <label>Previous note</label>
                   <kbd className="shortcut-display">{mod}+Shift+[</kbd>
+                </div>
+                <h3>Editor</h3>
+                <div className="settings-row">
+                  <label>Link to note</label>
+                  <kbd className="shortcut-display">[[</kbd>
+                </div>
+                <div className="settings-row">
+                  <label>Dictionary mention</label>
+                  <kbd className="shortcut-display">@</kbd>
+                </div>
+                <div className="settings-row">
+                  <label>Expand macro</label>
+                  <kbd className="shortcut-display">/trigger + Space</kbd>
                 </div>
                 <h3>View</h3>
                 <div className="settings-row">
@@ -1887,15 +1905,75 @@ console.log(hello);
                       <td className="md-ref-syntax">![alt](url)</td>
                       <td className="md-ref-desc">Image</td>
                     </tr>
+                  </tbody>
+                </table>
+
+                <h3>Note Links</h3>
+                <table className="md-ref-table">
+                  <tbody>
                     <tr>
-                      <td className="md-ref-syntax">@note name</td>
+                      <td className="md-ref-syntax">[[note name</td>
                       <td className="md-ref-desc">Link to another note</td>
                     </tr>
                   </tbody>
                 </table>
                 <p className="settings-hint">
-                  Type @ in the editor to search and link to other notes. Links
-                  stay valid even if the target note is renamed.
+                  Type <code>[[</code> in the editor to search and link to other notes.
+                  Links stay valid even if the target note is renamed.
+                </p>
+
+                <h3>Tags</h3>
+                <table className="md-ref-table">
+                  <tbody>
+                    <tr>
+                      <td className="md-ref-syntax">#tagname</td>
+                      <td className="md-ref-desc">Tag (searchable, filterable)</td>
+                    </tr>
+                  </tbody>
+                </table>
+                <p className="settings-hint">
+                  Tags are highlighted in the editor and searchable with <code>#tag</code> in
+                  the search bar. Customize tag colors in{" "}
+                  <button className="settings-link" onClick={() => setActiveTab("colors")}>Colors</button>.
+                </p>
+
+                <h3>Dictionary Mentions</h3>
+                <table className="md-ref-table">
+                  <tbody>
+                    <tr>
+                      <td className="md-ref-syntax">@name</td>
+                      <td className="md-ref-desc">Dictionary mention</td>
+                    </tr>
+                  </tbody>
+                </table>
+                <p className="settings-hint">
+                  Type <code>@</code> in the editor to autocomplete from your dictionary.
+                  Mentions are highlighted and searchable with <code>@name</code> in the search bar.
+                  Manage entries in{" "}
+                  <button className="settings-link" onClick={() => setActiveTab("dictionary")}>Dictionary</button>.
+                </p>
+
+                <h3>Macros</h3>
+                <table className="md-ref-table">
+                  <tbody>
+                    <tr>
+                      <td className="md-ref-syntax">/date</td>
+                      <td className="md-ref-desc">Insert today's date</td>
+                    </tr>
+                    <tr>
+                      <td className="md-ref-syntax">/time</td>
+                      <td className="md-ref-desc">Insert current time</td>
+                    </tr>
+                    <tr>
+                      <td className="md-ref-syntax">/custom</td>
+                      <td className="md-ref-desc">Your custom macros</td>
+                    </tr>
+                  </tbody>
+                </table>
+                <p className="settings-hint">
+                  Type a macro trigger followed by Space or Enter to expand it.
+                  Create custom macros in{" "}
+                  <button className="settings-link" onClick={() => setActiveTab("macros")}>Macros</button>.
                 </p>
 
                 <h3>Other</h3>
