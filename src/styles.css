@@ -326,7 +326,7 @@ body {
   align-items: center;
   padding: 2px 8px;
   background: var(--bg-tertiary);
-  border-radius: 10px;
+  border-radius: 3px;
   font-size: 9px;
   color: var(--text-muted);
   pointer-events: none;
