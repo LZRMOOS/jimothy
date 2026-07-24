@@ -97,7 +97,7 @@ function MarkdownReference({ macros }: { macros?: Record<string, string> }) {
           <tr><td className="ref-syntax">!high</td><td>High priority (red)</td></tr>
           <tr><td className="ref-syntax">!med</td><td>Medium priority (orange)</td></tr>
           <tr><td className="ref-syntax">!low</td><td>Low priority (green)</td></tr>
-          <tr><td className="ref-syntax">!2026-07-30</td><td>Due date (color shifts)</td></tr>
+          <tr><td className="ref-syntax">!YYYY-MM-DD</td><td>Due date (color shifts)</td></tr>
         </tbody>
       </table>
     </>

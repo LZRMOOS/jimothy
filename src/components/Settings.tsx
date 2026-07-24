@@ -1904,7 +1904,7 @@ console.log(hello);
                       <td className="md-ref-desc">Low priority task</td>
                     </tr>
                     <tr>
-                      <td className="md-ref-syntax">- [ ] !2026-07-30</td>
+                      <td className="md-ref-syntax">- [ ] !YYYY-MM-DD</td>
                       <td className="md-ref-desc">Task with due date</td>
                     </tr>
                   </tbody>
