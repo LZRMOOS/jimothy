@@ -1891,8 +1891,30 @@ console.log(hello);
                       <td className="md-ref-syntax">- [x] done</td>
                       <td className="md-ref-desc">Completed task</td>
                     </tr>
+                    <tr>
+                      <td className="md-ref-syntax">- [ ] !high</td>
+                      <td className="md-ref-desc">High priority task</td>
+                    </tr>
+                    <tr>
+                      <td className="md-ref-syntax">- [ ] !med</td>
+                      <td className="md-ref-desc">Medium priority task</td>
+                    </tr>
+                    <tr>
+                      <td className="md-ref-syntax">- [ ] !low</td>
+                      <td className="md-ref-desc">Low priority task</td>
+                    </tr>
+                    <tr>
+                      <td className="md-ref-syntax">- [ ] !2026-07-30</td>
+                      <td className="md-ref-desc">Task with due date</td>
+                    </tr>
                   </tbody>
                 </table>
+                <p className="settings-hint">
+                  Type <code>!high</code>, <code>!med</code>, or <code>!low</code> inside
+                  a task item to add a priority label. Click the pill to cycle priorities.
+                  Type <code>!YYYY-MM-DD</code> for a due date that shifts from green to
+                  red as the deadline approaches. Click to remove.
+                </p>
 
                 <h3>Links &amp; Images</h3>
                 <table className="md-ref-table">
