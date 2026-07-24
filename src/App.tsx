@@ -832,6 +832,7 @@ function App() {
   const commands: Command[] = useMemo(() => [
     { id: "new-note", label: "New Note", shortcut: "⌘N", action: () => { setIsCreateMode(true); setQuery(""); searchInputRef.current?.focus(); } },
     { id: "find-in-note", label: "Find in Note", shortcut: "⌘F", action: () => window.dispatchEvent(new Event("open-in-note-search")) },
+    { id: "find-replace", label: "Find & Replace", shortcut: "⌘H", action: () => window.dispatchEvent(new Event("open-find-replace")) },
     { id: "search", label: "Search Notes", shortcut: "⌘⇧F", action: () => { searchInputRef.current?.focus(); searchInputRef.current?.select(); } },
     { id: "delete-note", label: "Delete Note", shortcut: "⌘⌫", action: handleDelete },
     ...(selectedId ? [

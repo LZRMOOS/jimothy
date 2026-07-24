@@ -1008,13 +1008,16 @@ body {
 .editor-body .tiptap pre .hljs-params { color: #60a5fa; }
 
 /* In-Note Search */
+.in-note-search-container {
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-secondary);
+}
+
 .in-note-search {
   display: flex;
   align-items: center;
   gap: 8px;
   padding: 6px 12px;
-  background: var(--bg-secondary);
-  border-bottom: 1px solid var(--border);
 }
 
 .in-note-search-icon {
@@ -1069,6 +1072,23 @@ body {
 
 .in-note-search-btn:disabled:hover {
   background: none;
+}
+
+.in-note-search-btn.active {
+  color: var(--accent);
+}
+
+.in-note-replace {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 12px 6px;
+}
+
+.replace-btn {
+  width: auto;
+  padding: 2px 8px;
+  font-size: 11px;
 }
 
 .editor-footer {
