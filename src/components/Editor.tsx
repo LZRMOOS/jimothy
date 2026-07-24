@@ -40,6 +40,7 @@ function buildDecorations(doc: any, query: string): DecorationSet {
   doc.descendants((node: any, pos: number) => {
     if (!node.isText) return;
     const text = node.text || "";
+    regex.lastIndex = 0; // Reset regex state for each text node
     let match;
     while ((match = regex.exec(text)) !== null) {
       decorations.push(
@@ -50,6 +51,7 @@ function buildDecorations(doc: any, query: string): DecorationSet {
     }
   });
 
+  console.log('Search decorations:', query, decorations.length, 'matches');
   return DecorationSet.create(doc, decorations);
 }
 
@@ -62,18 +64,25 @@ function createSearchHighlightExtension(queryRef: { current: string }) {
           key: searchHighlightKey,
           state: {
             init(_, { doc }) {
-              return buildDecorations(doc, queryRef.current);
+              const decos = buildDecorations(doc, queryRef.current);
+              return decos;
             },
-            apply(tr, old) {
-              if (tr.docChanged || tr.getMeta(searchHighlightKey)) {
-                return buildDecorations(tr.doc, queryRef.current);
+            apply(tr, oldDecoSet, oldState, newState) {
+              const meta = tr.getMeta(searchHighlightKey);
+              if (meta || tr.docChanged) {
+                const decos = buildDecorations(newState.doc, queryRef.current);
+                return decos;
               }
-              return old;
+              // Map old decorations to new positions
+              if (oldDecoSet) {
+                return oldDecoSet.map(tr.mapping, tr.doc);
+              }
+              return oldDecoSet;
             },
           },
           props: {
             decorations(state) {
-              return this.getState(state);
+              return searchHighlightKey.getState(state);
             },
           },
         }),
@@ -156,6 +165,7 @@ type Props = {
 
 export function Editor({ note, saveStatus, onTitleChange, onBodyChange, onCodexChange, onEditingChange, focusTrigger, searchQuery = "", codexList, isSensitive }: Props) {
   const [showCharCount, setShowCharCount] = useState(false);
+  const [isTitleFocused, setIsTitleFocused] = useState(false);
   const noteIdRef = useRef(note.id);
   const onBodyChangeRef = useRef(onBodyChange);
   onBodyChangeRef.current = onBodyChange;
@@ -197,9 +207,14 @@ export function Editor({ note, saveStatus, onTitleChange, onBodyChange, onCodexC
   });
 
   useEffect(() => {
-    if (!editor) return;
-    const tr = editor.state.tr.setMeta(searchHighlightKey, true);
-    editor.view.dispatch(tr);
+    if (!editor || !editor.view) return;
+    // Force recreate decorations by updating plugin state
+    const { state } = editor.view;
+    const pluginState = searchHighlightKey.getState(state);
+    if (pluginState !== undefined) {
+      const tr = state.tr.setMeta(searchHighlightKey, { forceUpdate: true });
+      editor.view.dispatch(tr);
+    }
   }, [searchQuery, editor]);
 
   // Focus editor body when focusTrigger increases
@@ -274,13 +289,15 @@ export function Editor({ note, saveStatus, onTitleChange, onBodyChange, onCodexC
             value={note.title}
             onChange={(e) => onTitleChange(e.target.value)}
             onKeyDown={handleTitleKeyDown}
+            onFocus={() => setIsTitleFocused(true)}
+            onBlur={() => setIsTitleFocused(false)}
             placeholder="Note title"
             autoComplete="off"
             autoCorrect="off"
             autoCapitalize="off"
             spellCheck="false"
           />
-          {titleHasMatch && (
+          {titleHasMatch && !isTitleFocused && (
             <div className="editor-title-overlay" aria-hidden="true">
               {highlightMatches(note.title, searchQuery)}
             </div>
