@@ -122,6 +122,7 @@ function ControlsReference() {
       <table className="ref-table">
         <tbody>
           <tr><td className="ref-key">{mod}/</td><td>Toggle sidebar</td></tr>
+          <tr><td className="ref-key">{mod}T</td><td>Table of contents</td></tr>
           <tr><td className="ref-key">{mod}1–9</td><td>Switch codex</td></tr>
           <tr><td className="ref-key">{mod}=</td><td>Zoom in</td></tr>
           <tr><td className="ref-key">{mod}-</td><td>Zoom out</td></tr>

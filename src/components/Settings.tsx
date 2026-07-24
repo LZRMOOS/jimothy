@@ -1018,6 +1018,16 @@ export function Settings({
                     />
                   </div>
                 )}
+                <div className="settings-row">
+                  <label>Show table of contents by default</label>
+                  <input
+                    type="checkbox"
+                    checked={settings.tocDefault || false}
+                    onChange={(e) =>
+                      onSettingsChange({ ...settings, tocDefault: e.target.checked })
+                    }
+                  />
+                </div>
               </div>
             )}
 
@@ -1091,6 +1101,10 @@ export function Settings({
                 <div className="settings-row">
                   <label>Toggle sidebar</label>
                   <kbd className="shortcut-display">{mod}+/</kbd>
+                </div>
+                <div className="settings-row">
+                  <label>Table of contents</label>
+                  <kbd className="shortcut-display">{mod}+T</kbd>
                 </div>
                 <div className="settings-row">
                   <label>Switch codex</label>

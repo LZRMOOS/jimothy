@@ -389,8 +389,8 @@ function App() {
       setAppSettings(newSettings);
       const { showTrayIcon, zoomLevel, globalShortcut } = newSettings;
       const local: LocalSettings = { notesFolder: notesFolder || undefined, showTrayIcon, zoomLevel, globalShortcut };
-      const { theme, confirmDelete, idleLockMinutes, defaultCodex, codexIcons, codexColors, pinnedNotes, frozenNotes, protectedNotes, macros, colorsLight, colorsDark, colorPresets } = newSettings;
-      const prefs: Preferences = { theme, confirmDelete, idleLockMinutes, defaultCodex, codexIcons, codexColors, pinnedNotes, frozenNotes, protectedNotes, macros, colorsLight, colorsDark, colorPresets };
+      const { theme, confirmDelete, idleLockMinutes, defaultCodex, tocDefault, codexIcons, codexColors, pinnedNotes, frozenNotes, protectedNotes, macros, colorsLight, colorsDark, colorPresets } = newSettings;
+      const prefs: Preferences = { theme, confirmDelete, idleLockMinutes, defaultCodex, tocDefault, codexIcons, codexColors, pinnedNotes, frozenNotes, protectedNotes, macros, colorsLight, colorsDark, colorPresets };
       await Promise.all([
         invoke("save_app_settings", { settingsJson: JSON.stringify(local) }),
         invoke("save_preferences", { prefsJson: JSON.stringify(prefs) }),
@@ -818,6 +818,9 @@ function App() {
           setActiveCodex(codexList[idx - 1]);
           setViewingArchive(false);
         }
+      } else if (mod && key === "t" && !e.shiftKey) {
+        e.preventDefault();
+        window.dispatchEvent(new Event("toggle-toc"));
       } else if (mod && e.shiftKey && e.key === "]") {
         e.preventDefault();
         navigateNote(1);
@@ -1247,6 +1250,7 @@ function App() {
               onNavigateToNote={handleSelectNote}
               frozen={(appSettings.frozenNotes || []).includes(selectedNote.id)}
               onToggleFreeze={() => handleToggleFreeze(selectedNote.id)}
+              tocDefault={appSettings.tocDefault}
             />
           ) : (
             <div className="editor-placeholder">

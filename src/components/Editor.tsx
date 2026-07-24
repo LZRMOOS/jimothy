@@ -264,11 +264,19 @@ type Props = {
   onNavigateToNote?: (id: string) => void;
   frozen?: boolean;
   onToggleFreeze?: () => void;
+  tocDefault?: boolean;
 };
 
-export function Editor({ note, saveStatus, onTitleChange, onBodyChange, onCodexChange, onEditingChange, searchQuery = "", codexList, isSensitive, editorRef, macros = {}, allNotes = [], onNavigateToNote, frozen, onToggleFreeze }: Props) {
+type TocHeading = { level: number; text: string; pos: number };
+
+export function Editor({ note, saveStatus, onTitleChange, onBodyChange, onCodexChange, onEditingChange, searchQuery = "", codexList, isSensitive, editorRef, macros = {}, allNotes = [], onNavigateToNote, frozen, onToggleFreeze, tocDefault }: Props) {
   const [showCharCount, setShowCharCount] = useState(false);
   const [isTitleFocused, setIsTitleFocused] = useState(false);
+  const [showToc, setShowToc] = useState(false);
+  const [headings, setHeadings] = useState<TocHeading[]>([]);
+  const [activeHeadingPos, setActiveHeadingPos] = useState<number | null>(null);
+  const editorBodyRef = useRef<HTMLDivElement>(null);
+  const tocInitializedForNote = useRef<string | null>(null);
   const [localTitle, setLocalTitle] = useState(note.title);
   const localTitleNoteId = useRef(note.id);
 
@@ -400,13 +408,18 @@ export function Editor({ note, saveStatus, onTitleChange, onBodyChange, onCodexC
       setShowReplace(true);
       setTimeout(() => replaceInputRef.current?.focus(), 0);
     };
+    const handleToggleToc = () => {
+      setShowToc((s) => !s);
+    };
     window.addEventListener("keydown", handleKeyDown);
     window.addEventListener("open-in-note-search", handleOpenFind);
     window.addEventListener("open-find-replace", handleOpenReplace);
+    window.addEventListener("toggle-toc", handleToggleToc);
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
       window.removeEventListener("open-in-note-search", handleOpenFind);
       window.removeEventListener("open-find-replace", handleOpenReplace);
+      window.removeEventListener("toggle-toc", handleToggleToc);
     };
   }, [showInNoteSearch]);
 
@@ -539,6 +552,56 @@ export function Editor({ note, saveStatus, onTitleChange, onBodyChange, onCodexC
     }
   }, [note.id, note.body, editor, frozen]);
 
+  // Extract headings from editor document for TOC
+  useEffect(() => {
+    if (!editor) return;
+    const extractHeadings = () => {
+      const items: TocHeading[] = [];
+      editor.state.doc.descendants((node, pos) => {
+        if (node.type.name === "heading") {
+          items.push({ level: node.attrs.level, text: node.textContent, pos });
+        }
+      });
+      setHeadings(items);
+      if (tocInitializedForNote.current !== note.id) {
+        tocInitializedForNote.current = note.id;
+        setShowToc(tocDefault ? items.length > 0 : false);
+      }
+    };
+    extractHeadings();
+    editor.on("update", extractHeadings);
+    return () => { editor.off("update", extractHeadings); };
+  }, [editor, note.id, tocDefault]);
+
+  // Track which heading is "active" based on cursor position
+  useEffect(() => {
+    if (!showToc || !editor || headings.length === 0) return;
+    const updateActive = () => {
+      const cursorPos = editor.state.selection.from;
+      let active: number | null = null;
+      for (const h of headings) {
+        if (h.pos <= cursorPos) active = h.pos;
+      }
+      if (active === null && headings.length > 0) active = headings[0].pos;
+      setActiveHeadingPos(active);
+    };
+    updateActive();
+    editor.on("selectionUpdate", updateActive);
+    editor.on("update", updateActive);
+    return () => {
+      editor.off("selectionUpdate", updateActive);
+      editor.off("update", updateActive);
+    };
+  }, [showToc, editor, headings]);
+
+  const scrollToHeading = useCallback((pos: number) => {
+    if (!editor) return;
+    const el = editor.view.nodeDOM(pos) as HTMLElement | null;
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth", block: "start" });
+      editor.commands.setTextSelection(pos + 1);
+    }
+  }, [editor]);
 
   const handleTitleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
@@ -736,8 +799,26 @@ export function Editor({ note, saveStatus, onTitleChange, onBodyChange, onCodexC
           )}
         </div>
       )}
-      <div className="editor-body">
-        <EditorContent editor={editor} />
+      <div className="editor-content-area">
+        <div className="editor-body" ref={editorBodyRef}>
+          <EditorContent editor={editor} />
+        </div>
+        {showToc && headings.length > 0 && (
+          <div className="editor-toc">
+            <div className="editor-toc-items">
+              {headings.map((h, i) => (
+                <button
+                  key={i}
+                  className={`editor-toc-item editor-toc-h${h.level}${h.pos === activeHeadingPos ? " active" : ""}`}
+                  onClick={() => scrollToHeading(h.pos)}
+                  title={h.text}
+                >
+                  {h.text}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
       </div>
       <div className="editor-footer">
         <span className="editor-meta">{modifiedStr}</span>
@@ -752,6 +833,19 @@ export function Editor({ note, saveStatus, onTitleChange, onBodyChange, onCodexC
         >
           {showCharCount ? `${charCount} chars` : `${wordCount} words`}
         </span>
+        <button
+          className={`editor-toc-toggle${showToc ? " active" : ""}`}
+          onClick={() => setShowToc((s) => !s)}
+          title="Table of Contents"
+        >
+          <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+            <line x1="3" y1="3" x2="13" y2="3" />
+            <line x1="5" y1="7" x2="13" y2="7" />
+            <line x1="5" y1="11" x2="13" y2="11" />
+            <circle cx="2" cy="7" r="1" fill="currentColor" stroke="none" />
+            <circle cx="2" cy="11" r="1" fill="currentColor" stroke="none" />
+          </svg>
+        </button>
       </div>
     </div>
   );

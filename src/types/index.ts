@@ -50,6 +50,7 @@ export type Preferences = {
   confirmDelete?: boolean;
   idleLockMinutes?: number;
   defaultCodex?: string | null;
+  tocDefault?: boolean;
   codexIcons?: Record<string, string>;
   codexColors?: Record<string, string>;
   pinnedNotes?: string[];
