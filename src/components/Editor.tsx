@@ -338,13 +338,14 @@ export function Editor({ note, saveStatus, onTitleChange, onBodyChange, onCodexC
       const md = (editor.storage as any).markdown.getMarkdown();
       onBodyChangeRef.current(md);
     },
-    onFocus: () => {
+    onFocus: ({ editor }) => {
+      if (!editor.isEditable) return;
       onEditingChange?.(true);
     },
   });
 
   useEffect(() => {
-    if (editor) editor.setEditable(!frozen);
+    if (editor) editor.setEditable(!frozen, false);
   }, [frozen, editor]);
 
   // Update the combined query ref: in-note search takes priority over global search
@@ -525,6 +526,7 @@ export function Editor({ note, saveStatus, onTitleChange, onBodyChange, onCodexC
     if (noteIdRef.current !== note.id) {
       noteIdRef.current = note.id;
       suppressUpdate.current = true;
+      editor.setEditable(!frozen, false);
       editor.commands.setContent(note.body);
       suppressUpdate.current = false;
       return;
@@ -535,7 +537,7 @@ export function Editor({ note, saveStatus, onTitleChange, onBodyChange, onCodexC
       editor.commands.setContent(note.body);
       suppressUpdate.current = false;
     }
-  }, [note.id, note.body, editor]);
+  }, [note.id, note.body, editor, frozen]);
 
 
   const handleTitleKeyDown = useCallback(

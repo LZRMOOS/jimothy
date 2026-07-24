@@ -862,7 +862,7 @@ function App() {
         } else if (e.key === "Enter" || e.key === "ArrowRight") {
           e.preventDefault();
           const isFrozen = selectedId && (appSettings.frozenNotes || []).includes(selectedId);
-          if (!isFrozen && editorRef.current && editorRef.current.view) {
+          if (!isFrozen && editorRef.current && editorRef.current.view && editorRef.current.isEditable) {
             editorRef.current.view.dom.focus();
             const tr = editorRef.current.state.tr.setSelection(
               editorRef.current.state.selection.constructor.atStart(editorRef.current.state.doc)
@@ -878,7 +878,7 @@ function App() {
 
     window.addEventListener("keydown", handleBrowseKeys);
     return () => window.removeEventListener("keydown", handleBrowseKeys);
-  }, [showSettings, showCommandPalette, sensitivePromptId, editingCodexIcon, selectedId, navigateNote]);
+  }, [showSettings, showCommandPalette, sensitivePromptId, editingCodexIcon, selectedId, navigateNote, appSettings.frozenNotes]);
 
   const commands: Command[] = useMemo(() => [
     { id: "new-note", label: "New Note", shortcut: "⌘N", action: () => { setIsCreateMode(true); setQuery(""); searchInputRef.current?.focus(); } },
