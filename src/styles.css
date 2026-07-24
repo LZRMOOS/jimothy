@@ -704,6 +704,38 @@ body {
   background: rgba(251, 191, 36, 0.5);
 }
 
+/* Split View */
+.editor-split-container {
+  flex: 1;
+  display: flex;
+  min-width: 0;
+}
+
+.editor-split-container .editor {
+  flex: 1;
+  min-width: 0;
+}
+
+.editor-split-container.split-active .editor + .editor {
+  border-left: 1px solid var(--border);
+}
+
+.split-close-btn {
+  background: none;
+  border: none;
+  color: var(--text-hint);
+  cursor: pointer;
+  padding: 2px;
+  border-radius: 3px;
+  display: flex;
+  align-items: center;
+}
+
+.split-close-btn:hover {
+  color: var(--text-primary);
+  background: var(--bg-hover);
+}
+
 /* Editor */
 .editor {
   flex: 1;

@@ -86,6 +86,8 @@ function App() {
   }, []);
   const [editorFocusTrigger, setEditorFocusTrigger] = useState(0);
   const editorRef = useRef<any>(null);
+  const splitEditorRef = useRef<any>(null);
+  const [splitNoteId, setSplitNoteId] = useState<string | null>(null);
   const [isCreateMode, setIsCreateMode] = useState(false);
   const [initialized, setInitialized] = useState(false);
   const [notification, setNotification] = useState<string | null>(null);
@@ -101,6 +103,14 @@ function App() {
     confirmDelete: true,
   });
   const [notesFolder, setNotesFolder] = useState<string | null>(null);
+
+  const splitNote = useMemo(() => splitNoteId ? notes.find((n) => n.id === splitNoteId) || null : null, [notes, splitNoteId]);
+
+  useEffect(() => {
+    if (splitNoteId && !notes.find((n) => n.id === splitNoteId)) {
+      setSplitNoteId(null);
+    }
+  }, [notes, splitNoteId]);
 
   const activeNotes = useMemo(() =>
     viewingArchive ? notes.filter((n) => n.archived) : notes.filter((n) => !n.archived),
@@ -390,8 +400,8 @@ function App() {
       setAppSettings(newSettings);
       const { showTrayIcon, zoomLevel, globalShortcut } = newSettings;
       const local: LocalSettings = { notesFolder: notesFolder || undefined, showTrayIcon, zoomLevel, globalShortcut };
-      const { theme, confirmDelete, idleLockMinutes, defaultCodex, tocDefault, codexIcons, codexColors, pinnedNotes, frozenNotes, pinnedCommands, protectedNotes, macros, colorsLight, colorsDark, colorPresets } = newSettings;
-      const prefs: Preferences = { theme, confirmDelete, idleLockMinutes, defaultCodex, tocDefault, codexIcons, codexColors, pinnedNotes, frozenNotes, pinnedCommands, protectedNotes, macros, colorsLight, colorsDark, colorPresets };
+      const { theme, confirmDelete, idleLockMinutes, defaultCodex, tocDefault, dailyNoteCodex, dailyNoteFormat, codexIcons, codexColors, pinnedNotes, frozenNotes, pinnedCommands, protectedNotes, macros, colorsLight, colorsDark, colorPresets } = newSettings;
+      const prefs: Preferences = { theme, confirmDelete, idleLockMinutes, defaultCodex, tocDefault, dailyNoteCodex, dailyNoteFormat, codexIcons, codexColors, pinnedNotes, frozenNotes, pinnedCommands, protectedNotes, macros, colorsLight, colorsDark, colorPresets };
       await Promise.all([
         invoke("save_app_settings", { settingsJson: JSON.stringify(local) }),
         invoke("save_preferences", { prefsJson: JSON.stringify(prefs) }),
@@ -467,7 +477,39 @@ function App() {
     [notes, loadNotes, viewingArchive]
   );
 
+  const handleOpenSplit = useCallback(
+    (id: string | null) => {
+      setSplitNoteId(id === splitNoteId ? null : id);
+    },
+    [splitNoteId]
+  );
 
+  const handleSplitTitleChange = useCallback(
+    (title: string) => {
+      if (!splitNote) return;
+      if ((appSettings.frozenNotes || []).includes(splitNote.id)) return;
+      updateNoteLocally(splitNote.id, { title });
+      debouncedSave(splitNote.id, title, splitNote.body, splitNote.codex);
+    },
+    [splitNote, debouncedSave, updateNoteLocally, appSettings.frozenNotes]
+  );
+
+  const handleSplitBodyChange = useCallback(
+    (body: string) => {
+      if (!splitNote) return;
+      if ((appSettings.frozenNotes || []).includes(splitNote.id)) return;
+      debouncedSave(splitNote.id, splitNote.title, body, splitNote.codex);
+    },
+    [splitNote, debouncedSave, appSettings.frozenNotes]
+  );
+
+  const handleSplitCodexChange = useCallback(
+    (codex: string | null) => {
+      if (!splitNote) return;
+      debouncedSave(splitNote.id, splitNote.title, splitNote.body, codex);
+    },
+    [splitNote, debouncedSave]
+  );
 
   const handleSelectNote = useCallback(
     (id: string) => {
@@ -574,6 +616,22 @@ function App() {
       }
     }, 100);
   }, []);
+
+  const handleDailyNote = useCallback(async () => {
+    const today = new Date();
+    const dateStr = today.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+    const format = appSettings.dailyNoteFormat || "{date}";
+    const title = format.replace("{date}", dateStr);
+    const existing = notes.find((n) => n.title === title && !n.archived);
+    if (existing) {
+      handleSelectNote(existing.id);
+    } else {
+      const codex = appSettings.dailyNoteCodex || null;
+      const newNote = await createNote(title, codex);
+      handleSelectNote(newNote.id);
+      focusEditor();
+    }
+  }, [notes, appSettings.dailyNoteCodex, appSettings.dailyNoteFormat, createNote, handleSelectNote, focusEditor]);
 
   const handleSearchSubmit = useCallback(async () => {
     if (isCreateMode) {
@@ -829,6 +887,12 @@ function App() {
           setActiveCodex(codexList[idx - 1]);
           setViewingArchive(false);
         }
+      } else if (mod && key === "j" && !e.shiftKey) {
+        e.preventDefault();
+        handleDailyNote();
+      } else if (mod && e.key === "\\") {
+        e.preventDefault();
+        setSplitNoteId((s) => s ? null : selectedId);
       } else if (mod && key === "t" && !e.shiftKey) {
         e.preventDefault();
         window.dispatchEvent(new Event("toggle-toc"));
@@ -842,7 +906,7 @@ function App() {
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [handleDelete, handleLock, handleZoom, handleSettingsChange, appSettings, codexList]);
+  }, [handleDelete, handleLock, handleZoom, handleSettingsChange, handleDailyNote, appSettings, codexList]);
 
   // Browse mode keyboard navigation
   useEffect(() => {
@@ -896,10 +960,11 @@ function App() {
 
   const commands: Command[] = useMemo(() => [
     { id: "new-note", label: "New Note", shortcut: "⌘N", action: () => { setIsCreateMode(true); setQuery(""); searchInputRef.current?.focus(); } },
+    { id: "daily-note", label: "Daily Note", shortcut: "⌘J", action: handleDailyNote },
     { id: "find-in-note", label: "Find in Note", shortcut: "⌘F", action: () => window.dispatchEvent(new Event("open-in-note-search")) },
     { id: "find-replace", label: "Find & Replace", shortcut: "⌘H", action: () => window.dispatchEvent(new Event("open-find-replace")) },
     { id: "search", label: "Search Notes", shortcut: "⌘⇧F", action: () => { searchInputRef.current?.focus(); searchInputRef.current?.select(); } },
-    { id: "delete-note", label: "Delete Note", shortcut: "⌘⌫", action: handleDelete },
+    { id: "delete-note", label: "Delete Note", action: handleDelete },
     ...(selectedId ? [
       {
         id: "pin-note",
@@ -929,6 +994,12 @@ function App() {
         label: "Duplicate Note",
         action: () => handleDuplicate(selectedId),
       },
+      {
+        id: "split-view",
+        label: splitNoteId === selectedId ? "Close Split View" : "Open in Split View",
+        shortcut: splitNoteId ? "⌘\\" : undefined,
+        action: () => setSplitNoteId(splitNoteId === selectedId ? null : selectedId),
+      },
     ] : []),
     { id: "settings", label: "Open Settings", shortcut: "⌘,", action: () => setShowSettings(true) },
     { id: "markdown-ref", label: referencePanel === "markdown" ? "Hide Markdown Reference" : "Markdown Reference", shortcut: "⌘.", action: () => setReferencePanel((s) => s === "markdown" ? null : "markdown") },
@@ -952,6 +1023,7 @@ function App() {
       })(),
       action: () => handleToggleSensitive(selectedId),
     }] : []),
+    ...(splitNoteId ? [{ id: "close-split", label: "Close Split View", shortcut: "⌘\\", action: () => setSplitNoteId(null) }] : []),
     { id: "all-notes", label: "All Notes", shortcut: "⌘1", action: () => { setActiveCodex(null); setViewingArchive(false); } },
     { id: "view-archive", label: viewingArchive ? "Exit Archive" : "View Archive", action: () => { setViewingArchive((s) => !s); setActiveCodex(null); } },
     ...codexList.map((c, i) => ({
@@ -960,7 +1032,7 @@ function App() {
       shortcut: i < 8 ? `⌘${i + 2}` : undefined,
       action: () => { setActiveCodex(c); setViewingArchive(false); },
     })),
-  ], [handleDelete, handleLock, handleTogglePin, handleToggleFreeze, handleToggleArchive, handleZoom, handleSettingsChange, handleToggleSensitive, navigateNote, appSettings, selectedId, selectedNote, codexList, notes, vaultStatus, referencePanel, viewingArchive]);
+  ], [handleDelete, handleLock, handleDailyNote, handleTogglePin, handleToggleFreeze, handleToggleArchive, handleZoom, handleSettingsChange, handleToggleSensitive, navigateNote, appSettings, selectedId, selectedNote, splitNoteId, codexList, notes, vaultStatus, referencePanel, viewingArchive]);
 
   if (!initialized) {
     return <div className="loading">Loading…</div>;
@@ -1182,6 +1254,7 @@ function App() {
                 onToggleArchive={handleToggleArchive}
                 onToggleFreeze={handleToggleFreeze}
                 onDuplicate={handleDuplicate}
+                onOpenSplit={handleOpenSplit}
                 pinnedIds={appSettings.pinnedNotes || []}
                 frozenIds={appSettings.frozenNotes || []}
                 sensitiveIds={
@@ -1248,33 +1321,55 @@ function App() {
               verifyCommand={vaultStatus !== "plaintext" ? "verify_password" : undefined}
             />
           ) : selectedNote ? (
-            <Editor
-              note={
-                selectedNote.encrypted && vaultStatus === "plaintext" && decryptedBodies[selectedNote.id] !== undefined
-                  ? { ...selectedNote, body: decryptedBodies[selectedNote.id] }
-                  : selectedNote
-              }
-              saveStatus={saveStatus}
-              onTitleChange={handleTitleChange}
-              onBodyChange={handleBodyChange}
-              onCodexChange={handleCodexChange}
-              onEditingChange={setEditingNote}
-              focusTrigger={editorFocusTrigger}
-              searchQuery={query}
-              codexList={codexList}
-              editorRef={editorRef}
-              isSensitive={
-                vaultStatus === "plaintext"
-                  ? selectedNote.encrypted
-                  : (appSettings.protectedNotes || []).includes(selectedNote.id)
-              }
-              macros={appSettings.macros}
-              allNotes={notes}
-              onNavigateToNote={handleSelectNote}
-              frozen={(appSettings.frozenNotes || []).includes(selectedNote.id)}
-              onToggleFreeze={() => handleToggleFreeze(selectedNote.id)}
-              tocDefault={appSettings.tocDefault}
-            />
+            <div className={`editor-split-container${splitNote ? " split-active" : ""}`}>
+              <Editor
+                note={
+                  selectedNote.encrypted && vaultStatus === "plaintext" && decryptedBodies[selectedNote.id] !== undefined
+                    ? { ...selectedNote, body: decryptedBodies[selectedNote.id] }
+                    : selectedNote
+                }
+                saveStatus={saveStatus}
+                onTitleChange={handleTitleChange}
+                onBodyChange={handleBodyChange}
+                onCodexChange={handleCodexChange}
+                onEditingChange={setEditingNote}
+                focusTrigger={editorFocusTrigger}
+                searchQuery={query}
+                codexList={codexList}
+                editorRef={editorRef}
+                isSensitive={
+                  vaultStatus === "plaintext"
+                    ? selectedNote.encrypted
+                    : (appSettings.protectedNotes || []).includes(selectedNote.id)
+                }
+                macros={appSettings.macros}
+                allNotes={notes}
+                onNavigateToNote={handleSelectNote}
+                frozen={(appSettings.frozenNotes || []).includes(selectedNote.id)}
+                onToggleFreeze={() => handleToggleFreeze(selectedNote.id)}
+                tocDefault={appSettings.tocDefault}
+                onToggleSplit={() => setSplitNoteId((s) => s ? null : selectedNote.id)}
+                isSplit={!!splitNote}
+              />
+              {splitNote && splitNote.id !== selectedNote.id && (
+                <Editor
+                  note={splitNote}
+                  saveStatus={saveStatus}
+                  onTitleChange={handleSplitTitleChange}
+                  onBodyChange={handleSplitBodyChange}
+                  onCodexChange={handleSplitCodexChange}
+                  codexList={codexList}
+                  editorRef={splitEditorRef}
+                  macros={appSettings.macros}
+                  allNotes={notes}
+                  onNavigateToNote={handleSelectNote}
+                  frozen={(appSettings.frozenNotes || []).includes(splitNote.id)}
+                  onToggleFreeze={() => handleToggleFreeze(splitNote.id)}
+                  tocDefault={appSettings.tocDefault}
+                  onCloseSplit={() => setSplitNoteId(null)}
+                />
+              )}
+            </div>
           ) : (
             <div className="editor-placeholder">
               <p>Select a note or create one</p>

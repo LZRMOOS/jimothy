@@ -1000,24 +1000,6 @@ export function Settings({
                     }
                   />
                 </div>
-                {codexList.length > 0 && (
-                  <div className="settings-row">
-                    <label>Default codex on startup</label>
-                    <Dropdown
-                      options={[
-                        { value: "", label: "None" },
-                        ...codexList.map((c) => ({ value: c, label: c })),
-                      ]}
-                      value={settings.defaultCodex || ""}
-                      onChange={(val) =>
-                        onSettingsChange({
-                          ...settings,
-                          defaultCodex: val || null,
-                        })
-                      }
-                    />
-                  </div>
-                )}
                 <div className="settings-row">
                   <label>Show table of contents by default</label>
                   <input
@@ -1028,6 +1010,66 @@ export function Settings({
                     }
                   />
                 </div>
+
+                {codexList.length > 0 && (
+                  <>
+                    <h3>Codexes</h3>
+                    <div className="settings-row">
+                      <label>Default codex on startup</label>
+                      <Dropdown
+                        options={[
+                          { value: "", label: "None" },
+                          ...codexList.map((c) => ({ value: c, label: c })),
+                        ]}
+                        value={settings.defaultCodex || ""}
+                        onChange={(val) =>
+                          onSettingsChange({
+                            ...settings,
+                            defaultCodex: val || null,
+                          })
+                        }
+                      />
+                    </div>
+                  </>
+                )}
+
+                <h3>Daily Notes</h3>
+                <p className="settings-hint">
+                  Press {mod}+J to create or open today's daily note.
+                </p>
+                <div className="settings-row">
+                  <label>Title format</label>
+                  <input
+                    type="text"
+                    className="settings-input"
+                    placeholder="{date}"
+                    value={settings.dailyNoteFormat || ""}
+                    onChange={(e) =>
+                      onSettingsChange({ ...settings, dailyNoteFormat: e.target.value || undefined })
+                    }
+                  />
+                </div>
+                <p className="settings-hint">
+                  Use <code>{"{date}"}</code> for today's date. Example: <code>{"{date}"} - Standup</code> becomes "{new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })} - Standup"
+                </p>
+                {codexList.length > 0 && (
+                  <div className="settings-row">
+                    <label>Codex</label>
+                    <Dropdown
+                      options={[
+                        { value: "", label: "None" },
+                        ...codexList.map((c) => ({ value: c, label: c })),
+                      ]}
+                      value={settings.dailyNoteCodex || ""}
+                      onChange={(val) =>
+                        onSettingsChange({
+                          ...settings,
+                          dailyNoteCodex: val || null,
+                        })
+                      }
+                    />
+                  </div>
+                )}
               </div>
             )}
 
@@ -1072,8 +1114,8 @@ export function Settings({
                   <kbd className="shortcut-display">{mod}+N</kbd>
                 </div>
                 <div className="settings-row">
-                  <label>Delete note</label>
-                  <kbd className="shortcut-display">{mod}+{isMac ? "Delete" : "Backspace"}</kbd>
+                  <label>Daily note</label>
+                  <kbd className="shortcut-display">{mod}+J</kbd>
                 </div>
                 <div className="settings-row">
                   <label>Navigate notes</label>
@@ -1105,6 +1147,10 @@ export function Settings({
                 <div className="settings-row">
                   <label>Table of contents</label>
                   <kbd className="shortcut-display">{mod}+T</kbd>
+                </div>
+                <div className="settings-row">
+                  <label>Split view</label>
+                  <kbd className="shortcut-display">{mod}+\</kbd>
                 </div>
                 <div className="settings-row">
                   <label>Switch codex</label>

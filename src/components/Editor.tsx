@@ -265,12 +265,15 @@ type Props = {
   frozen?: boolean;
   onToggleFreeze?: () => void;
   tocDefault?: boolean;
+  onCloseSplit?: () => void;
+  onToggleSplit?: () => void;
+  isSplit?: boolean;
 };
 
 type TocHeading = { level: number; text: string; pos: number };
 type Backlink = { id: string; title: string };
 
-export function Editor({ note, saveStatus, onTitleChange, onBodyChange, onCodexChange, onEditingChange, searchQuery = "", codexList, isSensitive, editorRef, macros = {}, allNotes = [], onNavigateToNote, frozen, onToggleFreeze, tocDefault }: Props) {
+export function Editor({ note, saveStatus, onTitleChange, onBodyChange, onCodexChange, onEditingChange, searchQuery = "", codexList, isSensitive, editorRef, macros = {}, allNotes = [], onNavigateToNote, frozen, onToggleFreeze, tocDefault, onCloseSplit, onToggleSplit, isSplit }: Props) {
   const [showCharCount, setShowCharCount] = useState(false);
   const [isTitleFocused, setIsTitleFocused] = useState(false);
   const [showToc, setShowToc] = useState(false);
@@ -689,6 +692,13 @@ export function Editor({ note, saveStatus, onTitleChange, onBodyChange, onCodexC
           {isSensitive && <span className="sensitive-status">Protected</span>}
           {note.encrypted && <span className="encrypted-status">Encrypted</span>}
           {statusLabel && !frozen && <span className={`save-status ${saveStatus}`}>{statusLabel}</span>}
+          {onCloseSplit && (
+            <button className="split-close-btn" onClick={onCloseSplit} title="Close split view">
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+                <path d="M2 2L10 10M10 2L2 10" />
+              </svg>
+            </button>
+          )}
         </div>
       </div>
       {showInNoteSearch && (
@@ -864,6 +874,18 @@ export function Editor({ note, saveStatus, onTitleChange, onBodyChange, onCodexC
         >
           {showCharCount ? `${charCount} chars` : `${wordCount} words`}
         </span>
+        {onToggleSplit && (
+          <button
+            className={`editor-toc-toggle${isSplit ? " active" : ""}`}
+            onClick={onToggleSplit}
+            title="Split View"
+          >
+            <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="1" y="2" width="14" height="12" rx="1.5" />
+              <line x1="8" y1="2" x2="8" y2="14" />
+            </svg>
+          </button>
+        )}
         <button
           className={`editor-toc-toggle${showToc ? " active" : ""}`}
           onClick={() => setShowToc((s) => !s)}

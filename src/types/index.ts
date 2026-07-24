@@ -51,6 +51,8 @@ export type Preferences = {
   idleLockMinutes?: number;
   defaultCodex?: string | null;
   tocDefault?: boolean;
+  dailyNoteCodex?: string | null;
+  dailyNoteFormat?: string;
   codexIcons?: Record<string, string>;
   codexColors?: Record<string, string>;
   pinnedNotes?: string[];
