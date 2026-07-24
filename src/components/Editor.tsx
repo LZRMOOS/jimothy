@@ -362,12 +362,10 @@ export function Editor({ note, saveStatus, onTitleChange, onBodyChange, onCodexC
       if (mod && e.key === "f" && !e.shiftKey) {
         e.preventDefault();
         setShowInNoteSearch(true);
-        setTimeout(() => inNoteSearchRef.current?.focus(), 0);
       }
     };
     const handleOpenFind = () => {
       setShowInNoteSearch(true);
-      setTimeout(() => inNoteSearchRef.current?.focus(), 0);
     };
     window.addEventListener("keydown", handleKeyDown);
     window.addEventListener("open-in-note-search", handleOpenFind);
@@ -376,6 +374,12 @@ export function Editor({ note, saveStatus, onTitleChange, onBodyChange, onCodexC
       window.removeEventListener("open-in-note-search", handleOpenFind);
     };
   }, []);
+
+  useEffect(() => {
+    if (showInNoteSearch) {
+      inNoteSearchRef.current?.focus();
+    }
+  }, [showInNoteSearch]);
 
   // Find all matches in document when in-note query changes
   useEffect(() => {
