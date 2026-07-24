@@ -1883,37 +1883,42 @@ console.log(hello);
                       <td className="md-ref-syntax">1. item</td>
                       <td className="md-ref-desc">Ordered list</td>
                     </tr>
+                  </tbody>
+                </table>
+
+                <h3>Tasks</h3>
+                <table className="md-ref-table">
+                  <tbody>
                     <tr>
                       <td className="md-ref-syntax">- [ ] task</td>
-                      <td className="md-ref-desc">Task list</td>
+                      <td className="md-ref-desc">Task item</td>
                     </tr>
                     <tr>
                       <td className="md-ref-syntax">- [x] done</td>
                       <td className="md-ref-desc">Completed task</td>
                     </tr>
                     <tr>
-                      <td className="md-ref-syntax">- [ ] !high</td>
-                      <td className="md-ref-desc">High priority task</td>
+                      <td className="md-ref-syntax">!high</td>
+                      <td className="md-ref-desc">High priority (red)</td>
                     </tr>
                     <tr>
-                      <td className="md-ref-syntax">- [ ] !med</td>
-                      <td className="md-ref-desc">Medium priority task</td>
+                      <td className="md-ref-syntax">!med</td>
+                      <td className="md-ref-desc">Medium priority (orange)</td>
                     </tr>
                     <tr>
-                      <td className="md-ref-syntax">- [ ] !low</td>
-                      <td className="md-ref-desc">Low priority task</td>
+                      <td className="md-ref-syntax">!low</td>
+                      <td className="md-ref-desc">Low priority (green)</td>
                     </tr>
                     <tr>
-                      <td className="md-ref-syntax">- [ ] !YYYY-MM-DD</td>
-                      <td className="md-ref-desc">Task with due date</td>
+                      <td className="md-ref-syntax">!YYYY-MM-DD</td>
+                      <td className="md-ref-desc">Due date (color shifts)</td>
                     </tr>
                   </tbody>
                 </table>
                 <p className="settings-hint">
-                  Type <code>!high</code>, <code>!med</code>, or <code>!low</code> inside
-                  a task item to add a priority label. Click the pill to cycle priorities.
-                  Type <code>!YYYY-MM-DD</code> for a due date that shifts from green to
-                  red as the deadline approaches. Click to remove.
+                  Type priority or date markers inside a task item. Priority pills
+                  cycle on click (high → med → low → remove). Due dates shift from
+                  green to red as the deadline approaches. Click to remove.
                 </p>
 
                 <h3>Links &amp; Images</h3>

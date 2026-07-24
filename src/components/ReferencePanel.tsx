@@ -67,8 +67,17 @@ function MarkdownReference({ macros }: { macros?: Record<string, string> }) {
         <tbody>
           <tr><td className="ref-syntax">- item</td><td>Bullet list</td></tr>
           <tr><td className="ref-syntax">1. item</td><td>Numbered list</td></tr>
+        </tbody>
+      </table>
+      <h4>Tasks</h4>
+      <table className="ref-table">
+        <tbody>
           <tr><td className="ref-syntax">- [ ] task</td><td>Task item</td></tr>
           <tr><td className="ref-syntax">- [x] done</td><td>Completed task</td></tr>
+          <tr><td className="ref-syntax">!high</td><td>High priority (red)</td></tr>
+          <tr><td className="ref-syntax">!med</td><td>Medium priority (orange)</td></tr>
+          <tr><td className="ref-syntax">!low</td><td>Low priority (green)</td></tr>
+          <tr><td className="ref-syntax">!YYYY-MM-DD</td><td>Due date (color shifts)</td></tr>
         </tbody>
       </table>
       <h4>Links & References</h4>
@@ -89,15 +98,6 @@ function MarkdownReference({ macros }: { macros?: Record<string, string> }) {
           {macroEntries.map(([trigger, expansion]) => (
             <tr key={trigger}><td className="ref-syntax">{trigger}</td><td>{expansion}</td></tr>
           ))}
-        </tbody>
-      </table>
-      <h4>Task Priority</h4>
-      <table className="ref-table">
-        <tbody>
-          <tr><td className="ref-syntax">!high</td><td>High priority (red)</td></tr>
-          <tr><td className="ref-syntax">!med</td><td>Medium priority (orange)</td></tr>
-          <tr><td className="ref-syntax">!low</td><td>Low priority (green)</td></tr>
-          <tr><td className="ref-syntax">!YYYY-MM-DD</td><td>Due date (color shifts)</td></tr>
         </tbody>
       </table>
     </>
