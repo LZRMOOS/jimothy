@@ -1653,16 +1653,88 @@ body {
 }
 
 /* Conflict Dialog */
-.conflict-dialog {
+.conflict-overlay {
   position: fixed;
   inset: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(0, 0, 0, 0.4);
+  background: rgba(0, 0, 0, 0.5);
   backdrop-filter: blur(4px);
   z-index: 1000;
 }
+
+.conflict-dialog {
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 24px;
+  max-width: 420px;
+  width: 90%;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+}
+
+.conflict-dialog h2 {
+  font-size: 16px;
+  font-weight: 600;
+  margin: 0 0 12px 0;
+  color: var(--text-primary);
+}
+
+.conflict-dialog p {
+  color: var(--text-secondary);
+  font-size: 13px;
+  line-height: 1.5;
+  margin: 0 0 20px 0;
+}
+
+.conflict-note-id {
+  font-size: 11px;
+  opacity: 0.6;
+}
+
+.conflict-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.conflict-btn {
+  padding: 8px 16px;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+
+.conflict-btn:hover {
+  background: var(--bg-hover);
+}
+
+.conflict-btn.primary {
+  background: var(--accent);
+  color: white;
+  border-color: var(--accent);
+}
+
+.conflict-btn.primary:hover {
+  background: var(--accent-hover);
+}
+
+.conflict-btn.secondary {
+  background: transparent;
+}
+
+.conflict-btn.secondary:hover {
+  background: var(--bg-secondary);
+}
+
+/* Old conflict dialog classes - can be removed */
+.conflict-dialog-old {
 
 .conflict-dialog-content {
   background: var(--bg-primary);

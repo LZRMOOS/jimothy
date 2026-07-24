@@ -1,9 +1,25 @@
+import { useEffect } from "react";
+
 type DeleteDialogProps = {
   onConfirm: () => void;
   onCancel: () => void;
 };
 
 export function DeleteDialog({ onConfirm, onCancel }: DeleteDialogProps) {
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        e.preventDefault();
+        onCancel();
+      } else if (e.key === "Enter") {
+        e.preventDefault();
+        onConfirm();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [onConfirm, onCancel]);
+
   return (
     <div className="conflict-overlay" role="dialog" aria-modal="true">
       <div className="conflict-dialog">
