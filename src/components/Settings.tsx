@@ -722,7 +722,7 @@ export function Settings({
 
   const tabs: { id: SettingsTab; label: string }[] = [
     { id: "general", label: "General" },
-    { id: "keyboard", label: "Keyboard" },
+    { id: "keyboard", label: "Controls" },
     { id: "macros", label: "Macros" },
     { id: "colors", label: "Colors" },
     { id: "storage", label: "Storage" },
@@ -849,19 +849,16 @@ export function Settings({
                   />
                 </div>
                 <p className="settings-hint">Click the shortcut to change it</p>
-                <h3>Navigation</h3>
+                <h3>Search</h3>
                 <div className="settings-row">
-                  <label>Search / Find</label>
-                  <span>
-                    <kbd className="shortcut-display">{mod}+F</kbd>{" "}
-                    <kbd className="shortcut-display">{mod}+L</kbd>
-                  </span>
+                  <label>Find in note</label>
+                  <kbd className="shortcut-display">{mod}+F</kbd>
                 </div>
                 <div className="settings-row">
-                  <label>Navigate notes</label>
+                  <label>Search notes</label>
                   <span>
-                    <kbd className="shortcut-display">↑</kbd>{" "}
-                    <kbd className="shortcut-display">↓</kbd>
+                    <kbd className="shortcut-display">{mod}+Shift+F</kbd>{" "}
+                    <kbd className="shortcut-display">{mod}+L</kbd>
                   </span>
                 </div>
                 <div className="settings-row">
@@ -876,6 +873,21 @@ export function Settings({
                 <div className="settings-row">
                   <label>Delete note</label>
                   <kbd className="shortcut-display">{mod}+{isMac ? "Delete" : "Backspace"}</kbd>
+                </div>
+                <div className="settings-row">
+                  <label>Navigate notes</label>
+                  <span>
+                    <kbd className="shortcut-display">↑</kbd>{" "}
+                    <kbd className="shortcut-display">↓</kbd>
+                  </span>
+                </div>
+                <div className="settings-row">
+                  <label>Next note</label>
+                  <kbd className="shortcut-display">{mod}+Shift+]</kbd>
+                </div>
+                <div className="settings-row">
+                  <label>Previous note</label>
+                  <kbd className="shortcut-display">{mod}+Shift+[</kbd>
                 </div>
                 <h3>View</h3>
                 <div className="settings-row">

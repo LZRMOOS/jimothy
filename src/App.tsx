@@ -790,12 +790,20 @@ function App() {
   }, [showSettings, showCommandPalette, sensitivePromptId, editingCodexIcon, selectedId, navigateNote]);
 
   const commands: Command[] = useMemo(() => [
-    { id: "new-note", label: "New Note", shortcut: "⌘N", action: () => { searchInputRef.current?.focus(); setQuery(""); } },
-    { id: "search", label: "Search Notes", shortcut: "⌘F", action: () => { searchInputRef.current?.focus(); searchInputRef.current?.select(); } },
+    { id: "new-note", label: "New Note", shortcut: "⌘N", action: () => { setIsCreateMode(true); setQuery(""); searchInputRef.current?.focus(); } },
+    { id: "find-in-note", label: "Find in Note", shortcut: "⌘F", action: () => window.dispatchEvent(new Event("open-in-note-search")) },
+    { id: "search", label: "Search Notes", shortcut: "⌘⇧F", action: () => { searchInputRef.current?.focus(); searchInputRef.current?.select(); } },
     { id: "delete-note", label: "Delete Note", shortcut: "⌘⌫", action: handleDelete },
+    ...(selectedId ? [{
+      id: "pin-note",
+      label: (appSettings.pinnedNotes || []).includes(selectedId) ? "Unpin Note" : "Pin Note",
+      action: () => handleTogglePin(selectedId),
+    }] : []),
     { id: "settings", label: "Open Settings", shortcut: "⌘,", action: () => setShowSettings(true) },
     { id: "lock-vault", label: "Lock Vault", action: handleLock },
     { id: "toggle-sidebar", label: "Toggle Sidebar", shortcut: "⌘/", action: () => setSidebarCollapsed((s) => !s) },
+    { id: "next-note", label: "Next Note", shortcut: "⌘⇧]", action: () => navigateNote(1) },
+    { id: "prev-note", label: "Previous Note", shortcut: "⌘⇧[", action: () => navigateNote(-1) },
     { id: "zoom-in", label: "Zoom In", shortcut: "⌘+", action: () => handleZoom(10) },
     { id: "zoom-out", label: "Zoom Out", shortcut: "⌘-", action: () => handleZoom(-10) },
     { id: "zoom-reset", label: "Reset Zoom", shortcut: "⌘0", action: () => handleSettingsChange({ ...appSettings, zoomLevel: 100 }) },
@@ -818,7 +826,7 @@ function App() {
       shortcut: i < 8 ? `⌘${i + 2}` : undefined,
       action: () => setActiveCodex(c),
     })),
-  ], [handleDelete, handleLock, handleZoom, handleSettingsChange, handleToggleSensitive, appSettings, selectedId, codexList, notes, vaultStatus]);
+  ], [handleDelete, handleLock, handleTogglePin, handleZoom, handleSettingsChange, handleToggleSensitive, navigateNote, appSettings, selectedId, codexList, notes, vaultStatus]);
 
   if (!initialized) {
     return <div className="loading">Loading…</div>;

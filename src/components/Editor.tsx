@@ -365,8 +365,16 @@ export function Editor({ note, saveStatus, onTitleChange, onBodyChange, onCodexC
         setTimeout(() => inNoteSearchRef.current?.focus(), 0);
       }
     };
+    const handleOpenFind = () => {
+      setShowInNoteSearch(true);
+      setTimeout(() => inNoteSearchRef.current?.focus(), 0);
+    };
     window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
+    window.addEventListener("open-in-note-search", handleOpenFind);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("open-in-note-search", handleOpenFind);
+    };
   }, []);
 
   // Find all matches in document when in-note query changes
