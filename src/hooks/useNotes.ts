@@ -114,7 +114,12 @@ export function useNotes() {
         setNotes((prev) => {
           const newList = prev.map((n) => {
             if (n.id !== id) return n;
-            return { ...n, updated_at: updated.updated_at };
+            // Keep the cached body in sync with what we just wrote. Otherwise
+            // the list holds the pre-edit body, and the editor's reconcile
+            // effect (which fires when updated_at changes) sees a mismatch and
+            // resets the editor to the stale content — e.g. wiping a
+            // just-dropped image the moment the editor loses focus.
+            return { ...n, title, body, codex: codex ?? n.codex, updated_at: updated.updated_at };
           });
           rebuildIndex(newList);
           return newList;
