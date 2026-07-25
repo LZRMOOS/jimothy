@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useLayoutEffect } from "react";
 
 type Option = {
   value: string;
@@ -15,9 +15,22 @@ type Props = {
 export function Dropdown({ options, value, onChange, className = "" }: Props) {
   const [open, setOpen] = useState(false);
   const [highlightIndex, setHighlightIndex] = useState(-1);
+  const [dropUp, setDropUp] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
   const selected = options.find((o) => o.value === value);
+
+  // Flip the menu upward when there isn't enough room below the trigger (e.g.
+  // a dropdown near the bottom of the settings pane). useLayoutEffect so the
+  // direction is decided before paint, avoiding a flash at the wrong spot.
+  useLayoutEffect(() => {
+    if (!open || !ref.current) return;
+    const trigger = ref.current.getBoundingClientRect();
+    const menuMax = 200; // keep in sync with .dropdown-menu max-height
+    const spaceBelow = window.innerHeight - trigger.bottom;
+    const spaceAbove = trigger.top;
+    setDropUp(spaceBelow < menuMax + 8 && spaceAbove > spaceBelow);
+  }, [open]);
 
   useEffect(() => {
     if (open) {
@@ -73,7 +86,7 @@ export function Dropdown({ options, value, onChange, className = "" }: Props) {
         </svg>
       </button>
       {open && (
-        <div className="dropdown-menu">
+        <div className={`dropdown-menu${dropUp ? " drop-up" : ""}`}>
           {options.map((opt, i) => (
             <button
               key={opt.value}

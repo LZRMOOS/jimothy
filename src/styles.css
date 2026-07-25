@@ -175,6 +175,11 @@ select:hover {
   backdrop-filter: blur(20px);
 }
 
+.dropdown-menu.drop-up {
+  top: auto;
+  bottom: calc(100% + 4px);
+}
+
 [data-theme="dark"] .dropdown-menu {
   background: rgba(30, 30, 40, 0.95);
 }
