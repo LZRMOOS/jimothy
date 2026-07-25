@@ -43,6 +43,7 @@ function App() {
     createNote,
     saveNote,
     debouncedSave,
+    flushSave,
     deleteNote,
     search,
     loadNotes,
@@ -441,12 +442,16 @@ function App() {
     const unlisten = appWindow.onFocusChanged(({ payload: focused }) => {
       if (focused && vaultStatus !== "locked") {
         searchInputRef.current?.focus();
+      } else if (!focused) {
+        // Window lost focus (hidden/backgrounded): commit pending edits so they
+        // sync out while we're away, shrinking the multi-device collision window.
+        flushSave();
       }
     });
     return () => {
       unlisten.then((fn) => fn());
     };
-  }, [vaultStatus]);
+  }, [vaultStatus, flushSave]);
 
   useEventListener("create-new-note", () => {
     searchInputRef.current?.focus();
@@ -678,6 +683,8 @@ function App() {
 
   const handleSelectNote = useCallback(
     (id: string) => {
+      // Commit any pending edit to the note we're leaving before switching.
+      flushSave();
       const note = notes.find((n) => n.id === id);
       // Per-note protection in plaintext mode
       const isFileProtected = note?.encrypted && vaultStatus === "plaintext";
@@ -703,7 +710,7 @@ function App() {
       setSensitivePromptId(null);
       setSelectedId(id);
     },
-    [notes, vaultStatus, setSelectedId, appSettings.protectedNotes]
+    [notes, vaultStatus, setSelectedId, appSettings.protectedNotes, flushSave]
   );
 
   const [decryptedBodies, setDecryptedBodies] = useState<Record<string, string>>({});
@@ -890,10 +897,11 @@ function App() {
       searchInputRef.current.blur();
       return;
     }
-    // Otherwise hide the window
+    // Otherwise hide the window — flush pending edits first so nothing lingers.
+    flushSave();
     const appWindow = getCurrentWindow();
     await appWindow.hide();
-  }, [showSettings, isCreateMode, query]);
+  }, [showSettings, isCreateMode, query, flushSave]);
 
   const saveProtectedDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
@@ -1540,6 +1548,7 @@ function App() {
                 onCodexChange={handleCodexChange}
                 onEditingChange={setEditingNote}
                 onBaseVersion={recordBaseVersion}
+                onFlush={flushSave}
                 focusTrigger={editorFocusTrigger}
                 searchQuery={query}
                 codexList={codexList}
@@ -1568,6 +1577,7 @@ function App() {
                   onBodyChange={handleSplitBodyChange}
                   onCodexChange={handleSplitCodexChange}
                   onBaseVersion={recordBaseVersion}
+                  onFlush={flushSave}
                   codexList={codexList}
                   editorRef={splitEditorRef}
                   macros={appSettings.macros}

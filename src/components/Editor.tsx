@@ -262,6 +262,9 @@ type Props = {
   // Reports the version (updated_at) the editor buffer is now derived from,
   // for optimistic-concurrency conflict detection on save.
   onBaseVersion?: (id: string, updatedAt: string) => void;
+  // Commit any pending save immediately (e.g. on blur), to shrink the window
+  // where edits sit unsynced.
+  onFlush?: () => void;
   focusTrigger?: number;
   searchQuery?: string;
   codexList: string[];
@@ -283,7 +286,7 @@ type Props = {
 type TocHeading = { level: number; text: string; pos: number };
 type Backlink = { id: string; title: string };
 
-export function Editor({ note, saveStatus, onTitleChange, onBodyChange, onCodexChange, onEditingChange, onBaseVersion, searchQuery = "", codexList, isSensitive, editorRef, macros = {}, allNotes = [], onNavigateToNote, frozen, onToggleFreeze, tocDefault, onCloseSplit, onToggleSplit, isSplit, tagColors, dictionary = [] }: Props) {
+export function Editor({ note, saveStatus, onTitleChange, onBodyChange, onCodexChange, onEditingChange, onBaseVersion, onFlush, searchQuery = "", codexList, isSensitive, editorRef, macros = {}, allNotes = [], onNavigateToNote, frozen, onToggleFreeze, tocDefault, onCloseSplit, onToggleSplit, isSplit, tagColors, dictionary = [] }: Props) {
   const [showCharCount, setShowCharCount] = useState(false);
   const [isTitleFocused, setIsTitleFocused] = useState(false);
   const [showToc, setShowToc] = useState(false);
@@ -309,6 +312,8 @@ export function Editor({ note, saveStatus, onTitleChange, onBodyChange, onCodexC
   const noteIdRef = useRef(note.id);
   const onBodyChangeRef = useRef(onBodyChange);
   onBodyChangeRef.current = onBodyChange;
+  const onFlushRef = useRef(onFlush);
+  onFlushRef.current = onFlush;
   const searchQueryRef = useRef(searchQuery);
   const currentMatchRef = useRef<{ from: number; to: number } | undefined>(undefined);
   const macrosRef = useRef(macros);
@@ -376,6 +381,10 @@ export function Editor({ note, saveStatus, onTitleChange, onBodyChange, onCodexC
     onFocus: ({ editor }) => {
       if (!editor.isEditable) return;
       onEditingChange?.(true);
+    },
+    onBlur: () => {
+      // Leaving the editor: commit any pending edit right away.
+      onFlushRef.current?.();
     },
   });
 

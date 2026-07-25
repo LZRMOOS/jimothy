@@ -10,6 +10,13 @@ export function useNotes() {
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
   const [folderSet, setFolderSet] = useState(false);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // The latest edit awaiting the debounce timer, so it can be flushed early.
+  const pendingSaveRef = useRef<{
+    id: string;
+    title: string;
+    body: string;
+    codex: string | null;
+  } | null>(null);
   const lastSaveRef = useRef<number>(0);
   // The `updated_at` each note's editable buffer was last loaded/saved from.
   // Sent to the backend on save so it can detect external writes (see save_note).
@@ -126,9 +133,33 @@ export function useNotes() {
       if (saveTimerRef.current) {
         clearTimeout(saveTimerRef.current);
       }
+      // Remember the latest pending edit so flushSave() can commit it early.
+      pendingSaveRef.current = { id, title, body, codex: codex ?? null };
       saveTimerRef.current = setTimeout(() => {
-        saveNote(id, title, body, codex);
+        saveTimerRef.current = null;
+        const p = pendingSaveRef.current;
+        pendingSaveRef.current = null;
+        if (p) saveNote(p.id, p.title, p.body, p.codex);
       }, 1500);
+    },
+    [saveNote]
+  );
+
+  // Immediately commit any pending debounced save. Called at natural boundaries
+  // (editor blur, note switch, window hide) to shrink the window where local
+  // edits sit unsynced and can collide with another device. Optionally limited
+  // to a single note id (used when switching away from that note).
+  const flushSave = useCallback(
+    async (onlyId?: string) => {
+      const p = pendingSaveRef.current;
+      if (!p) return;
+      if (onlyId && p.id !== onlyId) return;
+      if (saveTimerRef.current) {
+        clearTimeout(saveTimerRef.current);
+        saveTimerRef.current = null;
+      }
+      pendingSaveRef.current = null;
+      await saveNote(p.id, p.title, p.body, p.codex);
     },
     [saveNote]
   );
@@ -182,6 +213,7 @@ export function useNotes() {
     createNote,
     saveNote,
     debouncedSave,
+    flushSave,
     deleteNote,
     search,
     loadNotes,
