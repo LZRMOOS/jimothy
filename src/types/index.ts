@@ -41,6 +41,7 @@ export type ColorPreset = {
 export type VaultProfile = {
   name: string;
   path: string;
+  color?: string;
 };
 
 export type LocalSettings = {

@@ -194,7 +194,7 @@ function NoteProtectionSection({
   );
 }
 
-function VaultProfilesSection({ profiles, activeFolder, onSwitch, onAdd, onRename, onRemove, onChangePath }: {
+function VaultProfilesSection({ profiles, activeFolder, onSwitch, onAdd, onRename, onRemove, onChangePath, onChangeColor }: {
   profiles: VaultProfile[];
   activeFolder: string | null;
   onSwitch: (path: string) => Promise<void>;
@@ -202,6 +202,7 @@ function VaultProfilesSection({ profiles, activeFolder, onSwitch, onAdd, onRenam
   onRename: (path: string, name: string) => void;
   onRemove: (path: string) => void;
   onChangePath: (oldPath: string, newPath: string) => void;
+  onChangeColor: (path: string, color: string) => void;
 }) {
   const [editingPath, setEditingPath] = useState<string | null>(null);
   const [editName, setEditName] = useState("");
@@ -274,7 +275,7 @@ function VaultProfilesSection({ profiles, activeFolder, onSwitch, onAdd, onRenam
                   className="vault-profile-select"
                   onClick={() => { if (!isActive) onSwitch(profile.path); }}
                 >
-                  <span className="vault-profile-indicator">{isActive ? "●" : "○"}</span>
+                  <span className="vault-profile-indicator" style={profile.color ? { color: profile.color } : undefined}>{isActive ? "●" : "○"}</span>
                   <span className="vault-profile-info">
                     <span className="vault-profile-name">
                       {profile.name}
@@ -286,6 +287,24 @@ function VaultProfilesSection({ profiles, activeFolder, onSwitch, onAdd, onRenam
                   </span>
                 </button>
                 <div className="vault-profile-actions">
+                  <div className="vault-profile-color-control">
+                    <input
+                      type="color"
+                      className="vault-profile-color-input"
+                      value={profile.color || "#888888"}
+                      onChange={(e) => onChangeColor(profile.path, e.target.value)}
+                      title="Set vault color"
+                    />
+                    {profile.color && (
+                      <button
+                        className="vault-profile-color-reset"
+                        onClick={() => onChangeColor(profile.path, "")}
+                        title="Reset color"
+                      >
+                        &times;
+                      </button>
+                    )}
+                  </div>
                   <button
                     className="vault-profile-action"
                     onClick={() => { setEditingPath(profile.path); setEditName(profile.name); }}
@@ -877,10 +896,12 @@ function DictionaryEditor({ entries, onChange }: { entries: string[]; onChange: 
   );
 }
 
-function CodexList({ codexList, codexCounts, onRenameCodex }: {
+function CodexList({ codexList, codexCounts, onRenameCodex, codexColors, onChangeColor }: {
   codexList: string[];
   codexCounts: Record<string, number>;
   onRenameCodex?: (oldName: string, newName: string) => void;
+  codexColors?: Record<string, string>;
+  onChangeColor?: (codex: string, color: string | null) => void;
 }) {
   const [editingCodex, setEditingCodex] = useState<string | null>(null);
   const [editValue, setEditValue] = useState("");
@@ -925,6 +946,24 @@ function CodexList({ codexList, codexCounts, onRenameCodex }: {
                 <span className="org-list-name">{codex}</span>
                 <span className="org-list-count">{count} {count === 1 ? "note" : "notes"}</span>
                 <div className="org-list-actions">
+                  {onChangeColor && (
+                    <div className="vault-profile-color-control">
+                      <input
+                        type="color"
+                        className="vault-profile-color-input"
+                        value={codexColors?.[codex] || "#808080"}
+                        onChange={(e) => onChangeColor(codex, e.target.value)}
+                      />
+                      {codexColors?.[codex] && (
+                        <button
+                          className="vault-profile-color-reset"
+                          onClick={() => onChangeColor(codex, null)}
+                        >
+                          &times;
+                        </button>
+                      )}
+                    </div>
+                  )}
                   {onRenameCodex && (
                     <button
                       className="org-list-action"
@@ -947,10 +986,12 @@ function CodexList({ codexList, codexCounts, onRenameCodex }: {
   );
 }
 
-function TagsList({ allTags, onRenameTag, onDeleteTag }: {
+function TagsList({ allTags, onRenameTag, onDeleteTag, tagColors, onChangeColor }: {
   allTags: { name: string; count: number }[];
   onRenameTag?: (oldTag: string, newTag: string) => void;
   onDeleteTag?: (tag: string) => void;
+  tagColors?: Record<string, string>;
+  onChangeColor?: (tag: string, color: string | null) => void;
 }) {
   const [editingTag, setEditingTag] = useState<string | null>(null);
   const [editValue, setEditValue] = useState("");
@@ -1002,6 +1043,24 @@ function TagsList({ allTags, onRenameTag, onDeleteTag }: {
               <span className="org-list-name">#{name}</span>
               <span className="org-list-count">{count} {count === 1 ? "note" : "notes"}</span>
               <div className="org-list-actions">
+                {onChangeColor && (
+                  <div className="vault-profile-color-control">
+                    <input
+                      type="color"
+                      className="vault-profile-color-input"
+                      value={tagColors?.[name] || "#808080"}
+                      onChange={(e) => onChangeColor(name, e.target.value)}
+                    />
+                    {tagColors?.[name] && (
+                      <button
+                        className="vault-profile-color-reset"
+                        onClick={() => onChangeColor(name, null)}
+                      >
+                        &times;
+                      </button>
+                    )}
+                  </div>
+                )}
                 {onRenameTag && (
                   <button
                     className="org-list-action"
@@ -1352,7 +1411,7 @@ export function Settings({
 
             {activeTab === "organization" && (
               <div className="settings-section">
-                <h3>Codexes</h3>
+                <h3>Codexes<InfoTooltip><ul><li>Rename codexes and customize their colors</li><li>Set a default codex to show on app open</li></ul></InfoTooltip></h3>
                 <p className="settings-hint">
                   Codexes are collections for grouping notes. Create one by assigning a codex name to any note.
                 </p>
@@ -1374,18 +1433,38 @@ export function Settings({
                         }
                       />
                     </div>
-                    <CodexList codexList={codexList} codexCounts={codexCounts} onRenameCodex={onRenameCodex} />
+                    <CodexList
+                      codexList={codexList}
+                      codexCounts={codexCounts}
+                      onRenameCodex={onRenameCodex}
+                      codexColors={settings.codexColors}
+                      onChangeColor={(codex, color) => {
+                        const newColors = { ...settings.codexColors };
+                        if (color) { newColors[codex] = color; } else { delete newColors[codex]; }
+                        onSettingsChange({ ...settings, codexColors: newColors });
+                      }}
+                    />
                   </>
                 ) : (
                   <p className="settings-hint">No codexes yet.</p>
                 )}
 
-                <h3>Tags</h3>
+                <h3>Tags<InfoTooltip><ul><li>Rename, delete, or set colors for tags</li><li>Colors show inline in the editor and search</li></ul></InfoTooltip></h3>
                 <p className="settings-hint">
                   Tags are extracted from note content. Use #tagname in your notes to tag them.
                 </p>
                 {allTags.length > 0 ? (
-                  <TagsList allTags={allTags} onRenameTag={onRenameTag} onDeleteTag={onDeleteTag} />
+                  <TagsList
+                    allTags={allTags}
+                    onRenameTag={onRenameTag}
+                    onDeleteTag={onDeleteTag}
+                    tagColors={settings.tagColors}
+                    onChangeColor={(tag, color) => {
+                      const newColors = { ...settings.tagColors };
+                      if (color) { newColors[tag] = color; } else { delete newColors[tag]; }
+                      onSettingsChange({ ...settings, tagColors: newColors });
+                    }}
+                  />
                 ) : (
                   <p className="settings-hint">No tags yet. Use #tagname in your notes to create tags.</p>
                 )}
@@ -1427,6 +1506,7 @@ export function Settings({
                     />
                   </div>
                 )}
+
               </div>
             )}
 
@@ -1633,70 +1713,6 @@ export function Settings({
                 </div>
                 <h3>Colors</h3>
                 <ColorSettings settings={settings} onSettingsChange={onSettingsChange} />
-                {codexList.length > 0 && (
-                  <>
-                    <h3>Codex Colors</h3>
-                    {codexList.map((codex) => (
-                      <div className="settings-row" key={codex}>
-                        <label>{codex}</label>
-                        <div className="codex-color-picker">
-                          <input
-                            type="color"
-                            value={settings.codexColors?.[codex] || "#808080"}
-                            onChange={(e) => {
-                              const newColors = { ...settings.codexColors, [codex]: e.target.value };
-                              onSettingsChange({ ...settings, codexColors: newColors });
-                            }}
-                          />
-                          {settings.codexColors?.[codex] && (
-                            <button
-                              className="codex-color-reset"
-                              onClick={() => {
-                                const newColors = { ...settings.codexColors };
-                                delete newColors[codex];
-                                onSettingsChange({ ...settings, codexColors: newColors });
-                              }}
-                            >
-                              ×
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </>
-                )}
-                {allTags.length > 0 && (
-                  <>
-                    <h3>Tag Colors</h3>
-                    {allTags.map(({ name }) => (
-                      <div className="settings-row" key={name}>
-                        <label>#{name}</label>
-                        <div className="codex-color-picker">
-                          <input
-                            type="color"
-                            value={settings.tagColors?.[name] || "#808080"}
-                            onChange={(e) => {
-                              const newColors = { ...settings.tagColors, [name]: e.target.value };
-                              onSettingsChange({ ...settings, tagColors: newColors });
-                            }}
-                          />
-                          {settings.tagColors?.[name] && (
-                            <button
-                              className="codex-color-reset"
-                              onClick={() => {
-                                const newColors = { ...settings.tagColors };
-                                delete newColors[name];
-                                onSettingsChange({ ...settings, tagColors: newColors });
-                              }}
-                            >
-                              ×
-                            </button>
-                          )}
-                        </div>
-                      </div>
-                    ))}
-                  </>
-                )}
               </div>
             )}
 
@@ -1763,6 +1779,14 @@ export function Settings({
                     if (oldPath === notesFolder) {
                       onChangeFolder(newPath);
                     }
+                  }}
+                  onChangeColor={(path, color) => {
+                    const profiles = (settings.vaultProfiles || []).map(p => {
+                      if (p.path !== path) return p;
+                      if (!color) { const { color: _, ...rest } = p; return rest; }
+                      return { ...p, color };
+                    });
+                    onSettingsChange({ ...settings, vaultProfiles: profiles });
                   }}
                 />
               </div>

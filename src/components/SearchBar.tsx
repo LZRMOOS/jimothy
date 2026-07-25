@@ -1,4 +1,5 @@
 import { forwardRef, useMemo, useState, useCallback, useEffect, useRef } from "react";
+import type { VaultProfile } from "../types";
 
 type Props = {
   value: string;
@@ -13,6 +14,9 @@ type Props = {
   isCreateMode?: boolean;
   activeTags?: string[];
   dictionary?: string[];
+  vaultProfiles?: VaultProfile[];
+  activeFolder?: string | null;
+  onVaultSwitch?: (path: string) => Promise<void>;
 };
 
 export const SearchBar = forwardRef<HTMLInputElement, Props>(
@@ -30,9 +34,24 @@ export const SearchBar = forwardRef<HTMLInputElement, Props>(
       isCreateMode,
       activeTags = [],
       dictionary = [],
+      vaultProfiles = [],
+      activeFolder,
+      onVaultSwitch,
     },
     ref
   ) => {
+    const [vaultOpen, setVaultOpen] = useState(false);
+    const vaultRef = useRef<HTMLDivElement>(null);
+    const activeVault = vaultProfiles.find(p => p.path === activeFolder);
+
+    useEffect(() => {
+      if (!vaultOpen) return;
+      const handleClick = (e: MouseEvent) => {
+        if (vaultRef.current && !vaultRef.current.contains(e.target as Node)) setVaultOpen(false);
+      };
+      document.addEventListener("mousedown", handleClick);
+      return () => document.removeEventListener("mousedown", handleClick);
+    }, [vaultOpen]);
     const tagSet = useMemo(() => new Set(activeTags.map((t) => t.toLowerCase())), [activeTags]);
     const dictSet = useMemo(() => new Set(dictionary.map((d) => d.toLowerCase())), [dictionary]);
 
@@ -135,7 +154,7 @@ export const SearchBar = forwardRef<HTMLInputElement, Props>(
                 ref={ref}
                 type="text"
                 className="search-input"
-                placeholder={isCreateMode ? "Type note title and press Enter..." : "Search notes or type a title to create..."}
+                placeholder={isCreateMode ? "Type title and press Enter..." : "Search or create notes..."}
                 value={value}
               onChange={(e) => {
                 onChange(e.target.value);
@@ -269,11 +288,35 @@ export const SearchBar = forwardRef<HTMLInputElement, Props>(
                 strokeLinecap="round"
                 strokeLinejoin="round"
               >
-                <circle cx="12" cy="12" r="1.5" />
-                <circle cx="12" cy="5" r="1.5" />
-                <circle cx="12" cy="19" r="1.5" />
+                <line x1="4" y1="6" x2="20" y2="6" />
+                <line x1="4" y1="12" x2="20" y2="12" />
+                <line x1="4" y1="18" x2="20" y2="18" />
               </svg>
             </button>
+          )}
+          {vaultProfiles.length > 1 && onVaultSwitch && (
+            <div className="vault-switcher header-vault-switcher" ref={vaultRef}>
+              <button className="vault-switcher-btn" onClick={() => setVaultOpen(!vaultOpen)} title="Switch vault">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke={activeVault?.color || "currentColor"} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></svg>
+                <span className="vault-switcher-name">{activeVault?.name || "Vault"}</span>
+                <svg className="vault-switcher-chevron" width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+              </button>
+              {vaultOpen && (
+                <div className="vault-switcher-menu">
+                  {vaultProfiles.map((p) => (
+                    <button
+                      key={p.path}
+                      className={`vault-switcher-option ${p.path === activeFolder ? "active" : ""}`}
+                      onClick={() => { if (p.path !== activeFolder) onVaultSwitch(p.path); setVaultOpen(false); }}
+                      title={p.path}
+                    >
+                      <span className="vault-switcher-option-dot" style={p.color ? { color: p.color } : undefined}>{p.path === activeFolder ? "●" : "○"}</span>
+                      {p.name}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
           )}
         </div>
       </div>

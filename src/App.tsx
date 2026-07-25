@@ -25,6 +25,7 @@ import { useIdleLock } from "./hooks/useIdleLock";
 import type { AppSettings, LocalSettings, Preferences } from "./types";
 import { extractTags, noteHasTag } from "./utils/tags";
 
+
 const isMac = navigator.platform.toUpperCase().includes("MAC");
 const mod = isMac ? "⌘" : "Ctrl+";
 const shift = isMac ? "⇧" : "Shift+";
@@ -1248,10 +1249,13 @@ function App() {
         onArrowUp={handleArrowUp}
         onEscape={handleEscape}
         onCommandPaletteClick={() => setShowCommandPalette(true)}
-        onSettingsClick={() => setShowSettings(true)}
+        onSettingsClick={() => setShowSettings(s => !s)}
         isCreateMode={isCreateMode}
         activeTags={allTags}
         dictionary={appSettings.dictionary}
+        vaultProfiles={appSettings.vaultProfiles}
+        activeFolder={notesFolder}
+        onVaultSwitch={handleChangeFolder}
       />
       <div className="app-body">
       {!sidebarCollapsed && (
@@ -1373,7 +1377,7 @@ function App() {
         <div className="main-content">
           {!sidebarCollapsed && (
             <div className="notes-panel">
-              <div className="codex-dropdown">
+                <div className="codex-dropdown">
                 <Dropdown
                   value={viewingArchive ? "__archive__" : (activeCodex || "")}
                   onChange={(v) => {
