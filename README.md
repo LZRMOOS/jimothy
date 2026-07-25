@@ -28,7 +28,8 @@ Built with Tauri 2, React, TypeScript, and Rust.
 - **Local storage** — plain Markdown files with YAML frontmatter, compatible with any sync service
 - **Dropbox sync** — detects and handles Dropbox conflict files automatically
 - **Vault encryption** — XChaCha20-Poly1305 with Argon2id key derivation; encrypts all notes, locks on sleep/idle/manually
-- **File protection** — encrypt individual notes as `.pnote` files with a separate password; can coexist with vault encryption
+- **Note protection** — encrypt individual notes as `.pnote` files with a separate password; can coexist with vault encryption
+- **Multi-vault profiles** — switch between multiple vault locations (work, personal, etc.) from the header dropdown
 - **Auto-updates** — built-in updater checks for new releases
 - **System tray** — hide-on-close, tray menu for quick actions, launch minimized to tray
 - **Native menu bar** — macOS app menu with standard keyboard shortcuts
@@ -45,7 +46,7 @@ Jimothy offers two layers of encryption that can be used independently or togeth
 
 Encrypts **all** notes on disk with a single password. When locked, every note file is unreadable. The key is derived via Argon2id and held only in memory — never persisted to disk. The vault automatically locks on system sleep, screen lock, or after a configurable idle timeout.
 
-### File Protection
+### Note Protection
 
 Encrypts **individual** notes while keeping the rest as plaintext Markdown. Protected notes are stored as `.pnote` files — the note body is encrypted while metadata (title, timestamps) remains in the clear for search and display. All protected files share a single password.
 
@@ -113,7 +114,7 @@ src-tauri/              Rust backend
 - **Vault key in memory only** — never persisted; cleared on lock/sleep/idle timeout
 - **Optimistic UI** — title changes update locally before backend save completes
 - **ID-based note links** — `[Title](scratch://id)` format survives renames and is valid markdown
-- **Settings split** — local settings (device-specific) in app config dir, portable preferences (synced) in .scratch/preferences.json
+- **Settings split** — local settings (device-specific, including vault profiles) in app config dir, portable preferences (synced) in .scratch/preferences.json
 
 ## Settings
 
@@ -122,13 +123,13 @@ Accessible via Cmd+, or the command palette. Tabs:
 | Tab | Options |
 |-----|---------|
 | General | Auto-updates, confirm before delete, launch at login, menu bar icon |
-| Organization | Default codex, daily note format/codex, codex icons, codex colors, tag colors |
+| Organization | Default codex, daily note format/codex, codex management (rename, colors), tag management (rename, delete, colors) |
 | Controls | Full shortcut reference (search, notes, editor, view, app) |
 | Macros | Built-in (/date, /time) and custom text expansion macros |
 | Dictionary | User-defined @mention dictionary |
 | Colors | Theme (system/light/dark), custom color overrides per theme, color presets |
-| Storage | Notes folder path, change folder, open in Finder, rebuild index |
-| Security | Vault encryption, auto-lock timeout, file protection, change password |
+| Storage | Active vault info, open in Finder, rebuild index, vault profiles (add, rename, change location, set color) |
+| Security | Vault encryption, auto-lock timeout, note protection, change password |
 | Markdown | Syntax reference for formatting, code blocks, lists, tasks, links, tags, mentions |
 
 Local settings (device-specific) stored at `~/Library/Application Support/jimothy/settings.json` (macOS) or `%APPDATA%/jimothy/settings.json` (Windows).

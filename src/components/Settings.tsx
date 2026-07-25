@@ -287,17 +287,17 @@ function VaultProfilesSection({ profiles, activeFolder, onSwitch, onAdd, onRenam
                   </span>
                 </button>
                 <div className="vault-profile-actions">
-                  <div className="vault-profile-color-control">
+                  <div className="inline-color-control">
                     <input
                       type="color"
-                      className="vault-profile-color-input"
+                      className="inline-color-input"
                       value={profile.color || "#888888"}
                       onChange={(e) => onChangeColor(profile.path, e.target.value)}
                       title="Set vault color"
                     />
                     {profile.color && (
                       <button
-                        className="vault-profile-color-reset"
+                        className="inline-color-reset"
                         onClick={() => onChangeColor(profile.path, "")}
                         title="Reset color"
                       >
@@ -947,16 +947,16 @@ function CodexList({ codexList, codexCounts, onRenameCodex, codexColors, onChang
                 <span className="org-list-count">{count} {count === 1 ? "note" : "notes"}</span>
                 <div className="org-list-actions">
                   {onChangeColor && (
-                    <div className="vault-profile-color-control">
+                    <div className="inline-color-control">
                       <input
                         type="color"
-                        className="vault-profile-color-input"
+                        className="inline-color-input"
                         value={codexColors?.[codex] || "#808080"}
                         onChange={(e) => onChangeColor(codex, e.target.value)}
                       />
                       {codexColors?.[codex] && (
                         <button
-                          className="vault-profile-color-reset"
+                          className="inline-color-reset"
                           onClick={() => onChangeColor(codex, null)}
                         >
                           &times;
@@ -1044,16 +1044,16 @@ function TagsList({ allTags, onRenameTag, onDeleteTag, tagColors, onChangeColor 
               <span className="org-list-count">{count} {count === 1 ? "note" : "notes"}</span>
               <div className="org-list-actions">
                 {onChangeColor && (
-                  <div className="vault-profile-color-control">
+                  <div className="inline-color-control">
                     <input
                       type="color"
-                      className="vault-profile-color-input"
+                      className="inline-color-input"
                       value={tagColors?.[name] || "#808080"}
                       onChange={(e) => onChangeColor(name, e.target.value)}
                     />
                     {tagColors?.[name] && (
                       <button
-                        className="vault-profile-color-reset"
+                        className="inline-color-reset"
                         onClick={() => onChangeColor(name, null)}
                       >
                         &times;

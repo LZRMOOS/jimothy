@@ -51,7 +51,7 @@ Two independent layers of encryption:
 - Auto-locks on system sleep, screen lock, or configurable idle timeout
 - Files stored as `.md` (encrypted content)
 
-**File Protection** (individual notes):
+**Note Protection** (individual notes):
 - Encrypts individual notes as `.pnote` files
 - Metadata (title, timestamps) in cleartext for search/display
 - Note body encrypted with separate password
@@ -92,7 +92,8 @@ Two independent layers of encryption:
 - System tray with hide-on-close behavior, launch minimized to tray when autostart enabled
 - Native macOS menu bar with standard shortcuts
 - Settings with tabs: General, Organization, Controls, Macros, Dictionary, Colors, Storage, Security, Markdown
-- **Settings split**: Local settings (device-specific, in app config dir) vs portable preferences (synced in .scratch/preferences.json)
+- **Vault profiles**: Multiple vault locations switchable from the header dropdown; each profile has a name, path, and optional color
+- **Settings split**: Local settings (device-specific, including vault profiles, in app config dir) vs portable preferences (synced in .scratch/preferences.json)
 - When writing, use a more fun, quirky straightforward language, do not use em-dashes.
 
 ## Development Workflow
@@ -146,7 +147,7 @@ src-tauri/
   - `watcher`: Filesystem watcher for external changes
   - `vault_key`, `vault_status`: Vault encryption state
   - `password_hash`: SHA-256 hash for fast password verification
-  - `protection_key`, `protection_hash`: File protection state
+  - `protection_key`, `protection_hash`: Note protection state
   - `active_note_id`: Currently edited note
 - All state wrapped in `Mutex<T>` for thread safety
 - Frontend syncs via Tauri IPC commands and event listeners
@@ -216,7 +217,7 @@ All commands defined in `src-tauri/src/commands/mod.rs`:
 - `change_vault_password(current, new_password)` - Re-encrypt with new password
 - `disable_vault(password)` - Decrypt all notes back to plaintext
 
-### File Protection
+### Note Protection
 - `get_protection_status()` - Returns "none" | "locked" | "unlocked"
 - `setup_protection(password)` - Initialize protection system
 - `unlock_protection(password)` - Unlock protection
@@ -245,6 +246,8 @@ All commands defined in `src-tauri/src/commands/mod.rs`:
 - `open_scratchpad()` - Toggle the scratchpad window
 - `update_global_shortcut(shortcut)` - Change the global toggle-window shortcut
 - `update_capture_shortcut(shortcut)` - Change the scratchpad capture shortcut
+- `open_folder(path)` - Open a folder in Finder (macOS)
+- `check_vault_exists(path)` - Check if a path contains a vault config (.scratch/vault.json)
 
 ## Configuration Files
 

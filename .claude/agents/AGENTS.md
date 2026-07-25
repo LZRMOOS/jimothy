@@ -13,7 +13,7 @@ When working on this codebase:
 ## Project Context
 
 **What is Jimothy?**
-A keyboard-first desktop notes app with local Markdown storage, internal note linking, dictionary mentions, inline tags, task management (priority/due dates), text macros, scratchpad quick-capture, split view, backlinks, daily notes, optional encryption (vault + per-note protection), and Dropbox sync compatibility. Built with Tauri 2, React 19, and Rust.
+A keyboard-first desktop notes app with local Markdown storage, internal note linking, dictionary mentions, inline tags, task management (priority/due dates), text macros, scratchpad quick-capture, split view, backlinks, daily notes, multi-vault profiles, optional encryption (vault + per-note protection), and Dropbox sync compatibility. Built with Tauri 2, React 19, and Rust.
 
 **Tech Stack:**
 - Frontend: React 19, TypeScript 5.8, Tiptap editor (with custom extensions), tiptap-markdown, MiniSearch, Vite 7
@@ -45,7 +45,7 @@ A keyboard-first desktop notes app with local Markdown storage, internal note li
 
 **Files to check:**
 - `src/App.tsx` - Main app layout, state, keyboard handlers, command palette actions, split view, daily note
-- `src/components/Settings.tsx` - Settings modal with tabs (General, Organization, Controls, Macros, Dictionary, Colors, Storage, Security, Markdown)
+- `src/components/Settings.tsx` - Settings modal with tabs (General, Organization, Controls, Macros, Dictionary, Colors, Storage, Security, Markdown); Organization has inline color pickers for codexes and tags; Storage has vault profiles with color
 - `src/components/Editor.tsx` - Tiptap editor integration (note links, mentions, tags, find & replace, macros, table of contents)
 - `src/extensions/noteLink.tsx` - Internal note link extension (`[[` autocomplete)
 - `src/extensions/mention.tsx` - Dictionary `@` mention extension
@@ -145,11 +145,11 @@ A keyboard-first desktop notes app with local Markdown storage, internal note li
 - Check responsiveness (window resize to minimum dimensions)
 
 **UI components structure:**
-- `SearchBar.tsx` - Search input at top (Cmd+Shift+F) with #tag and @mention filtering
+- `SearchBar.tsx` - Search input at top (Cmd+Shift+F) with #tag and @mention filtering, settings hamburger button, vault switcher dropdown
 - `NotesList.tsx` - Sidebar with note list, codex filtering, pinned notes, backlink expansion, context menu
 - `Editor.tsx` - Tiptap WYSIWYG editor with note links, mentions, tags, find & replace, macros, table of contents, freeze
 - `ReferencePanel.tsx` - Tabbed reference panel (Cmd+.) with Markdown and Controls tabs
-- `Settings.tsx` - Modal with tabs (General, Organization, Controls, Macros, Dictionary, Colors, Storage, Security, Markdown)
+- `Settings.tsx` - Modal with tabs (General, Organization, Controls, Macros, Dictionary, Colors, Storage, Security, Markdown); Organization has inline color pickers for codexes and tags
 - `CommandPalette.tsx` - Cmd+K quick actions with pinnable favorites and note search
 - `Scratchpad.tsx` - Floating quick-capture window with entries list
 - `FolderSetup.tsx` - Welcome/setup screen with sync folder hints
@@ -475,13 +475,14 @@ src-tauri/
 ### Color Customization
 - Users can override accent and background colors per theme
 - Color presets: save and load named color configurations
-- Custom codex colors (sidebar color per codex)
-- Custom tag colors (inline tag highlight colors)
+- Custom codex colors: inline swatch in Organization tab codex rows
+- Custom tag colors: inline swatch in Organization tab tag rows
+- Vault profile colors: inline swatch in Storage tab vault profile rows
 - ColorSettings component derives light/dark from `settings.theme` + `matchMedia`
 - CSS custom properties updated dynamically
 
 ### Settings Architecture
-- **Local settings** (`settings.json` in app config dir): device-specific (notesFolder, showTrayIcon, zoomLevel, shortcuts)
+- **Local settings** (`settings.json` in app config dir): device-specific (notesFolder, showTrayIcon, zoomLevel, shortcuts, vault profiles)
 - **Preferences** (`preferences.json` in .scratch/): portable, synced across devices (theme, macros, codex icons, colors, pinned/frozen lists, etc.)
 - Frontend merges both into a single `AppSettings` object for convenience
 

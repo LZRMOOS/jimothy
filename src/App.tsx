@@ -25,7 +25,6 @@ import { useIdleLock } from "./hooks/useIdleLock";
 import type { AppSettings, LocalSettings, Preferences } from "./types";
 import { extractTags, noteHasTag } from "./utils/tags";
 
-
 const isMac = navigator.platform.toUpperCase().includes("MAC");
 const mod = isMac ? "⌘" : "Ctrl+";
 const shift = isMac ? "⇧" : "Shift+";

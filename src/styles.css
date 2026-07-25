@@ -2398,50 +2398,6 @@ body {
   font-size: 12px;
 }
 
-.codex-color-picker {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
-
-.codex-color-picker input[type="color"] {
-  width: 28px;
-  height: 28px;
-  padding: 0;
-  border: 1px solid var(--border);
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-  background: none;
-}
-
-.codex-color-picker input[type="color"]::-webkit-color-swatch-wrapper {
-  padding: 2px;
-}
-
-.codex-color-picker input[type="color"]::-webkit-color-swatch {
-  border: none;
-  border-radius: 3px;
-}
-
-.codex-color-reset {
-  width: 20px;
-  height: 20px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border: none;
-  background: var(--bg-tertiary);
-  color: var(--text-secondary);
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-  font-size: 14px;
-  line-height: 1;
-}
-
-.codex-color-reset:hover {
-  background: var(--bg-hover);
-  color: var(--danger);
-}
 
 .color-settings h3 {
   margin: 24px 0 10px;
@@ -2910,14 +2866,14 @@ body {
   margin-top: 3px;
 }
 
-.vault-profile-color-control {
+.inline-color-control {
   display: flex;
   align-items: center;
   gap: 2px;
   position: relative;
 }
 
-.vault-profile-color-input {
+.inline-color-input {
   width: 20px;
   height: 20px;
   border: 1px solid var(--border-strong);
@@ -2929,16 +2885,16 @@ body {
   appearance: none;
 }
 
-.vault-profile-color-input::-webkit-color-swatch-wrapper {
+.inline-color-input::-webkit-color-swatch-wrapper {
   padding: 2px;
 }
 
-.vault-profile-color-input::-webkit-color-swatch {
+.inline-color-input::-webkit-color-swatch {
   border: none;
   border-radius: 2px;
 }
 
-.vault-profile-color-reset {
+.inline-color-reset {
   width: 14px;
   height: 14px;
   display: flex;
@@ -2954,7 +2910,7 @@ body {
   padding: 0;
 }
 
-.vault-profile-color-reset:hover {
+.inline-color-reset:hover {
   color: var(--text-primary);
   background: var(--bg-hover);
 }
