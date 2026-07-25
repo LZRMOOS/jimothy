@@ -88,7 +88,7 @@ Two independent layers of encryption:
 - **Archive**: Archive notes to hide them from the main list without deleting
 - **Duplicate notes**: Right-click context menu or command palette
 - Themes: system, light, or dark with customizable accent/background colors per theme, color presets
-- Command palette (Cmd+K) for quick actions with pinnable favorites and note search
+- Command palette (Cmd+K) for quick actions with pinnable favorites and note search; commands can be hidden from the palette via Settings > Controls (`hiddenCommands` synced preference; hiding is display-only and never disables the underlying keyboard shortcut). Hideable set is the stable registry in `src/utils/commands.ts` (excludes dynamic/contextual/per-codex entries)
 - **Reference panel**: Cmd+. toggles a tabbed side panel with Markdown and Controls reference tabs
 - **Feature tour**: "Open Feature Tour" command (Cmd+K) launches a guided coachmark overlay (`TourOverlay.tsx`) that spotlights real UI elements (anchored via `data-tour` attributes) with animated step tooltips, then opens a sample "Feature Tour" note. Steps live in `TOUR_STEPS` (utils/featureTour.ts) alongside the note body.
 - Zoom support (Cmd+/- for text size)

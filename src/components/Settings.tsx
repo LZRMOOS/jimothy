@@ -8,6 +8,7 @@ import { PasswordInput } from "./PasswordInput";
 import type { AppSettings, VaultStatus, ThemeColors, ColorPreset, VaultProfile } from "../types";
 import type { EmojiEntry } from "../extensions/emoji";
 import { isMac, modName, altName, superName } from "../utils/platform";
+import { HIDEABLE_COMMANDS } from "../utils/commands";
 
 type SettingsTab = "general" | "organization" | "keyboard" | "macros" | "dictionary" | "emoji" | "colors" | "storage" | "security" | "markdown";
 
@@ -1783,6 +1784,30 @@ export function Settings({
                 <div className="settings-row">
                   <label>Reference panel</label>
                   <kbd className="shortcut-display">{mod}+.</kbd>
+                </div>
+                <h3>Command Palette<InfoTooltip>Uncheck a command to hide it from the {mod}+K palette. Its keyboard shortcut still works, this only affects what shows up in the list.</InfoTooltip></h3>
+                <p className="settings-hint">Choose which commands appear in the {mod}+K palette. Hiding one keeps its shortcut working.</p>
+                <div className="command-visibility-grid" role="table">
+                  {HIDEABLE_COMMANDS.map((cmd) => {
+                    const hidden = (settings.hiddenCommands || []).includes(cmd.id);
+                    return (
+                      <label className="command-visibility-cell" key={cmd.id} htmlFor={`cmd-visible-${cmd.id}`}>
+                        <input
+                          id={`cmd-visible-${cmd.id}`}
+                          type="checkbox"
+                          checked={!hidden}
+                          onChange={(e) => {
+                            const current = settings.hiddenCommands || [];
+                            const next = e.target.checked
+                              ? current.filter((id) => id !== cmd.id)
+                              : [...current, cmd.id];
+                            onSettingsChange({ ...settings, hiddenCommands: next });
+                          }}
+                        />
+                        <span className={hidden ? "command-visibility-hidden" : ""}>{cmd.label}</span>
+                      </label>
+                    );
+                  })}
                 </div>
               </div>
             )}

@@ -36,7 +36,7 @@ Built with Tauri 2, React, TypeScript, and Rust.
 - **Auto-updates** — built-in updater checks for new releases
 - **System tray** — hide-on-close, tray menu for quick actions, launch minimized to tray
 - **Native menu bar** — macOS app menu with standard keyboard shortcuts
-- **Command palette** — Cmd+K for quick actions with pinnable favorites and note search
+- **Command palette** — Cmd+K for quick actions with pinnable favorites and note search; hide commands you don't use from Settings > Controls (their shortcuts keep working)
 - **Reference panel** — Cmd+. for a tabbed reference panel (Markdown and Controls)
 - **Zoom** — Cmd+/- to adjust text size
 - **Themes** — system, light, or dark with customizable colors and color presets

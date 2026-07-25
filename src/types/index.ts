@@ -67,6 +67,7 @@ export type Preferences = {
   pinnedNotes?: string[];
   frozenNotes?: string[];
   pinnedCommands?: string[];
+  hiddenCommands?: string[];
   protectedNotes?: string[];
   macros?: Record<string, string>;
   dictionary?: string[];

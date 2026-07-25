@@ -1381,7 +1381,7 @@ function App() {
       )}
       {showCommandPalette && (
         <CommandPalette
-          commands={commands}
+          commands={commands.filter((c) => !(appSettings.hiddenCommands || []).includes(c.id))}
           pinnedIds={appSettings.pinnedCommands || []}
           onTogglePin={(id) => {
             const pinned = appSettings.pinnedCommands || [];
