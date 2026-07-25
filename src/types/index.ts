@@ -38,12 +38,18 @@ export type ColorPreset = {
   colors: ThemeColors;
 };
 
+export type VaultProfile = {
+  name: string;
+  path: string;
+};
+
 export type LocalSettings = {
   notesFolder?: string;
   showTrayIcon?: boolean;
   zoomLevel?: number;
   globalShortcut?: string;
   captureShortcut?: string;
+  vaultProfiles?: VaultProfile[];
 };
 
 export type Preferences = {

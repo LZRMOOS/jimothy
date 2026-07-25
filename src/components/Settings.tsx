@@ -1,12 +1,11 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { open } from "@tauri-apps/plugin-dialog";
-import { openPath } from "@tauri-apps/plugin-opener";
 import { enable, disable, isEnabled } from "@tauri-apps/plugin-autostart";
 import { invoke } from "@tauri-apps/api/core";
 import { getVersion } from "@tauri-apps/api/app";
 import { Dropdown } from "./Dropdown";
 import { PasswordInput } from "./PasswordInput";
-import type { AppSettings, VaultStatus, ThemeColors, ColorPreset } from "../types";
+import type { AppSettings, VaultStatus, ThemeColors, ColorPreset, VaultProfile } from "../types";
 
 type SettingsTab = "general" | "organization" | "keyboard" | "macros" | "dictionary" | "colors" | "storage" | "security" | "markdown";
 
@@ -192,6 +191,135 @@ function NoteProtectionSection({
         </form>
       )}
     </>
+  );
+}
+
+function VaultProfilesSection({ profiles, activeFolder, onSwitch, onAdd, onRename, onRemove, onChangePath }: {
+  profiles: VaultProfile[];
+  activeFolder: string | null;
+  onSwitch: (path: string) => Promise<void>;
+  onAdd: () => Promise<void>;
+  onRename: (path: string, name: string) => void;
+  onRemove: (path: string) => void;
+  onChangePath: (oldPath: string, newPath: string) => void;
+}) {
+  const [editingPath, setEditingPath] = useState<string | null>(null);
+  const [editName, setEditName] = useState("");
+  const [encryptedPaths, setEncryptedPaths] = useState<Set<string>>(new Set());
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (editingPath) inputRef.current?.focus();
+  }, [editingPath]);
+
+  useEffect(() => {
+    let cancelled = false;
+    const check = async () => {
+      const { exists } = await import("@tauri-apps/plugin-fs");
+      const encrypted = new Set<string>();
+      for (const p of profiles) {
+        const sep = p.path.includes("\\") ? "\\" : "/";
+        const vaultConfig = `${p.path}${sep}.scratch${sep}vault.json`;
+        if (await exists(vaultConfig)) encrypted.add(p.path);
+      }
+      if (!cancelled) setEncryptedPaths(encrypted);
+    };
+    check();
+    return () => { cancelled = true; };
+  }, [profiles]);
+
+  const effectiveProfiles = activeFolder && !profiles.some(p => p.path === activeFolder)
+    ? [{ name: activeFolder.split("/").pop() || "Vault", path: activeFolder }, ...profiles]
+    : profiles;
+
+  const handleChangePath = async (oldPath: string) => {
+    const selected = await open({ directory: true, multiple: false });
+    if (selected) onChangePath(oldPath, selected as string);
+  };
+
+  return (
+    <div className="vault-profiles">
+      {effectiveProfiles.length === 0 && (
+        <p className="settings-hint">No vault profiles yet. Add one to get started.</p>
+      )}
+      {effectiveProfiles.map((profile, index) => {
+        const isActive = profile.path === activeFolder;
+        const isEditing = editingPath === profile.path;
+        const isDefault = index === 0;
+        return (
+          <div key={profile.path} className={`vault-profile-row ${isActive ? "active" : ""}`}>
+            {isEditing ? (
+              <div className="vault-profile-edit">
+                <input
+                  ref={inputRef}
+                  className="vault-profile-name-input"
+                  value={editName}
+                  onChange={(e) => setEditName(e.target.value)}
+                  placeholder="Profile name"
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      onRename(profile.path, editName.trim() || profile.name);
+                      setEditingPath(null);
+                    } else if (e.key === "Escape") {
+                      setEditingPath(null);
+                    }
+                  }}
+                  onBlur={() => {
+                    onRename(profile.path, editName.trim() || profile.name);
+                    setEditingPath(null);
+                  }}
+                />
+              </div>
+            ) : (
+              <>
+                <button
+                  className="vault-profile-select"
+                  onClick={() => { if (!isActive) onSwitch(profile.path); }}
+                >
+                  <span className="vault-profile-indicator">{isActive ? "●" : "○"}</span>
+                  <span className="vault-profile-info">
+                    <span className="vault-profile-name">
+                      {profile.name}
+                      {encryptedPaths.has(profile.path) && (
+                        <svg className="vault-profile-lock" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                      )}
+                    </span>
+                    <span className="vault-profile-path">{profile.path}</span>
+                  </span>
+                </button>
+                <div className="vault-profile-actions">
+                  <button
+                    className="vault-profile-action"
+                    onClick={() => { setEditingPath(profile.path); setEditName(profile.name); }}
+                    title="Rename"
+                  >
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
+                  </button>
+                  <button
+                    className="vault-profile-action"
+                    onClick={() => handleChangePath(profile.path)}
+                    title="Change location"
+                  >
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></svg>
+                  </button>
+                  <button
+                    className="vault-profile-action danger"
+                    onClick={() => onRemove(profile.path)}
+                    title={isDefault ? "Default profile cannot be removed" : "Remove profile"}
+                    disabled={isDefault}
+                  >
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        );
+      })}
+      <button className="btn secondary btn-sm" onClick={onAdd} title="Add a new vault location as a profile">
+        + Add Vault
+      </button>
+    </div>
   );
 }
 
@@ -1033,16 +1161,10 @@ export function Settings({
     onSettingsChange({ ...settings, confirmDelete });
   };
 
-  const handleChangeFolder = async () => {
-    const selected = await open({ directory: true, multiple: false });
-    if (selected) {
-      await onChangeFolder(selected);
-    }
-  };
 
   const handleOpenFolder = async () => {
     if (notesFolder) {
-      await openPath(notesFolder);
+      await invoke("open_folder", { path: notesFolder });
     }
   };
 
@@ -1582,29 +1704,69 @@ export function Settings({
 
             {activeTab === "storage" && (
               <div className="settings-section">
-                <h3>Vault Location<InfoTooltip><ul><li>The folder where your notes are stored as Markdown files</li><li>Use a synced location (Dropbox, iCloud) to access notes across devices</li></ul></InfoTooltip></h3>
-                <div className="settings-row">
-                  <span className="folder-path">
-                    {notesFolder || "Not set"}
-                  </span>
+                <h3>Active Vault</h3>
+                <div className="active-vault-card">
+                  <div className="active-vault-info">
+                    <span className="active-vault-name">
+                      {(settings.vaultProfiles || []).find(p => p.path === notesFolder)?.name || notesFolder?.split("/").pop() || "Not set"}
+                    </span>
+                    <span className="active-vault-path">{notesFolder || "No vault selected"}</span>
+                  </div>
+                  <div className="settings-actions">
+                    <button
+                      className="btn secondary btn-sm"
+                      onClick={handleOpenFolder}
+                      disabled={!notesFolder}
+                      title="Open the active vault in Finder"
+                    >
+                      Open in Finder
+                    </button>
+                    <button className="btn secondary btn-sm" onClick={onReloadNotes} title="Re-reads all notes from disk and rebuilds the search index">
+                      Rebuild Index
+                    </button>
+                  </div>
                 </div>
-                <p className="settings-hint">To sync notes across devices, point this to a location inside Dropbox, iCloud Drive, or another sync service.</p>
-                <div className="settings-actions">
-                  <button className="btn secondary" onClick={handleChangeFolder} title="Select a different folder to use as your vault">
-                    Change Vault
-                  </button>
-                  <button
-                    className="btn secondary"
-                    onClick={handleOpenFolder}
-                    disabled={!notesFolder}
-                    title="Open the vault location in Finder"
-                  >
-                    Open in Finder
-                  </button>
-                  <button className="btn secondary" onClick={onReloadNotes} title="Re-reads all notes from disk and rebuilds the search index. Use if notes appear missing or search results seem stale.">
-                    Rebuild Index
-                  </button>
-                </div>
+
+                <h3>All Vaults<InfoTooltip><ul><li>Save multiple vault locations and switch between them</li><li>Click a vault to make it active</li><li>Only one vault is active at a time</li></ul></InfoTooltip></h3>
+                <p className="settings-hint">Keep separate vaults for different contexts, like one for work and one for personal notes. Each vault can live in a different location (Dropbox, iCloud, local, etc).</p>
+                <VaultProfilesSection
+                  profiles={settings.vaultProfiles || []}
+                  activeFolder={notesFolder}
+                  onSwitch={async (path) => { await onChangeFolder(path); }}
+                  onAdd={async () => {
+                    const selected = await open({ directory: true, multiple: false });
+                    if (!selected) return;
+                    const profiles = [...(settings.vaultProfiles || [])];
+                    if (notesFolder && !profiles.some(p => p.path === notesFolder)) {
+                      profiles.unshift({ name: notesFolder.split("/").pop() || "Vault", path: notesFolder });
+                    }
+                    if (profiles.some(p => p.path === selected)) return;
+                    const name = (selected as string).split("/").pop() || "Vault";
+                    profiles.push({ name, path: selected as string });
+                    onSettingsChange({ ...settings, vaultProfiles: profiles });
+                    await onChangeFolder(selected as string);
+                  }}
+                  onRename={(path, newName) => {
+                    const profiles = (settings.vaultProfiles || []).map(p =>
+                      p.path === path ? { ...p, name: newName } : p
+                    );
+                    onSettingsChange({ ...settings, vaultProfiles: profiles });
+                  }}
+                  onRemove={(path) => {
+                    const profiles = (settings.vaultProfiles || []).filter(p => p.path !== path);
+                    onSettingsChange({ ...settings, vaultProfiles: profiles });
+                  }}
+                  onChangePath={(oldPath, newPath) => {
+                    if ((settings.vaultProfiles || []).some(p => p.path === newPath && p.path !== oldPath)) return;
+                    const profiles = (settings.vaultProfiles || []).map(p =>
+                      p.path === oldPath ? { ...p, path: newPath } : p
+                    );
+                    onSettingsChange({ ...settings, vaultProfiles: profiles });
+                    if (oldPath === notesFolder) {
+                      onChangeFolder(newPath);
+                    }
+                  }}
+                />
               </div>
             )}
 

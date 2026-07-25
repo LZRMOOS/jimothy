@@ -961,3 +961,12 @@ pub fn delete_scratchpad_entry(id: String, state: State<'_, AppState>) -> Result
     entries.retain(|e| e.id != id);
     save_scratchpad(&folder, &entries)
 }
+
+#[tauri::command]
+pub fn open_folder(path: String) -> Result<(), String> {
+    std::process::Command::new("open")
+        .arg(&path)
+        .spawn()
+        .map_err(|e| e.to_string())?;
+    Ok(())
+}

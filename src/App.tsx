@@ -508,8 +508,8 @@ function App() {
   const handleSettingsChange = useCallback(
     async (newSettings: AppSettings) => {
       setAppSettings(newSettings);
-      const { showTrayIcon, zoomLevel, globalShortcut } = newSettings;
-      const local: LocalSettings = { notesFolder: notesFolder || undefined, showTrayIcon, zoomLevel, globalShortcut };
+      const { showTrayIcon, zoomLevel, globalShortcut, captureShortcut, vaultProfiles } = newSettings;
+      const local: LocalSettings = { notesFolder: notesFolder || undefined, showTrayIcon, zoomLevel, globalShortcut, captureShortcut, vaultProfiles };
       const { theme, confirmDelete, idleLockMinutes, defaultCodex, tocDefault, dailyNoteCodex, dailyNoteFormat, codexIcons, codexColors, pinnedNotes, frozenNotes, pinnedCommands, protectedNotes, macros, colorsLight, colorsDark, colorPresets, tagColors, dictionary } = newSettings;
       const prefs: Preferences = { theme, confirmDelete, idleLockMinutes, defaultCodex, tocDefault, dailyNoteCodex, dailyNoteFormat, codexIcons, codexColors, pinnedNotes, frozenNotes, pinnedCommands, protectedNotes, macros, colorsLight, colorsDark, colorPresets, tagColors, dictionary };
       await Promise.all([
@@ -546,9 +546,10 @@ function App() {
     async (path: string) => {
       await initFolder(path);
       setNotesFolder(path);
-      const { showTrayIcon, zoomLevel, globalShortcut } = appSettings;
-      const local: LocalSettings = { notesFolder: path, showTrayIcon, zoomLevel, globalShortcut };
+      const { showTrayIcon, zoomLevel, globalShortcut, captureShortcut, vaultProfiles } = appSettings;
+      const local: LocalSettings = { notesFolder: path, showTrayIcon, zoomLevel, globalShortcut, captureShortcut, vaultProfiles };
       await invoke("save_app_settings", { settingsJson: JSON.stringify(local) });
+      await checkVaultStatus();
       try {
         const prefsJson = (await invoke("get_preferences")) as string;
         const prefs: Preferences = JSON.parse(prefsJson);
@@ -557,7 +558,7 @@ function App() {
         // New folder, no preferences yet
       }
     },
-    [initFolder, appSettings]
+    [initFolder, appSettings, checkVaultStatus]
   );
 
   const handleTogglePin = useCallback(
