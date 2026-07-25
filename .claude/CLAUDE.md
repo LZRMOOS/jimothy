@@ -92,7 +92,7 @@ Two independent layers of encryption:
 - **Reference panel**: Cmd+. toggles a tabbed side panel with Markdown and Controls reference tabs
 - **Feature tour**: "Open Feature Tour" command (Cmd+K) launches a guided coachmark overlay (`TourOverlay.tsx`) that spotlights real UI elements (anchored via `data-tour` attributes) with animated step tooltips, then opens a sample "Feature Tour" note. Steps live in `TOUR_STEPS` (utils/featureTour.ts) alongside the note body.
 - Zoom support (Cmd+/- for text size)
-- System tray with hide-on-close behavior, launch minimized to tray when autostart enabled
+- System tray with hide-on-close behavior; a "Start hidden in the menu bar" setting (`launchMinimized`, General tab) launches to the tray without showing the window
 - Native macOS menu bar with standard shortcuts
 - Settings with tabs: General, Organization, Controls, Macros, Dictionary, Emoji, Colors, Storage, Security, Markdown
 - **Vault profiles**: Multiple vault locations switchable from the header dropdown; each profile has a name, path, and optional color
@@ -217,7 +217,7 @@ Dropbox is last-writer-wins at the file level, so conflicts can't be fully preve
 
 ### Window State & Visibility (lib.rs)
 - `tauri-plugin-window-state` owns **geometry only** — it's built with `StateFlags::SIZE | POSITION | MAXIMIZED` (NOT `all()`, which would include `VISIBLE`). Do not add `VISIBLE`: the plugin would re-show the window from saved state and defeat launch-minimized.
-- **Visibility is owned by our code, not the plugin.** The main window is created `visible:false` (tauri.conf.json). The setup hook is the single source of truth for startup: if autostart is enabled, leave it hidden (launch minimized to tray); otherwise `show()` + `set_focus()`. At runtime the tray/close handlers own show/hide.
+- **Visibility is owned by our code, not the plugin.** The main window is created `visible:false` (tauri.conf.json). The setup hook is the single source of truth for startup: it reads the `launchMinimized` local setting straight from settings.json (`read_bool_setting`, before the frontend loads) — when true, leave it hidden (launch to tray); otherwise `show()` + `set_focus()`. When the key is unset it falls back to the legacy rule of inferring from autostart. Guarded by `showTrayIcon`: launch-minimized is force-disabled when the tray is off (otherwise the app would start with no window and no tray, recoverable only via the global shortcut) — the Settings UI disables the toggle to match. At runtime the tray/close handlers own show/hide.
 - Close = hide, not quit: `CloseRequested` saves geometry (while still visible) then `prevent_close()` + `hide()`. Real quit is the tray "Quit" item (`app.exit(0)`).
 - Persisted at `{config_dir}/jimothy/.window-state.json` (separate from settings.json).
 

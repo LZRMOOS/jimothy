@@ -9,6 +9,7 @@ import type { AppSettings, LocalSettings, Preferences } from "../types";
 export const LOCAL_KEYS: (keyof LocalSettings)[] = [
   "notesFolder",
   "showTrayIcon",
+  "launchMinimized",
   "zoomLevel",
   "globalShortcut",
   "captureShortcut",

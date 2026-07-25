@@ -47,6 +47,7 @@ export type VaultProfile = {
 export type LocalSettings = {
   notesFolder?: string;
   showTrayIcon?: boolean;
+  launchMinimized?: boolean;
   zoomLevel?: number;
   globalShortcut?: string;
   captureShortcut?: string;

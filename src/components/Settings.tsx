@@ -1484,11 +1484,12 @@ export function Settings({
                   <span className="settings-hint">Auto-updates coming soon</span>
                 </div>
 
-                <h3>Behavior<InfoTooltip><ul><li>Launch at login starts the app minimized to the menu bar</li><li>Show in menu bar keeps a tray icon for quick access; closing the window hides to the tray instead of quitting</li><li>The table of contents is the heading outline you can also toggle with Cmd+T</li></ul></InfoTooltip></h3>
+                <h3>Behavior</h3>
                 <div className="settings-row">
-                  <label htmlFor="confirm-delete">
-                    Confirm before deleting
-                  </label>
+                  <div className="settings-row-text">
+                    <label htmlFor="confirm-delete">Confirm before deleting</label>
+                    <p className="settings-row-desc">Ask for confirmation before moving a note to the trash.</p>
+                  </div>
                   <input
                     id="confirm-delete"
                     type="checkbox"
@@ -1498,29 +1499,59 @@ export function Settings({
                     }
                   />
                 </div>
-                <div className="settings-row">
-                  <label htmlFor="auto-start">Launch at login</label>
-                  <input
-                    id="auto-start"
-                    type="checkbox"
-                    checked={autoStart}
-                    onChange={async (e) => {
-                      const checked = e.target.checked;
-                      try {
-                        if (checked) {
-                          await enable();
-                        } else {
-                          await disable();
+                <fieldset className="settings-group">
+                  <legend className="settings-group-label">Startup</legend>
+                  <div className="settings-row">
+                    <div className="settings-row-text">
+                      <label htmlFor="auto-start">Launch at login</label>
+                      <p className="settings-row-desc">Start Jimothy automatically when you log in to your computer.</p>
+                    </div>
+                    <input
+                      id="auto-start"
+                      type="checkbox"
+                      checked={autoStart}
+                      onChange={async (e) => {
+                        const checked = e.target.checked;
+                        try {
+                          if (checked) {
+                            await enable();
+                          } else {
+                            await disable();
+                          }
+                          setAutoStart(checked);
+                        } catch {
+                          // ignore if autostart setup fails
                         }
-                        setAutoStart(checked);
-                      } catch {
-                        // ignore if autostart setup fails
+                      }}
+                    />
+                  </div>
+                  <div className="settings-row">
+                    <div className="settings-row-text">
+                      <label htmlFor="launch-minimized">Start hidden in the menu bar</label>
+                      <p className="settings-row-desc">
+                        Launch without opening the window, waiting in the menu bar until you summon it ({mod}+Shift+Space).
+                        {settings.showTrayIcon === false && " Requires Show in menu bar."}
+                      </p>
+                    </div>
+                    <input
+                      id="launch-minimized"
+                      type="checkbox"
+                      disabled={settings.showTrayIcon === false}
+                      checked={settings.showTrayIcon !== false && (settings.launchMinimized ?? autoStart)}
+                      onChange={(e) =>
+                        onSettingsChange({
+                          ...settings,
+                          launchMinimized: e.target.checked,
+                        })
                       }
-                    }}
-                  />
-                </div>
+                    />
+                  </div>
+                </fieldset>
                 <div className="settings-row">
-                  <label htmlFor="show-tray">Show in menu bar</label>
+                  <div className="settings-row-text">
+                    <label htmlFor="show-tray">Show in menu bar</label>
+                    <p className="settings-row-desc">Keep an icon in the menu bar for quick access. Closing the window hides it to the tray instead of quitting.</p>
+                  </div>
                   <input
                     id="show-tray"
                     type="checkbox"
@@ -1534,8 +1565,12 @@ export function Settings({
                   />
                 </div>
                 <div className="settings-row">
-                  <label>Show table of contents by default</label>
+                  <div className="settings-row-text">
+                    <label htmlFor="toc-default">Show table of contents by default</label>
+                    <p className="settings-row-desc">Open the heading outline automatically for notes with headings. Toggle any time with {mod}+T.</p>
+                  </div>
                   <input
+                    id="toc-default"
                     type="checkbox"
                     checked={settings.tocDefault || false}
                     onChange={(e) =>

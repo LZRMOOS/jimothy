@@ -16,6 +16,17 @@ use tauri_plugin_autostart::ManagerExt;
 use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut, ShortcutState};
 use tauri_plugin_window_state::{AppHandleExt, StateFlags};
 
+/// Read a boolean local setting straight from settings.json. The setup hook
+/// decides startup visibility before the frontend loads, so it can't go through
+/// the usual IPC path. Returns None when the file is missing or the key is
+/// unset, letting the caller fall back to a default.
+fn read_bool_setting(key: &str) -> Option<bool> {
+    let path = dirs::config_dir()?.join("jimothy").join("settings.json");
+    let contents = std::fs::read_to_string(path).ok()?;
+    let json: serde_json::Value = serde_json::from_str(&contents).ok()?;
+    json.get(key).and_then(|v| v.as_bool())
+}
+
 #[tauri::command]
 fn set_tray_visible(app: tauri::AppHandle, visible: bool) -> Result<(), String> {
     let id = TrayIconId::new("main-tray");
@@ -387,12 +398,23 @@ pub fn run() {
 
             // Decide startup visibility. The window is created hidden
             // (visible:false in tauri.conf.json) and the window-state plugin no
-            // longer touches visibility, so this is the single source of truth:
-            // when autostart is on we leave it hidden (launch minimized to
-            // tray); otherwise we show and focus it. Geometry was already
-            // restored by the plugin's on_window_ready.
-            let autostart_enabled = app.handle().autolaunch().is_enabled().unwrap_or(false);
-            if !autostart_enabled {
+            // longer touches visibility, so this is the single source of truth.
+            // The `launchMinimized` setting owns this: when true we leave the
+            // window hidden (waiting in the tray); otherwise we show and focus
+            // it. When the setting is unset (fresh install or pre-upgrade
+            // config) we fall back to the legacy rule of inferring it from
+            // autostart. Geometry was already restored by the plugin.
+            //
+            // Guard: starting hidden only makes sense when the tray icon is
+            // shown, otherwise the app would launch with no window AND no tray
+            // (recoverable only via the global shortcut). If the tray is off we
+            // always show, regardless of launchMinimized.
+            let tray_shown = read_bool_setting("showTrayIcon").unwrap_or(true);
+            let launch_minimized = tray_shown
+                && read_bool_setting("launchMinimized").unwrap_or_else(|| {
+                    app.handle().autolaunch().is_enabled().unwrap_or(false)
+                });
+            if !launch_minimized {
                 if let Some(window) = app.get_webview_window("main") {
                     let _ = window.show();
                     let _ = window.set_focus();
