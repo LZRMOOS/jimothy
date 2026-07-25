@@ -65,6 +65,40 @@ fn config_path(folder: &Path, filename: &str) -> PathBuf {
     folder.join(".scratch").join(filename)
 }
 
+/// Persist a note in the on-disk format matching the current vault status,
+/// clean up any stale file at the note's previous path (e.g. a legacy
+/// `{slug}--{id}.md` name being migrated), and update `note.file_path` to the
+/// new location. Sets `note.encrypted` when writing to the vault.
+///
+/// `vault_key` is the already-resolved key so callers lock the mutex once;
+/// `locked_msg` tailors the error shown when the vault is locked. This is the
+/// single write path shared by create/save/archive/conflict-resolution.
+fn persist_note(
+    folder: &Path,
+    vault_status: &VaultStatus,
+    vault_key: Option<&[u8]>,
+    note: &mut Note,
+    locked_msg: &str,
+) -> Result<(), String> {
+    let old_path = PathBuf::from(&note.file_path);
+
+    let new_path = match vault_status {
+        VaultStatus::Unlocked => {
+            let key = vault_key.ok_or("Vault key not available")?;
+            note.encrypted = true;
+            storage::write_note_encrypted(folder, note, key)?
+        }
+        VaultStatus::Locked => return Err(locked_msg.to_string()),
+        VaultStatus::Plaintext => storage::write_note_atomic(folder, note)?,
+    };
+
+    if !old_path.as_os_str().is_empty() && old_path != new_path && old_path.exists() {
+        let _ = fs::remove_file(&old_path);
+    }
+    note.file_path = new_path.to_string_lossy().to_string();
+    Ok(())
+}
+
 fn load_config(folder: &Path, filename: &str) -> Option<VaultConfig> {
     let path = config_path(folder, filename);
     let content = fs::read_to_string(path).ok()?;
@@ -226,20 +260,14 @@ pub fn create_note(title: String, codex: Option<String>, state: State<'_, AppSta
     let mut note = Note::new(title);
     note.codex = codex;
 
-    let path = match vault_status {
-        VaultStatus::Unlocked => {
-            let key = state.vault_key.lock().unwrap();
-            let key = key.as_ref().ok_or("Vault key not available")?;
-            note.encrypted = true;
-            storage::write_note_encrypted(&folder, &note, key)?
-        }
-        VaultStatus::Locked => {
-            return Err("Vault is locked. Unlock before creating notes.".to_string());
-        }
-        VaultStatus::Plaintext => storage::write_note_atomic(&folder, &note)?,
-    };
-
-    note.file_path = path.to_string_lossy().to_string();
+    let vault_key = state.vault_key.lock().unwrap().clone();
+    persist_note(
+        &folder,
+        &vault_status,
+        vault_key.as_deref(),
+        &mut note,
+        "Vault is locked. Unlock before creating notes.",
+    )?;
 
     let dto = NoteDto::from(&note);
     state.notes.lock().unwrap().insert(0, note);
@@ -290,30 +318,18 @@ pub fn save_note(
         .find(|n| n.id == id)
         .ok_or("Note not found")?;
 
-    let old_path = PathBuf::from(&note.file_path);
-
     note.title = title;
     note.body = body;
     note.codex = codex;
     note.updated_at = Utc::now();
 
-    let new_path = match vault_status {
-        VaultStatus::Unlocked => {
-            let key = vault_key.as_ref().ok_or("Vault key not available")?;
-            note.encrypted = true;
-            storage::write_note_encrypted(&folder, note, key)?
-        }
-        VaultStatus::Locked => {
-            return Err("Vault is locked. Unlock before saving.".to_string());
-        }
-        VaultStatus::Plaintext => storage::write_note_atomic(&folder, note)?,
-    };
-
-    if old_path != new_path && old_path.exists() {
-        let _ = std::fs::remove_file(&old_path);
-    }
-
-    note.file_path = new_path.to_string_lossy().to_string();
+    persist_note(
+        &folder,
+        &vault_status,
+        vault_key.as_deref(),
+        note,
+        "Vault is locked. Unlock before saving.",
+    )?;
 
     let dto = NoteDto::from(&*note);
     drop(notes);
@@ -329,6 +345,7 @@ pub fn save_note(
 pub fn set_note_archived(id: String, archived: bool, state: State<'_, AppState>) -> Result<NoteDto, String> {
     let folder = state.folder()?;
     let vault_status = state.vault_status.lock().unwrap().clone();
+    let vault_key = state.vault_key.lock().unwrap().clone();
 
     let mut notes = state.notes.lock().unwrap();
     let note = notes
@@ -337,18 +354,13 @@ pub fn set_note_archived(id: String, archived: bool, state: State<'_, AppState>)
         .ok_or("Note not found")?;
 
     note.archived = archived;
-
-    match vault_status {
-        VaultStatus::Unlocked => {
-            let key = state.vault_key.lock().unwrap();
-            let key = key.as_ref().ok_or("Vault key not available")?;
-            storage::write_note_encrypted(&folder, note, key)?;
-        }
-        VaultStatus::Locked => {
-            return Err("Vault is locked. Unlock before saving.".to_string());
-        }
-        VaultStatus::Plaintext => { storage::write_note_atomic(&folder, note)?; }
-    };
+    persist_note(
+        &folder,
+        &vault_status,
+        vault_key.as_deref(),
+        note,
+        "Vault is locked. Unlock before saving.",
+    )?;
 
     Ok(NoteDto::from(&*note))
 }
@@ -1096,7 +1108,11 @@ pub fn list_conflicts(state: State<'_, AppState>) -> Result<Vec<ConflictEntry>, 
 
         // Match against the live in-memory note by id.
         let notes = state.notes.lock().unwrap();
-        let live = notes.iter().find(|n| !note_id.is_empty() && n.id == note_id);
+        let live = if note_id.is_empty() {
+            None
+        } else {
+            notes.iter().find(|n| n.id == note_id)
+        };
 
         out.push(ConflictEntry {
             filename: filename.clone(),
@@ -1161,34 +1177,24 @@ pub fn resolve_conflict(
             let conflict = parsed.ok_or("Conflict file could not be parsed")?;
 
             let vault_status = state.vault_status.lock().unwrap().clone();
+            let vault_key = state.vault_key.lock().unwrap().clone();
             let mut notes = state.notes.lock().unwrap();
             let note = notes
                 .iter_mut()
                 .find(|n| n.id == conflict.id)
                 .ok_or("No matching live note to overwrite")?;
 
-            let old_path = PathBuf::from(&note.file_path);
             note.title = conflict.title;
             note.body = conflict.body;
             note.codex = conflict.codex;
             note.updated_at = Utc::now();
-
-            let new_path = match vault_status {
-                VaultStatus::Unlocked => {
-                    let key = state.vault_key.lock().unwrap();
-                    let key = key.as_ref().ok_or("Vault key not available")?;
-                    note.encrypted = true;
-                    storage::write_note_encrypted(&folder, note, key)?
-                }
-                VaultStatus::Locked => {
-                    return Err("Vault is locked. Unlock before resolving.".to_string());
-                }
-                VaultStatus::Plaintext => storage::write_note_atomic(&folder, note)?,
-            };
-            if old_path != new_path && old_path.exists() {
-                let _ = fs::remove_file(&old_path);
-            }
-            note.file_path = new_path.to_string_lossy().to_string();
+            persist_note(
+                &folder,
+                &vault_status,
+                vault_key.as_deref(),
+                note,
+                "Vault is locked. Unlock before resolving.",
+            )?;
             drop(notes);
 
             fs::remove_file(&canonical_file)
@@ -1207,19 +1213,14 @@ pub fn resolve_conflict(
             new_note.codex = conflict.codex;
 
             let vault_status = state.vault_status.lock().unwrap().clone();
-            let new_path = match vault_status {
-                VaultStatus::Unlocked => {
-                    let key = state.vault_key.lock().unwrap();
-                    let key = key.as_ref().ok_or("Vault key not available")?;
-                    new_note.encrypted = true;
-                    storage::write_note_encrypted(&folder, &new_note, key)?
-                }
-                VaultStatus::Locked => {
-                    return Err("Vault is locked. Unlock before resolving.".to_string());
-                }
-                VaultStatus::Plaintext => storage::write_note_atomic(&folder, &new_note)?,
-            };
-            new_note.file_path = new_path.to_string_lossy().to_string();
+            let vault_key = state.vault_key.lock().unwrap().clone();
+            persist_note(
+                &folder,
+                &vault_status,
+                vault_key.as_deref(),
+                &mut new_note,
+                "Vault is locked. Unlock before resolving.",
+            )?;
             state.notes.lock().unwrap().push(new_note);
 
             fs::remove_file(&canonical_file)

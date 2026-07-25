@@ -470,16 +470,9 @@ function App() {
     if (vaultStatus === "unlocked") lockVault();
   }, [vaultStatus, lockVault]);
 
-  useEventListener("note-conflict", () => {
-    setNotification(
-      "A note was modified externally while you were editing. Both versions were preserved."
-    );
-  });
-
-  useEventListener("dropbox-conflict", () => {
-    setNotification(
-      "A Dropbox sync conflict was detected and preserved. Review it to pick which version to keep."
-    );
+  // Show a notification with a "Resolve" button that opens the conflict resolver.
+  const notifyWithResolve = useCallback((message: string) => {
+    setNotification(message);
     setNotificationAction({
       label: "Resolve",
       run: () => {
@@ -488,6 +481,18 @@ function App() {
         setShowConflictResolver(true);
       },
     });
+  }, []);
+
+  useEventListener("note-conflict", () => {
+    setNotification(
+      "A note was modified externally while you were editing. Both versions were preserved."
+    );
+  });
+
+  useEventListener("dropbox-conflict", () => {
+    notifyWithResolve(
+      "A Dropbox sync conflict was detected and preserved. Review it to pick which version to keep."
+    );
   });
 
   useEventListener("folder-unavailable", () => {
@@ -501,17 +506,9 @@ function App() {
   // A save raced an external write; the losing version was backed up to conflicts.
   useEventListener<{ id: string }>("save-conflict", () => {
     loadNotes();
-    setNotification(
+    notifyWithResolve(
       "This note was also changed on another device. Both versions were preserved."
     );
-    setNotificationAction({
-      label: "Resolve",
-      run: () => {
-        setNotification(null);
-        setNotificationAction(null);
-        setShowConflictResolver(true);
-      },
-    });
   });
 
   const handleConflictChoice = useCallback(

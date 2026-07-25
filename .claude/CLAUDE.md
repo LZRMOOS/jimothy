@@ -159,10 +159,22 @@ src-tauri/
 - **Protection**: Same crypto as vault, but per-note with separate password
 
 ### File Operations
-- **Atomic writes**: Write to temp file (`{filename}.tmp.{ulid}`), then rename to final path
+- **Filenames are ULID-only**: notes are stored as `{id}.md` / `{id}.snote` / `{id}.pnote` (NOT `{slug}--{id}`). The id is immutable, so a title edit is an in-place write, not a delete+create rename. This is deliberate: Dropbox syncs a rename as delete+create, and two machines renaming the same note concurrently would leave two files sharing one id. Do not reintroduce the title into the filename. Legacy `{slug}--{id}.md` files still load (id comes from frontmatter) and migrate to `{id}.md` on their next save.
+- **Atomic writes**: Write to temp file (`.scratch-tmp-{ulid}.md`), then rename to final path. Orphaned temp files are swept by `cleanup_temp_files`.
+- **Single write path**: All note writes go through `persist_note` (commands/mod.rs) — it picks the format by vault status, cleans up the old file path, and updates `note.file_path`. Don't hand-roll the `match vault_status { write_note_encrypted | write_note_atomic }` block; call `persist_note`.
+- **`find_note_file`** (storage/mod.rs) resolves a note id to its on-disk path across all three formats, with a legacy-suffix fallback.
 - **Conflict detection**: Check for Dropbox conflict files (` (Conflicted Copy)`), emit event
 - **Trash**: Move to `{notes_folder}/.scratch/trash/` instead of permanent delete
-- **Watcher**: Debounced filesystem events trigger `reload_notes` command
+- **Watcher**: Debounced filesystem events trigger `reload_notes` command; the frontend ignores `notes-changed` within 2s of its own save (useNotes.ts) to avoid clobbering the active buffer
+
+### Sync Conflict Handling
+Dropbox is last-writer-wins at the file level, so conflicts can't be fully prevented — the strategy is to shrink the race window and never lose data:
+- **Optimistic-concurrency guard** (`save_note`): the editor reports the `updated_at` its buffer was based on (`baseUpdatedAt`). On save the backend re-reads the note *from disk* (the in-memory cache lags during active editing) and, if disk is newer, backs up the external version to `.scratch/conflicts/` before letting the save proceed, then emits `save-conflict`. The user's edit is never blocked; the version they'd have clobbered is preserved.
+- **Base version is owned by the Editor**, not `loadNotes` — only the editor knows when it adopts external content vs. keeps the user's buffer. It calls `recordBaseVersion(id, updated_at)`; a background reload must NOT reset it or detection breaks.
+- **Flush on boundaries**: `flushSave` commits the pending debounced save immediately on editor blur, note switch, and window hide — shrinks the unsynced window.
+- **Conflict copies** never leak plaintext: `write_conflict_copy` encrypts with the vault key when the vault is active (`.snote`), else writes `.md`.
+- **Resolver**: `list_conflicts` / `resolve_conflict` (actions: `keep-live`, `keep-conflict`, `keep-both`, `delete`) back the `ConflictResolver` component. `resolve_conflict` canonicalizes the path and checks it stays inside `.scratch/conflicts/` (traversal guard).
+- **Duplicate-id dedup** (`load_notes_deduped`): if two files still end up with the same id, the newer `updated_at` wins and the older moves to `.scratch/conflicts/`.
 
 ### Internal Note Links
 - Links stored as `[Title](scratch://id)` (standard markdown, valid format)
