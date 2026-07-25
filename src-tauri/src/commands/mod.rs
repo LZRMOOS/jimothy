@@ -970,3 +970,8 @@ pub fn open_folder(path: String) -> Result<(), String> {
         .map_err(|e| e.to_string())?;
     Ok(())
 }
+
+#[tauri::command]
+pub fn check_vault_exists(path: String) -> bool {
+    Path::new(&path).join(".scratch").join("vault.json").exists()
+}

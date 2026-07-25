@@ -215,12 +215,10 @@ function VaultProfilesSection({ profiles, activeFolder, onSwitch, onAdd, onRenam
   useEffect(() => {
     let cancelled = false;
     const check = async () => {
-      const { exists } = await import("@tauri-apps/plugin-fs");
       const encrypted = new Set<string>();
       for (const p of profiles) {
-        const sep = p.path.includes("\\") ? "\\" : "/";
-        const vaultConfig = `${p.path}${sep}.scratch${sep}vault.json`;
-        if (await exists(vaultConfig)) encrypted.add(p.path);
+        const has = await invoke("check_vault_exists", { path: p.path }) as boolean;
+        if (has) encrypted.add(p.path);
       }
       if (!cancelled) setEncryptedPaths(encrypted);
     };

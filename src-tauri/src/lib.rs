@@ -258,6 +258,7 @@ pub fn run() {
             commands::append_scratchpad_entry,
             commands::delete_scratchpad_entry,
             commands::open_folder,
+            commands::check_vault_exists,
             set_tray_visible,
             open_scratchpad,
             update_global_shortcut,
