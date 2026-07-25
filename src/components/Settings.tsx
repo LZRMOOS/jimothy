@@ -201,7 +201,7 @@ function VaultProfilesSection({ profiles, activeFolder, onSwitch, onAdd, onRenam
   profiles: VaultProfile[];
   activeFolder: string | null;
   onSwitch: (path: string) => Promise<void>;
-  onAdd: () => Promise<void>;
+  onAdd: () => Promise<{ path: string; name: string } | null>;
   onRename: (path: string, name: string) => void;
   onRemove: (path: string) => void;
   onChangePath: (oldPath: string, newPath: string) => void;
@@ -248,6 +248,8 @@ function VaultProfilesSection({ profiles, activeFolder, onSwitch, onAdd, onRenam
         const isActive = profile.path === activeFolder;
         const isEditing = editingPath === profile.path;
         const isDefault = index === 0;
+        // Default name when the field is cleared: the vault's folder name.
+        const folderName = profile.path.split("/").pop() || "Vault";
         return (
           <div key={profile.path} className={`vault-profile-row ${isActive ? "active" : ""}`}>
             {isEditing ? (
@@ -257,17 +259,17 @@ function VaultProfilesSection({ profiles, activeFolder, onSwitch, onAdd, onRenam
                   className="vault-profile-name-input"
                   value={editName}
                   onChange={(e) => setEditName(e.target.value)}
-                  placeholder="Profile name"
+                  placeholder={folderName}
                   onKeyDown={(e) => {
                     if (e.key === "Enter") {
-                      onRename(profile.path, editName.trim() || profile.name);
+                      onRename(profile.path, editName.trim() || folderName);
                       setEditingPath(null);
                     } else if (e.key === "Escape") {
                       setEditingPath(null);
                     }
                   }}
                   onBlur={() => {
-                    onRename(profile.path, editName.trim() || profile.name);
+                    onRename(profile.path, editName.trim() || folderName);
                     setEditingPath(null);
                   }}
                 />
@@ -336,7 +338,20 @@ function VaultProfilesSection({ profiles, activeFolder, onSwitch, onAdd, onRenam
           </div>
         );
       })}
-      <button className="btn secondary btn-sm" onClick={onAdd} title="Add a new vault location as a profile">
+      <button
+        className="btn secondary btn-sm"
+        onClick={async () => {
+          const added = await onAdd();
+          // Drop straight into the name field (pre-filled with the folder name)
+          // so a custom name can be typed right away instead of hunting for the
+          // rename pencil afterwards.
+          if (added) {
+            setEditName(added.name);
+            setEditingPath(added.path);
+          }
+        }}
+        title="Add a new vault location as a profile"
+      >
         + Add Vault
       </button>
     </div>
@@ -1960,16 +1975,18 @@ export function Settings({
                   onSwitch={async (path) => { await onChangeFolder(path); }}
                   onAdd={async () => {
                     const selected = await open({ directory: true, multiple: false });
-                    if (!selected) return;
+                    if (!selected) return null;
                     const profiles = [...(settings.vaultProfiles || [])];
                     if (notesFolder && !profiles.some(p => p.path === notesFolder)) {
                       profiles.unshift({ name: notesFolder.split("/").pop() || "Vault", path: notesFolder });
                     }
-                    if (profiles.some(p => p.path === selected)) return;
-                    const name = (selected as string).split("/").pop() || "Vault";
-                    profiles.push({ name, path: selected as string });
+                    if (profiles.some(p => p.path === selected)) return null;
+                    const path = selected as string;
+                    const name = path.split("/").pop() || "Vault";
+                    profiles.push({ name, path });
                     onSettingsChange({ ...settings, vaultProfiles: profiles });
-                    await onChangeFolder(selected as string);
+                    await onChangeFolder(path);
+                    return { path, name };
                   }}
                   onRename={(path, newName) => {
                     const profiles = (settings.vaultProfiles || []).map(p =>
