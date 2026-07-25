@@ -1483,7 +1483,7 @@ export function Settings({
                   <span className="settings-hint">Auto-updates coming soon</span>
                 </div>
 
-                <h3>Behavior</h3>
+                <h3>Behavior<InfoTooltip><ul><li>Launch at login starts the app minimized to the menu bar</li><li>Show in menu bar keeps a tray icon for quick access; closing the window hides to the tray instead of quitting</li><li>The table of contents is the heading outline you can also toggle with Cmd+T</li></ul></InfoTooltip></h3>
                 <div className="settings-row">
                   <label htmlFor="confirm-delete">
                     Confirm before deleting
@@ -1849,7 +1849,7 @@ export function Settings({
 
             {activeTab === "colors" && (
               <div className="settings-section">
-                <h3>Appearance</h3>
+                <h3>Appearance<InfoTooltip><ul><li>System follows your OS light/dark setting</li><li>Accent and background colors are saved per theme, so light and dark can look different</li><li>Pick a preset or set custom colors below</li></ul></InfoTooltip></h3>
                 <div className="settings-row">
                   <label>Theme</label>
                   <Dropdown
@@ -2176,6 +2176,11 @@ export function Settings({
 
             {activeTab === "markdown" && (
               <div className="settings-section markdown-reference">
+                <p className="settings-hint">
+                  A quick reference for the Markdown the editor understands. Notes save as
+                  plain Markdown files, so everything here stays portable. Open this any time
+                  in the editor with the reference panel (Cmd+.).
+                </p>
                 <h3>Text Formatting</h3>
                 <table className="md-ref-table">
                   <tbody>
