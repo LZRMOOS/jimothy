@@ -129,6 +129,13 @@ pub struct NoteDto {
     pub archived: bool,
 }
 
+/// Emitted when a save loses a race against an external write. The frontend
+/// reloads the (now external) note and offers the preserved copy in the resolver.
+#[derive(Clone, serde::Serialize)]
+pub struct SaveConflictPayload {
+    pub id: String,
+}
+
 impl From<&Note> for NoteDto {
     fn from(note: &Note) -> Self {
         NoteDto {
@@ -245,11 +252,37 @@ pub fn save_note(
     title: String,
     body: String,
     codex: Option<String>,
+    base_updated_at: Option<String>,
     state: State<'_, AppState>,
+    app_handle: AppHandle,
 ) -> Result<NoteDto, String> {
     let folder = state.folder()?;
 
     let vault_status = state.vault_status.lock().unwrap().clone();
+    let vault_key = state.vault_key.lock().unwrap().clone();
+
+    // Optimistic-concurrency guard: if the caller told us which version its edit
+    // was based on, re-read the note's *actual* current state from disk (the
+    // in-memory cache can lag during active editing) and compare. If disk is
+    // newer, an external writer (another machine via Dropbox) got there first.
+    // We don't block the user's save — instead we back up the external version
+    // they'd otherwise clobber, then let the save proceed and signal the UI.
+    let mut hit_conflict = false;
+    if let Some(base) = base_updated_at.as_ref().and_then(|s| {
+        chrono::DateTime::parse_from_rfc3339(s)
+            .ok()
+            .map(|dt| dt.with_timezone(&Utc))
+    }) {
+        let key_ref = vault_key.as_deref();
+        if let Some(disk) = storage::read_note_from_disk(&folder, &id, key_ref) {
+            // A hair of slack absorbs sub-millisecond RFC3339 round-tripping.
+            if (disk.updated_at - base) > chrono::Duration::milliseconds(1) {
+                // Preserve the external version before the save overwrites it.
+                let _ = storage::write_conflict_copy(&folder, &disk, key_ref);
+                hit_conflict = true;
+            }
+        }
+    }
 
     let mut notes = state.notes.lock().unwrap();
     let note = notes
@@ -266,8 +299,7 @@ pub fn save_note(
 
     let new_path = match vault_status {
         VaultStatus::Unlocked => {
-            let key = state.vault_key.lock().unwrap();
-            let key = key.as_ref().ok_or("Vault key not available")?;
+            let key = vault_key.as_ref().ok_or("Vault key not available")?;
             note.encrypted = true;
             storage::write_note_encrypted(&folder, note, key)?
         }
@@ -283,7 +315,14 @@ pub fn save_note(
 
     note.file_path = new_path.to_string_lossy().to_string();
 
-    Ok(NoteDto::from(&*note))
+    let dto = NoteDto::from(&*note);
+    drop(notes);
+
+    if hit_conflict {
+        let _ = app_handle.emit("save-conflict", SaveConflictPayload { id });
+    }
+
+    Ok(dto)
 }
 
 #[tauri::command]

@@ -11,6 +11,9 @@ export function useNotes() {
   const [folderSet, setFolderSet] = useState(false);
   const saveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const lastSaveRef = useRef<number>(0);
+  // The `updated_at` each note's editable buffer was last loaded/saved from.
+  // Sent to the backend on save so it can detect external writes (see save_note).
+  const baseVersionRef = useRef<Record<string, string>>({});
   const searchRef = useRef<MiniSearch<Note>>(
     new MiniSearch({
       fields: ["title", "body"],
@@ -33,6 +36,13 @@ export function useNotes() {
     setNotes(loaded);
     rebuildIndex(loaded);
   }, [rebuildIndex]);
+
+  // Record the version an editor buffer is derived from. Called by the editor
+  // whenever it (re)loads a note's content, and on every successful save. This,
+  // not the notes list, is the source of truth for conflict detection.
+  const recordBaseVersion = useCallback((id: string, updatedAt: string) => {
+    baseVersionRef.current[id] = updatedAt;
+  }, []);
 
   const initFolder = useCallback(
     async (path: string) => {
@@ -89,8 +99,11 @@ export function useNotes() {
           title,
           body,
           codex: codex ?? null,
+          baseUpdatedAt: baseVersionRef.current[id] ?? null,
         })) as Note;
         lastSaveRef.current = Date.now();
+        // Our write is now the base for the next edit.
+        baseVersionRef.current[id] = updated.updated_at;
         setNotes((prev) => {
           const newList = prev.map((n) => {
             if (n.id !== id) return n;
@@ -173,5 +186,6 @@ export function useNotes() {
     search,
     loadNotes,
     updateNoteLocally,
+    recordBaseVersion,
   };
 }

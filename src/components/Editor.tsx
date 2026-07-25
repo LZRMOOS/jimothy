@@ -259,6 +259,9 @@ type Props = {
   onBodyChange: (body: string) => void;
   onCodexChange: (codex: string | null) => void;
   onEditingChange?: (editing: boolean) => void;
+  // Reports the version (updated_at) the editor buffer is now derived from,
+  // for optimistic-concurrency conflict detection on save.
+  onBaseVersion?: (id: string, updatedAt: string) => void;
   focusTrigger?: number;
   searchQuery?: string;
   codexList: string[];
@@ -280,7 +283,7 @@ type Props = {
 type TocHeading = { level: number; text: string; pos: number };
 type Backlink = { id: string; title: string };
 
-export function Editor({ note, saveStatus, onTitleChange, onBodyChange, onCodexChange, onEditingChange, searchQuery = "", codexList, isSensitive, editorRef, macros = {}, allNotes = [], onNavigateToNote, frozen, onToggleFreeze, tocDefault, onCloseSplit, onToggleSplit, isSplit, tagColors, dictionary = [] }: Props) {
+export function Editor({ note, saveStatus, onTitleChange, onBodyChange, onCodexChange, onEditingChange, onBaseVersion, searchQuery = "", codexList, isSensitive, editorRef, macros = {}, allNotes = [], onNavigateToNote, frozen, onToggleFreeze, tocDefault, onCloseSplit, onToggleSplit, isSplit, tagColors, dictionary = [] }: Props) {
   const [showCharCount, setShowCharCount] = useState(false);
   const [isTitleFocused, setIsTitleFocused] = useState(false);
   const [showToc, setShowToc] = useState(false);
@@ -564,6 +567,9 @@ export function Editor({ note, saveStatus, onTitleChange, onBodyChange, onCodexC
     replaceInputRef.current?.focus();
   }, [editor, matchPositions, replaceText]);
 
+  const onBaseVersionRef = useRef(onBaseVersion);
+  onBaseVersionRef.current = onBaseVersion;
+
   useEffect(() => {
     if (!editor) return;
     if (noteIdRef.current !== note.id) {
@@ -572,6 +578,8 @@ export function Editor({ note, saveStatus, onTitleChange, onBodyChange, onCodexC
       editor.setEditable(!frozen, false);
       editor.commands.setContent(note.body);
       suppressUpdate.current = false;
+      // Switching notes: this note's on-disk version is our edit base.
+      onBaseVersionRef.current?.(note.id, note.updated_at);
       return;
     }
     const currentMd = (editor.storage as any).markdown.getMarkdown();
@@ -579,8 +587,10 @@ export function Editor({ note, saveStatus, onTitleChange, onBodyChange, onCodexC
       suppressUpdate.current = true;
       editor.commands.setContent(note.body);
       suppressUpdate.current = false;
+      // Adopted an external change while not editing: rebase to it.
+      onBaseVersionRef.current?.(note.id, note.updated_at);
     }
-  }, [note.id, note.body, editor, frozen]);
+  }, [note.id, note.body, note.updated_at, editor, frozen]);
 
   // Extract headings from editor document for TOC
   useEffect(() => {

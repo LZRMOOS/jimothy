@@ -260,6 +260,119 @@ pub fn save_conflict_copy(
     Ok(dest)
 }
 
+/// Find the current on-disk path for a note id, across all storage formats.
+/// Vault (`.snote`) and protected (`.pnote`) files are named purely by id, so we
+/// stat them directly. Plaintext (`.md`) filenames embed the title slug, so we
+/// scan for the `--{id}.md` suffix.
+pub fn find_note_file(folder: &Path, note_id: &str) -> Option<PathBuf> {
+    let snote = folder.join(format!("{}.snote", note_id));
+    if snote.exists() {
+        return Some(snote);
+    }
+    let pnote = folder.join(format!("{}.pnote", note_id));
+    if pnote.exists() {
+        return Some(pnote);
+    }
+
+    let suffix = format!("--{}.md", note_id);
+    let entries = fs::read_dir(folder).ok()?;
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if !path.is_file() {
+            continue;
+        }
+        let name = path.file_name().unwrap_or_default().to_string_lossy().to_string();
+        if name.ends_with(&suffix) {
+            return Some(path);
+        }
+    }
+    None
+}
+
+/// Read a note's current state from disk, across formats. Used by the
+/// optimistic-concurrency guard to detect external changes before overwriting.
+/// For `.pnote` the body stays empty (it needs the separate protection key), but
+/// the `updated_at` metadata is in cleartext, which is all the guard compares.
+/// Returns `None` when the file can't be located, read, or decrypted.
+pub fn read_note_from_disk(
+    folder: &Path,
+    note_id: &str,
+    vault_key: Option<&[u8]>,
+) -> Option<Note> {
+    let path = find_note_file(folder, note_id)?;
+    let content = fs::read_to_string(&path).ok()?;
+    match path.extension().and_then(|e| e.to_str()) {
+        Some("md") => notes::parse_note(&content, &path.to_string_lossy()),
+        Some("pnote") => {
+            let protected = crypto::parse_protected_note(&content).ok()?;
+            let created_at = chrono::DateTime::parse_from_rfc3339(&protected.created_at)
+                .map(|dt| dt.with_timezone(&Utc))
+                .unwrap_or_else(|_| Utc::now());
+            let updated_at = chrono::DateTime::parse_from_rfc3339(&protected.updated_at)
+                .map(|dt| dt.with_timezone(&Utc))
+                .unwrap_or_else(|_| Utc::now());
+            Some(Note {
+                id: protected.note_id,
+                title: protected.title,
+                body: String::new(),
+                created_at,
+                updated_at,
+                encrypted: true,
+                file_path: path.to_string_lossy().to_string(),
+                codex: protected.codex,
+                archived: false,
+            })
+        }
+        Some("snote") => {
+            let key = vault_key?;
+            let encrypted = crypto::parse_encrypted_note(&content).ok()?;
+            let mut note = crypto::decrypt_note(&encrypted, key).ok()?;
+            note.file_path = path.to_string_lossy().to_string();
+            note.encrypted = true;
+            Some(note)
+        }
+        _ => None,
+    }
+}
+
+/// Write an in-memory note as a conflict copy in `.scratch/conflicts/`.
+/// Encrypts with the vault key when provided so no plaintext ever hits disk.
+/// Used when a save loses a race against an external write — the user's
+/// in-progress edit is preserved here instead of being discarded.
+pub fn write_conflict_copy(
+    folder: &Path,
+    note: &Note,
+    vault_key: Option<&[u8]>,
+) -> Result<PathBuf, String> {
+    let conflicts_dir = folder.join(".scratch").join("conflicts");
+    fs::create_dir_all(&conflicts_dir)
+        .map_err(|e| format!("Failed to create conflicts dir: {}", e))?;
+
+    let timestamp = Utc::now()
+        .to_rfc3339_opts(chrono::SecondsFormat::Secs, true)
+        .replace(':', "-");
+    let slug = sanitize_filename(&note.title);
+
+    let (filename, content) = match vault_key {
+        Some(key) => {
+            let encrypted = crypto::encrypt_note(note, key)?;
+            let json = crypto::serialize_encrypted_note(&encrypted)?;
+            (
+                format!("{}--{}--conflict-{}.snote", slug, note.id, timestamp),
+                json,
+            )
+        }
+        None => (
+            format!("{}--{}--conflict-{}.md", slug, note.id, timestamp),
+            notes::serialize_note(note),
+        ),
+    };
+
+    let dest = conflicts_dir.join(&filename);
+    fs::write(&dest, content).map_err(|e| format!("Failed to write conflict copy: {}", e))?;
+    Ok(dest)
+}
+
 /// Load notes from folder, detecting and handling duplicate IDs.
 /// When duplicates are found, keeps the one with the more recent `updated_at`
 /// and moves the other to `.scratch/conflicts/`.
@@ -752,5 +865,66 @@ mod tests {
         let filename = conflict_path.file_name().unwrap().to_string_lossy();
         assert!(filename.starts_with("my-note--ID1--conflict-"));
         assert!(filename.ends_with(".md"));
+    }
+
+    #[test]
+    fn test_find_note_file_plaintext_by_id_suffix() {
+        let dir = tempfile::tempdir().unwrap();
+        fs::write(dir.path().join("some-title--ABC123.md"), "x").unwrap();
+        fs::write(dir.path().join("other--ZZZ.md"), "x").unwrap();
+
+        let found = find_note_file(dir.path(), "ABC123").unwrap();
+        assert_eq!(found.file_name().unwrap(), "some-title--ABC123.md");
+        assert!(find_note_file(dir.path(), "NOPE").is_none());
+    }
+
+    #[test]
+    fn test_read_note_from_disk_plaintext() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut note = Note::new("Title".into());
+        note.id = "READ1".into();
+        note.body = "hello".into();
+        write_note_atomic(dir.path(), &note).unwrap();
+
+        let disk = read_note_from_disk(dir.path(), "READ1", None).unwrap();
+        assert_eq!(disk.id, "READ1");
+        assert_eq!(disk.body, "hello");
+    }
+
+    #[test]
+    fn test_read_note_from_disk_vault_needs_key() {
+        let dir = tempfile::tempdir().unwrap();
+        let (_cfg, key) = crypto::create_vault_config("pw").unwrap();
+        let mut note = Note::new("Secret".into());
+        note.id = "VAULT1".into();
+        note.body = "classified".into();
+        write_note_encrypted(dir.path(), &note, &key).unwrap();
+
+        // Without the key we can't read a .snote.
+        assert!(read_note_from_disk(dir.path(), "VAULT1", None).is_none());
+        // With the key we can.
+        let disk = read_note_from_disk(dir.path(), "VAULT1", Some(&key)).unwrap();
+        assert_eq!(disk.body, "classified");
+    }
+
+    #[test]
+    fn test_write_conflict_copy_plaintext_and_encrypted() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut note = Note::new("My Note".into());
+        note.id = "CC1".into();
+        note.body = "conflicted body".into();
+
+        // Plaintext copy is a readable .md.
+        let p = write_conflict_copy(dir.path(), &note, None).unwrap();
+        assert!(p.to_string_lossy().ends_with(".md"));
+        let content = fs::read_to_string(&p).unwrap();
+        assert!(content.contains("conflicted body"));
+
+        // Encrypted copy is a .snote with no plaintext leak.
+        let (_cfg, key) = crypto::create_vault_config("pw").unwrap();
+        let e = write_conflict_copy(dir.path(), &note, Some(&key)).unwrap();
+        assert!(e.to_string_lossy().ends_with(".snote"));
+        let enc = fs::read_to_string(&e).unwrap();
+        assert!(!enc.contains("conflicted body"));
     }
 }

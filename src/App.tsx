@@ -47,6 +47,7 @@ function App() {
     search,
     loadNotes,
     updateNoteLocally,
+    recordBaseVersion,
   } = useNotes();
 
   const {
@@ -490,6 +491,22 @@ function App() {
 
   useEventListener<{ id: string }>("note-conflict-active", (payload) => {
     setConflictNoteId(payload.id);
+  });
+
+  // A save raced an external write; the losing version was backed up to conflicts.
+  useEventListener<{ id: string }>("save-conflict", () => {
+    loadNotes();
+    setNotification(
+      "This note was also changed on another device. Both versions were preserved."
+    );
+    setNotificationAction({
+      label: "Resolve",
+      run: () => {
+        setNotification(null);
+        setNotificationAction(null);
+        setShowConflictResolver(true);
+      },
+    });
   });
 
   const handleConflictChoice = useCallback(
@@ -1522,6 +1539,7 @@ function App() {
                 onBodyChange={handleBodyChange}
                 onCodexChange={handleCodexChange}
                 onEditingChange={setEditingNote}
+                onBaseVersion={recordBaseVersion}
                 focusTrigger={editorFocusTrigger}
                 searchQuery={query}
                 codexList={codexList}
@@ -1549,6 +1567,7 @@ function App() {
                   onTitleChange={handleSplitTitleChange}
                   onBodyChange={handleSplitBodyChange}
                   onCodexChange={handleSplitCodexChange}
+                  onBaseVersion={recordBaseVersion}
                   codexList={codexList}
                   editorRef={splitEditorRef}
                   macros={appSettings.macros}
