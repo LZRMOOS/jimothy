@@ -1249,6 +1249,80 @@ body {
   margin: 0.5em 0;
 }
 
+/* Resizable image node: wraps the img so the preset toolbar can float over it */
+.image-node {
+  position: relative;
+  display: inline-block;
+  max-width: 100%;
+}
+
+.image-node-inner {
+  position: relative;
+  display: inline-block;
+  line-height: 0;
+}
+
+.image-node[data-selected="true"] img {
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+.image-resize-toolbar {
+  position: absolute;
+  top: 8px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 2px;
+  padding: 3px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  z-index: 5;
+}
+
+.image-resize-btn {
+  border: none;
+  background: none;
+  color: var(--text-secondary);
+  font-size: 12px;
+  line-height: 1;
+  padding: 4px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background var(--transition), color var(--transition);
+}
+
+.image-resize-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.image-resize-btn.active {
+  background: var(--accent);
+  color: #fff;
+}
+
+.image-delete-btn {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  padding: 0;
+  border: none;
+  background: none;
+  color: var(--text-hint);
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+  z-index: 6;
+  transition: color var(--transition);
+}
+
+.image-delete-btn:hover {
+  color: var(--danger);
+}
+
 /* Inline custom emoji: sized to text, no block margins */
 .editor-body .tiptap img.emoji,
 img.emoji {
