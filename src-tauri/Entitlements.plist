@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!--
+	  Touch ID vault unlock stores the vault key in the data-protection keychain
+	  behind a Secure Enclave access control. That keychain requires a
+	  keychain-access-group entitlement whose value is prefixed by the signing
+	  team identifier. $(AppIdentifierPrefix) expands at sign time to
+	  "<TEAMID>." so the group resolves to "<TEAMID>.com.jimothy.app".
+	  Without this entitlement, enroll/unlock fail at runtime in signed builds.
+	-->
+	<key>keychain-access-groups</key>
+	<array>
+		<string>$(AppIdentifierPrefix)com.jimothy.app</string>
+	</array>
+</dict>
+</plist>

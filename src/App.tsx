@@ -59,6 +59,7 @@ function App() {
     vaultLoading,
     checkVaultStatus,
     unlockVault,
+    biometricUnlock,
     lockVault,
     setupVault,
     changePassword,
@@ -556,6 +557,14 @@ function App() {
     },
     [unlockVault, loadNotes]
   );
+
+  const handleBiometricUnlock = useCallback(async () => {
+    const success = await biometricUnlock();
+    if (success) {
+      await loadNotes();
+    }
+    return success;
+  }, [biometricUnlock, loadNotes]);
 
   const handleLock = useCallback(async () => {
     await lockVault();
@@ -1323,6 +1332,8 @@ function App() {
         onUnlock={handleUnlock}
         error={vaultError}
         loading={vaultLoading}
+        biometricEnrolled={!!notesFolder && (appSettings.biometricVaults || []).includes(notesFolder)}
+        onBiometricUnlock={handleBiometricUnlock}
       />
     );
   }

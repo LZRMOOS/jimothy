@@ -40,5 +40,11 @@ zeroize = "1"
 regex = "1"
 image = "0.25"
 
+# Biometric (Touch ID) vault unlock stores the vault key in the macOS Keychain
+# behind a Secure Enclave access-control flag. macOS-only; other platforms use
+# the no-op fallback in the biometric module.
+[target.'cfg(target_os = "macos")'.dependencies]
+security-framework = "3"
+
 [dev-dependencies]
 tempfile = "3"

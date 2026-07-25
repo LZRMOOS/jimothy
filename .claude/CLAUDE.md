@@ -58,6 +58,14 @@ Two independent layers of encryption:
 - All protected files share one password
 - Can coexist with vault encryption for "extra sensitive" notes
 
+**Biometric Unlock** (Touch ID, macOS-only, opt-in):
+- Module `src-tauri/src/biometric/mod.rs` — macOS impl over the `security-framework` crate, no-op fallback elsewhere (`is_available()` returns false so the UI hides it).
+- Escrows a COPY of the vault key in the macOS Keychain, guarded by a `SecAccessControl` with `BIOMETRY_CURRENT_SET` + `AccessibleWhenUnlockedThisDeviceOnly`. Reading it requires a live Touch ID match; the Secure Enclave hardware-wraps it, it never syncs to iCloud or backups, and it auto-invalidates if the enrolled fingerprint set changes.
+- The password stays the source of truth — biometrics is a convenience gate over a copy of the key, never a KDF replacement. `enroll_biometric` requires the vault already unlocked (escrows the exact in-memory key). `biometric_unlock` reads the key back and STILL validates it against the vault's `verification_record` before installing it (a stale escrow after an external re-key is rejected and deleted).
+- Escrow is purged on `change_vault_password` and `disable_vault` (backend deletes the keychain item; the frontend clears the local enrollment flag to match).
+- Enrollment is tracked per-vault-path in `LocalSettings.biometricVaults` (device+hardware-specific, in `LOCAL_KEYS`, NEVER synced). Scoped to the vault key only — covers unlock plus idle/sleep re-lock (same key). Note protection is a separate key and is not wired to biometrics.
+- Requires the `keychain-access-groups` entitlement (`src-tauri/Entitlements.plist`, referenced from `tauri.conf.json` `bundle.macOS.entitlements`) so signed builds can use the data-protection keychain.
+
 ### Editor
 - WYSIWYG Markdown editing via Tiptap with syntax highlighting, task lists, code blocks
 - **Internal note links**: Type `[[` to trigger autocomplete, links stored as `[Title](scratch://id)` markdown
@@ -250,6 +258,12 @@ All commands defined in `src-tauri/src/commands/mod.rs`:
 - `verify_password(password)` - Fast password check (SHA-256 or Argon2)
 - `change_vault_password(current, new_password)` - Re-encrypt with new password
 - `disable_vault(password)` - Decrypt all notes back to plaintext
+
+### Biometric Unlock (Touch ID, macOS-only)
+- `biometric_available()` - Whether the platform supports biometric unlock (true on macOS, false elsewhere)
+- `enroll_biometric()` - Escrow the currently-unlocked vault key in the macOS Keychain behind a Touch ID gate (vault must be unlocked)
+- `biometric_unlock()` - Read the escrowed key (prompts Touch ID), validate it against the vault verification record, and unlock
+- `disable_biometric()` - Remove the keychain escrow for the current vault
 
 ### Note Protection
 - `get_protection_status()` - Returns "none" | "locked" | "unlocked"

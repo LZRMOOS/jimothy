@@ -1,3 +1,4 @@
+mod biometric;
 mod commands;
 mod crypto;
 mod notes;
@@ -266,6 +267,10 @@ pub fn run() {
             commands::change_vault_password,
             commands::disable_vault,
             commands::verify_password,
+            commands::biometric_available,
+            commands::enroll_biometric,
+            commands::biometric_unlock,
+            commands::disable_biometric,
             commands::set_active_note,
             commands::restore_from_trash,
             commands::get_protection_status,

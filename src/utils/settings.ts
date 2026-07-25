@@ -14,6 +14,7 @@ export const LOCAL_KEYS: (keyof LocalSettings)[] = [
   "globalShortcut",
   "captureShortcut",
   "vaultProfiles",
+  "biometricVaults",
 ];
 
 export function isLocalKey(key: string): key is keyof LocalSettings {

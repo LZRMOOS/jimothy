@@ -2263,6 +2263,22 @@ img.emoji {
   border-radius: var(--radius-sm);
 }
 
+.unlock-biometric-btn {
+  width: 100%;
+  margin-top: 10px;
+  padding: 10px;
+  font-size: 14px;
+  border-radius: var(--radius-sm);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.settings-biometric {
+  margin-top: 14px;
+}
+
 .unlock-error {
   margin-top: 14px;
   font-size: 13px;

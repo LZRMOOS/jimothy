@@ -1354,6 +1354,44 @@ export function Settings({
   const [setupShake, setSetupShake] = useState(false);
   const [setupErrField, setSetupErrField] = useState<"password" | "confirm" | null>(null);
 
+  // Biometric (Touch ID) unlock
+  const [biometricAvailable, setBiometricAvailable] = useState(false);
+  const [biometricBusy, setBiometricBusy] = useState(false);
+  const [biometricError, setBiometricError] = useState<string | null>(null);
+  const biometricEnrolled =
+    !!notesFolder && (settings.biometricVaults || []).includes(notesFolder);
+
+  useEffect(() => {
+    invoke("biometric_available").then((v) => setBiometricAvailable(!!v)).catch(() => {});
+  }, []);
+
+  // Persist the per-vault enrollment flag in local settings (never synced).
+  const setBiometricEnrolled = (enrolled: boolean) => {
+    if (!notesFolder) return;
+    const current = settings.biometricVaults || [];
+    const next = enrolled
+      ? Array.from(new Set([...current, notesFolder]))
+      : current.filter((p) => p !== notesFolder);
+    onSettingsChange({ ...settings, biometricVaults: next });
+  };
+
+  const handleToggleBiometric = async (enable: boolean) => {
+    setBiometricError(null);
+    setBiometricBusy(true);
+    try {
+      if (enable) {
+        await invoke("enroll_biometric");
+      } else {
+        await invoke("disable_biometric");
+      }
+      setBiometricEnrolled(enable);
+    } catch (e) {
+      setBiometricError(String(e));
+    } finally {
+      setBiometricBusy(false);
+    }
+  };
+
   // Success toast
   const [successToast, setSuccessToast] = useState<string | null>(null);
   const showToast = (msg: string) => {
@@ -1431,6 +1469,9 @@ export function Settings({
       setCurrentPassword("");
       setNewPassword("");
       setNewConfirm("");
+      // Backend purges the Touch ID escrow on re-key (it held the old key), so
+      // drop the local enrollment flag to match. User can re-enroll.
+      if (biometricEnrolled) setBiometricEnrolled(false);
       showToast("Password changed");
     } else {
       setChangeError(vaultError || "Invalid current password.");
@@ -1447,6 +1488,8 @@ export function Settings({
     if (success) {
       setShowDisableForm(false);
       setDisablePassword("");
+      // Backend removed the keychain escrow; clear the local enrollment flag.
+      if (biometricEnrolled) setBiometricEnrolled(false);
       await onReloadNotes();
       showToast("Vault encryption disabled");
     } else {
@@ -2135,6 +2178,29 @@ export function Settings({
                         Disable Vault
                       </button>
                     </div>
+
+                    {biometricAvailable && (
+                      <div className="settings-row settings-biometric">
+                        <div className="settings-row-text">
+                          <label htmlFor="biometric-unlock">Unlock with Touch ID</label>
+                          <p className="settings-row-desc">
+                            Store this vault's key in the macOS Keychain, protected by
+                            Touch ID, so you can unlock without typing your password. The
+                            key is hardware-encrypted by the Secure Enclave, stays on this
+                            Mac, and is erased if your fingerprints change. Your password
+                            still works and is required again after a password change.
+                          </p>
+                          {biometricError && <p className="error">{biometricError}</p>}
+                        </div>
+                        <input
+                          id="biometric-unlock"
+                          type="checkbox"
+                          checked={biometricEnrolled}
+                          disabled={biometricBusy}
+                          onChange={(e) => handleToggleBiometric(e.target.checked)}
+                        />
+                      </div>
+                    )}
 
                     {showChangeForm && (
                       <form

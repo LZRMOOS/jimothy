@@ -697,6 +697,14 @@ pub fn change_vault_password(
     // Save new vault config
     save_vault_config(&folder, &new_config)?;
 
+    // Any biometric escrow holds a copy of the OLD key, which no longer opens
+    // the vault. Drop it so the stale key can't linger in the keychain; the user
+    // re-enrolls with the new password if they want Touch ID back.
+    let _ = crate::biometric::delete_key(
+        crate::biometric::BiometricKind::Vault,
+        &folder.to_string_lossy(),
+    );
+
     // Update state
     *state.vault_key.lock().unwrap() = Some(new_key);
     *state.vault_status.lock().unwrap() = VaultStatus::Unlocked;
@@ -738,12 +746,104 @@ pub fn disable_vault(password: String, state: State<'_, AppState>) -> Result<(),
         let _ = fs::remove_file(&config_path);
     }
 
+    // Notes are plaintext now — a keychain-escrowed vault key is both useless
+    // and a needless secret at rest. Remove it.
+    let _ = crate::biometric::delete_key(
+        crate::biometric::BiometricKind::Vault,
+        &folder.to_string_lossy(),
+    );
+
     // Update state
     *state.vault_key.lock().unwrap() = None;
     *state.vault_status.lock().unwrap() = VaultStatus::Plaintext;
     *state.notes.lock().unwrap() = plaintext_notes;
 
     Ok(())
+}
+
+// ---------------------------------------------------------------------------
+// Biometric (Touch ID) vault unlock
+//
+// Opt-in convenience layer over the password. `enroll` stashes the in-memory
+// vault key in the OS secure store behind a biometry gate; `unlock` reads it
+// back (prompting Touch ID) and installs it as the live vault key. The password
+// stays the source of truth — biometrics never replaces the KDF, and every
+// key-changing path (change password, disable vault) purges the escrow.
+// ---------------------------------------------------------------------------
+
+/// Whether the current platform can offer biometric unlock at all. The frontend
+/// uses this to decide whether to show the enroll button / settings toggle.
+#[tauri::command]
+pub fn biometric_available() -> bool {
+    crate::biometric::is_available()
+}
+
+/// Store a copy of the currently-unlocked vault key behind Touch ID. Requires
+/// the vault to be unlocked (the key must be in memory) — we escrow the exact
+/// key already in use, never a re-derived one.
+#[tauri::command]
+pub fn enroll_biometric(state: State<'_, AppState>) -> Result<(), String> {
+    let folder = state.folder()?;
+
+    let key = state
+        .vault_key
+        .lock()
+        .unwrap()
+        .clone()
+        .ok_or("Vault must be unlocked to enable Touch ID")?;
+
+    crate::biometric::store_key(
+        crate::biometric::BiometricKind::Vault,
+        &folder.to_string_lossy(),
+        &key,
+    )
+}
+
+/// Read the escrowed vault key (prompting Touch ID) and unlock the vault with
+/// it. Mirrors `unlock_vault` but skips the password/Argon2 step. The retrieved
+/// key is still validated against the vault's verification record so a stale or
+/// tampered escrow can't install a bad key.
+#[tauri::command]
+pub fn biometric_unlock(state: State<'_, AppState>) -> Result<(), String> {
+    let folder = state.folder()?;
+
+    let config = load_vault_config(&folder).ok_or("No vault configured")?;
+
+    let mut key = crate::biometric::retrieve_key(
+        crate::biometric::BiometricKind::Vault,
+        &folder.to_string_lossy(),
+    )?;
+
+    // The escrowed key must still open this vault. If it doesn't (e.g. the vault
+    // was re-keyed on another device via Dropbox sync), refuse and drop the
+    // stale escrow so the user falls back to the password.
+    if !crypto::verify_key(&key, &config.verification_record)? {
+        key.zeroize();
+        let _ = crate::biometric::delete_key(
+            crate::biometric::BiometricKind::Vault,
+            &folder.to_string_lossy(),
+        );
+        return Err("Saved Touch ID key no longer matches this vault. Use your password.".into());
+    }
+
+    // Load and decrypt all notes with the recovered key.
+    let notes = storage::load_encrypted_notes_from_folder(&folder, &key);
+
+    *state.vault_key.lock().unwrap() = Some(key);
+    *state.vault_status.lock().unwrap() = VaultStatus::Unlocked;
+    *state.notes.lock().unwrap() = notes;
+
+    Ok(())
+}
+
+/// Remove the biometric escrow for this vault (user turned the setting off).
+#[tauri::command]
+pub fn disable_biometric(state: State<'_, AppState>) -> Result<(), String> {
+    let folder = state.folder()?;
+    crate::biometric::delete_key(
+        crate::biometric::BiometricKind::Vault,
+        &folder.to_string_lossy(),
+    )
 }
 
 #[tauri::command]

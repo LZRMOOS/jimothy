@@ -52,6 +52,12 @@ export type LocalSettings = {
   globalShortcut?: string;
   captureShortcut?: string;
   vaultProfiles?: VaultProfile[];
+  /**
+   * Vault folder paths that have Touch ID enrolled on THIS device. The key is
+   * escrowed in the local Keychain and hardware-bound, so enrollment can never
+   * be synced — this list stays in local settings.json only.
+   */
+  biometricVaults?: string[];
 };
 
 export type Preferences = {

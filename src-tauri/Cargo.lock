@@ -2275,6 +2275,7 @@ dependencies = [
  "parking_lot",
  "rand 0.8.7",
  "regex",
+ "security-framework",
  "serde",
  "serde_json",
  "sha2",

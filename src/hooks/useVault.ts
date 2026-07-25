@@ -40,6 +40,18 @@ export function useVault() {
     [vaultAction]
   );
 
+  // Unlock via Touch ID (reads the escrowed key from the keychain, prompting
+  // biometrics). Same success path as password unlock. A user cancel surfaces
+  // as an error string in vaultError like any other failed unlock.
+  const biometricUnlock = useCallback(
+    () =>
+      vaultAction(
+        () => invoke("biometric_unlock"),
+        { clearError: false, statusOnSuccess: "unlocked" }
+      ).then((ok) => { if (ok) setVaultError(null); return ok; }),
+    [vaultAction]
+  );
+
   const lockVault = useCallback(async () => {
     await invoke("lock_vault");
     setVaultStatus("locked");
@@ -75,6 +87,7 @@ export function useVault() {
     vaultLoading,
     checkVaultStatus,
     unlockVault,
+    biometricUnlock,
     lockVault,
     setupVault,
     changePassword,

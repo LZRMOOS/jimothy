@@ -5,16 +5,31 @@ type Props = {
   onUnlock: (password: string) => Promise<boolean>;
   error: string | null;
   loading: boolean;
+  /** Whether Touch ID is enrolled for this vault on this device. */
+  biometricEnrolled?: boolean;
+  /** Trigger a Touch ID unlock; resolves true on success. */
+  onBiometricUnlock?: () => Promise<boolean>;
 };
 
-export function UnlockScreen({ onUnlock, error, loading }: Props) {
+export function UnlockScreen({ onUnlock, error, loading, biometricEnrolled, onBiometricUnlock }: Props) {
   const [password, setPassword] = useState("");
   const [shake, setShake] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const autoPrompted = useRef(false);
 
   useEffect(() => {
     inputRef.current?.focus();
   }, []);
+
+  // Offer Touch ID immediately when enrolled, so the common case is one tap and
+  // no typing. Only auto-prompt once per mount; if the user cancels they fall
+  // back to the password field (and can retap the button).
+  useEffect(() => {
+    if (biometricEnrolled && onBiometricUnlock && !autoPrompted.current) {
+      autoPrompted.current = true;
+      void onBiometricUnlock();
+    }
+  }, [biometricEnrolled, onBiometricUnlock]);
 
   useEffect(() => {
     if (error) {
@@ -59,6 +74,19 @@ export function UnlockScreen({ onUnlock, error, loading }: Props) {
             {loading ? "Unlocking…" : "Unlock"}
           </button>
         </form>
+        {biometricEnrolled && onBiometricUnlock && (
+          <button
+            className="btn unlock-biometric-btn"
+            type="button"
+            disabled={loading}
+            onClick={() => { void onBiometricUnlock(); }}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M12 11a3 3 0 0 0-3 3v2m3-8a6 6 0 0 1 6 6v1m-9 0v-1a3 3 0 0 1 .5-1.7M5 9a9 9 0 0 1 14 0M8.5 6.5A6 6 0 0 1 12 5.5"/>
+            </svg>
+            Unlock with Touch ID
+          </button>
+        )}
         {error && <p className="unlock-error">{error}</p>}
       </div>
     </div>
