@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
-
-const isMac = navigator.platform.toUpperCase().includes("MAC");
-const mod = isMac ? "⌘" : "Ctrl";
+// On mac these are bare symbols (⌘⇧⌥); on Windows they spell out with a
+// trailing "+" so a row like `{mod}{shift}F` reads "Ctrl+Shift+F".
+import { mod, shift, alt } from "../utils/platform";
 
 type Props = {
   macros?: Record<string, string>;
@@ -127,7 +127,7 @@ function ControlsReference() {
           <tr><td className="ref-key">{mod}F</td><td>Find in note</td></tr>
           <tr><td className="ref-key">{mod}H</td><td>Find & replace</td></tr>
           <tr><td className="ref-key">{mod}] / [</td><td>Next / previous match</td></tr>
-          <tr><td className="ref-key">{mod}⇧F</td><td>Search notes</td></tr>
+          <tr><td className="ref-key">{mod}{shift}F</td><td>Search notes</td></tr>
           <tr><td className="ref-key">{mod}K</td><td>Command palette</td></tr>
           <tr><td className="ref-key">#tag / @name</td><td>Filter by tag or mention</td></tr>
         </tbody>
@@ -140,7 +140,7 @@ function ControlsReference() {
           <tr><td className="ref-key">↑ ↓</td><td>Navigate notes</td></tr>
           <tr><td className="ref-key">← →</td><td>Collapse / expand backlinks</td></tr>
           <tr><td className="ref-key">Enter</td><td>Edit note</td></tr>
-          <tr><td className="ref-key">{mod}⇧] / [</td><td>Next / previous note</td></tr>
+          <tr><td className="ref-key">{mod}{shift}] / [</td><td>Next / previous note</td></tr>
         </tbody>
       </table>
       <h4>Editor</h4>
@@ -165,8 +165,8 @@ function ControlsReference() {
       <h4>App</h4>
       <table className="ref-table">
         <tbody>
-          <tr><td className="ref-key">{mod}⇧Space</td><td>Summon window</td></tr>
-          <tr><td className="ref-key">{mod}⌥Space</td><td>Scratchpad</td></tr>
+          <tr><td className="ref-key">{mod}{shift}Space</td><td>Summon window</td></tr>
+          <tr><td className="ref-key">{mod}{alt}Space</td><td>Scratchpad</td></tr>
           <tr><td className="ref-key">{mod}W / Esc</td><td>Banish window</td></tr>
           <tr><td className="ref-key">{mod},</td><td>Settings</td></tr>
           <tr><td className="ref-key">{mod}.</td><td>Reference panel</td></tr>

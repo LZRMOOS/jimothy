@@ -1,5 +1,6 @@
 import { forwardRef, useMemo, useState, useCallback, useEffect, useRef } from "react";
 import type { VaultProfile } from "../types";
+import { mod, modName } from "../utils/platform";
 
 type Props = {
   value: string;
@@ -243,7 +244,7 @@ export const SearchBar = forwardRef<HTMLInputElement, Props>(
                   ) : (
                     <>
                       <span><span className="helper-icon">⏎</span> Open</span>
-                      <span><span className="helper-icon">⌘⏎</span> Create</span>
+                      <span><span className="helper-icon">{mod}⏎</span> Create</span>
                     </>
                   )}
                 </div>
@@ -252,7 +253,7 @@ export const SearchBar = forwardRef<HTMLInputElement, Props>(
                 <button
                   className="search-bar-action-btn"
                   onClick={onCommandPaletteClick}
-                  title="Command Palette (Cmd+K)"
+                  title={`Command Palette (${modName}+K)`}
                   aria-label="Command Palette"
                 >
                   <svg
@@ -275,7 +276,7 @@ export const SearchBar = forwardRef<HTMLInputElement, Props>(
             <button
               className="settings-gear-btn"
               onClick={onSettingsClick}
-              title="Settings (Cmd+,)"
+              title={`Settings (${modName}+,)`}
               aria-label="Settings"
             >
               <svg

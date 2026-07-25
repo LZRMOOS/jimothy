@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
+import { mod } from "../utils/platform";
 
 type ScratchpadEntry = {
   id: string;
@@ -134,7 +135,7 @@ export function Scratchpad() {
       <div className="scratchpad-entries">
         {entries.length === 0 && (
           <div className="scratchpad-empty">
-            Nothing here yet. Type above and press {navigator.platform.includes("Mac") ? "⌘" : "Ctrl"}+Enter to save.
+            Nothing here yet. Type above and press {mod}Enter to save.
           </div>
         )}
         {entries.map((entry) => (

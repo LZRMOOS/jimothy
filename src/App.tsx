@@ -25,10 +25,7 @@ import { useProtection } from "./hooks/useProtection";
 import { useIdleLock } from "./hooks/useIdleLock";
 import type { AppSettings, LocalSettings, Preferences } from "./types";
 import { extractTags, noteHasTag } from "./utils/tags";
-
-const isMac = navigator.platform.toUpperCase().includes("MAC");
-const mod = isMac ? "⌘" : "Ctrl+";
-const shift = isMac ? "⇧" : "Shift+";
+import { mod, shift } from "./utils/platform";
 
 function App() {
   const {

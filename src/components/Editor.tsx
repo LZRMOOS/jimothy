@@ -11,6 +11,7 @@ import { Extension } from "@tiptap/core";
 import { Plugin } from "@tiptap/pm/state";
 import { Decoration, DecorationSet } from "@tiptap/pm/view";
 import type { Note, SaveStatus } from "../types";
+import { modName } from "../utils/platform";
 import { buildSearchPattern, highlightMatches } from "../utils/search";
 import { createNoteLinkExtension } from "../extensions/noteLink";
 import { createMentionExtension } from "../extensions/mention";
@@ -817,7 +818,7 @@ export function Editor({ note, saveStatus, onTitleChange, onBodyChange, onCodexC
             <button
               className={`in-note-search-btn${showReplace ? " active" : ""}`}
               onClick={() => setShowReplace((s) => !s)}
-              title="Toggle Replace (Cmd+H)"
+              title={`Toggle Replace (${modName}+H)`}
             >
               <svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" strokeWidth="1.5">
                 <path d="M1 3h6M7 3L5 1M7 3L5 5M9 7H3M3 7l2-2M3 7l2 2" />

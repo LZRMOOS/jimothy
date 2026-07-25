@@ -6,6 +6,7 @@ import { getVersion } from "@tauri-apps/api/app";
 import { Dropdown } from "./Dropdown";
 import { PasswordInput } from "./PasswordInput";
 import type { AppSettings, VaultStatus, ThemeColors, ColorPreset, VaultProfile } from "../types";
+import { isMac, modName, altName, superName } from "../utils/platform";
 
 type SettingsTab = "general" | "organization" | "keyboard" | "macros" | "dictionary" | "colors" | "storage" | "security" | "markdown";
 
@@ -340,8 +341,7 @@ function VaultProfilesSection({ profiles, activeFolder, onSwitch, onAdd, onRenam
   );
 }
 
-const isMac = navigator.platform.toUpperCase().includes("MAC");
-const mod = isMac ? "Cmd" : "Ctrl";
+const mod = modName;
 
 function keyToTauriToken(_key: string, code: string): string | null {
   if (code.startsWith("Key")) return code.slice(3);
@@ -370,12 +370,12 @@ const keyDisplayNames: Record<string, string> = {
 function shortcutToDisplay(shortcut: string): string {
   const parts = shortcut.split("+");
   const displayParts = parts.map((p) => {
-    if (p === "Command") return isMac ? "Cmd" : "Cmd";
-    if (p === "CmdOrCtrl") return isMac ? "Cmd" : "Ctrl";
+    if (p === "Command") return "Cmd";
+    if (p === "CmdOrCtrl") return modName;
     if (p === "Control") return "Ctrl";
     if (p === "Shift") return "Shift";
-    if (p === "Alt") return isMac ? "Opt" : "Alt";
-    if (p === "Super") return isMac ? "Cmd" : "Win";
+    if (p === "Alt") return altName;
+    if (p === "Super") return superName;
     return keyDisplayNames[p] || p;
   });
   return displayParts.join(" + ");
@@ -1631,7 +1631,7 @@ export function Settings({
                 <h3>App</h3>
                 <div className="settings-row">
                   <label>Scratchpad</label>
-                  <kbd className="shortcut-display">{mod}+{isMac ? "⌥" : "Alt"}+Space</kbd>
+                  <kbd className="shortcut-display">{mod}+{isMac ? "⌥" : altName}+Space</kbd>
                 </div>
                 <div className="settings-row">
                   <label>Banish window</label>
