@@ -29,6 +29,8 @@ import type { AppSettings, LocalSettings, Preferences } from "./types";
 import { extractTags, noteHasTag } from "./utils/tags";
 import { mod, shift } from "./utils/platform";
 import { LOCAL_KEYS, isLocalKey, splitSettings } from "./utils/settings";
+import { FEATURE_TOUR_TITLE, FEATURE_TOUR_BODY } from "./utils/featureTour";
+import { TourOverlay } from "./components/TourOverlay";
 
 function App() {
   const {
@@ -110,6 +112,7 @@ function App() {
   const [showSettings, setShowSettings] = useState(false);
   const [showCommandPalette, setShowCommandPalette] = useState(false);
   const [showReferencePanel, setShowReferencePanel] = useState(false);
+  const [showTour, setShowTour] = useState(false);
   const [expandedBacklinks, setExpandedBacklinks] = useState<Set<string>>(new Set());
   const [sensitivePromptId, setSensitivePromptId] = useState<string | null>(null);
   const sensitiveUnlockTime = useRef<Record<string, number>>({});
@@ -835,6 +838,30 @@ function App() {
     }
   }, [notes, appSettings.dailyNoteCodex, appSettings.dailyNoteFormat, createNote, handleSelectNote, focusEditor]);
 
+  const openFeatureTourNote = useCallback(async () => {
+    // Re-open the existing tour note if the user still has one; otherwise
+    // create a fresh copy. Mirrors the daily-note find-or-create flow.
+    const existing = notes.find((n) => n.title === FEATURE_TOUR_TITLE && !n.archived);
+    if (existing) {
+      handleSelectNote(existing.id);
+      focusEditor();
+      return;
+    }
+    const newNote = await createNote(FEATURE_TOUR_TITLE, null);
+    await saveNote(newNote.id, FEATURE_TOUR_TITLE, FEATURE_TOUR_BODY, null);
+    handleSelectNote(newNote.id);
+    focusEditor();
+  }, [notes, createNote, saveNote, handleSelectNote, focusEditor]);
+
+  const handleFeatureTour = useCallback(() => {
+    // The tour spotlights real UI, so make sure the elements it points at are
+    // on screen: expand the sidebar and close settings before starting.
+    setSidebarCollapsed(false);
+    setShowSettings(false);
+    setShowCommandPalette(false);
+    setShowTour(true);
+  }, []);
+
   const handleSearchSubmit = useCallback(async () => {
     if (isCreateMode) {
       // In create mode: Enter creates note with query as title
@@ -1244,6 +1271,7 @@ function App() {
     { id: "settings", label: "Open Settings", shortcut: `${mod},`, action: () => setShowSettings(true) },
     { id: "resolve-conflicts", label: "Resolve Sync Conflicts", action: () => setShowConflictResolver(true) },
     { id: "reference-panel", label: showReferencePanel ? "Hide Reference Panel" : "Reference Panel", shortcut: `${mod}.`, action: () => setShowReferencePanel((s) => !s) },
+    { id: "feature-tour", label: "Open Feature Tour", action: handleFeatureTour },
     { id: "scratchpad", label: "Open Scratchpad", action: () => invoke("open_scratchpad") },
     { id: "lock-vault", label: "Lock Vault", action: handleLock },
     { id: "toggle-sidebar", label: "Toggle Sidebar", shortcut: `${mod}/`, action: () => setSidebarCollapsed((s) => !s) },
@@ -1273,7 +1301,7 @@ function App() {
       shortcut: i < 8 ? `${mod}${i + 2}` : undefined,
       action: () => { setActiveCodex(c); setViewingArchive(false); },
     })),
-  ], [handleDelete, handleLock, handleDailyNote, handleTogglePin, handleToggleFreeze, handleToggleArchive, handleZoom, handleSettingsChange, handleToggleSensitive, navigateNote, appSettings, selectedId, selectedNote, splitNoteId, codexList, notes, vaultStatus, showReferencePanel, viewingArchive]);
+  ], [handleDelete, handleLock, handleDailyNote, handleFeatureTour, handleTogglePin, handleToggleFreeze, handleToggleArchive, handleZoom, handleSettingsChange, handleToggleSensitive, navigateNote, appSettings, selectedId, selectedNote, splitNoteId, codexList, notes, vaultStatus, showReferencePanel, viewingArchive]);
 
   if (!initialized) {
     return <div className="loading">Loading…</div>;
@@ -1345,6 +1373,12 @@ function App() {
           }}
         />
       )}
+      {showTour && (
+        <TourOverlay
+          onComplete={openFeatureTourNote}
+          onClose={() => setShowTour(false)}
+        />
+      )}
       {showCommandPalette && (
         <CommandPalette
           commands={commands}
@@ -1379,7 +1413,7 @@ function App() {
       />
       <div className="app-body">
       {!sidebarCollapsed && (
-        <div className="codex-sidebar">
+        <div className="codex-sidebar" data-tour="sidebar">
           <button
             className={`codex-sidebar-item ${activeCodex === null && !viewingArchive ? "active" : ""}`}
             onClick={() => { setActiveCodex(null); setViewingArchive(false); }}
@@ -1488,7 +1522,7 @@ function App() {
       ) : (
         <div className="main-content">
           {!sidebarCollapsed && (
-            <div className="notes-panel">
+            <div className="notes-panel" data-tour="notes-list">
                 <div className="codex-dropdown">
                 <Dropdown
                   value={viewingArchive ? "__archive__" : (activeCodex || "")}
@@ -1588,7 +1622,7 @@ function App() {
               verifyCommand={vaultStatus !== "plaintext" ? "verify_password" : undefined}
             />
           ) : selectedNote ? (
-            <div className={`editor-split-container${splitNote ? " split-active" : ""}`}>
+            <div className={`editor-split-container${splitNote ? " split-active" : ""}`} data-tour="editor">
               <Editor
                 note={
                   selectedNote.encrypted && vaultStatus === "plaintext" && decryptedBodies[selectedNote.id] !== undefined

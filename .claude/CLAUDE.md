@@ -90,6 +90,7 @@ Two independent layers of encryption:
 - Themes: system, light, or dark with customizable accent/background colors per theme, color presets
 - Command palette (Cmd+K) for quick actions with pinnable favorites and note search
 - **Reference panel**: Cmd+. toggles a tabbed side panel with Markdown and Controls reference tabs
+- **Feature tour**: "Open Feature Tour" command (Cmd+K) launches a guided coachmark overlay (`TourOverlay.tsx`) that spotlights real UI elements (anchored via `data-tour` attributes) with animated step tooltips, then opens a sample "Feature Tour" note. Steps live in `TOUR_STEPS` (utils/featureTour.ts) alongside the note body.
 - Zoom support (Cmd+/- for text size)
 - System tray with hide-on-close behavior, launch minimized to tray when autostart enabled
 - Native macOS menu bar with standard shortcuts

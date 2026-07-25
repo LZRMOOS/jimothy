@@ -155,6 +155,7 @@ export const SearchBar = forwardRef<HTMLInputElement, Props>(
                 ref={ref}
                 type="text"
                 className="search-input"
+                data-tour="search"
                 placeholder={isCreateMode ? "Type title and press Enter..." : "Search or create notes..."}
                 value={value}
               onChange={(e) => {
@@ -252,6 +253,7 @@ export const SearchBar = forwardRef<HTMLInputElement, Props>(
               {onCommandPaletteClick && (
                 <button
                   className="search-bar-action-btn"
+                  data-tour="command-palette"
                   onClick={onCommandPaletteClick}
                   title={`Command Palette (${modName}+K)`}
                   aria-label="Command Palette"
@@ -275,6 +277,7 @@ export const SearchBar = forwardRef<HTMLInputElement, Props>(
           {onSettingsClick && (
             <button
               className="settings-gear-btn"
+              data-tour="settings"
               onClick={onSettingsClick}
               title={`Settings (${modName}+,)`}
               aria-label="Settings"

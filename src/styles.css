@@ -4101,3 +4101,168 @@ img.emoji {
   font-size: 12px;
   color: var(--text-hint);
 }
+
+/* Guided feature tour: spotlight overlay + coachmark tooltips */
+.tour-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  animation: tour-fade-in 0.2s ease;
+}
+
+@keyframes tour-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* Full-screen dimmer for element-less (centered) steps. */
+.tour-scrim {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+}
+
+/* The spotlight is a transparent box whose massive box-shadow dims everything
+   around it, punching a hole around the target. Animating top/left/width/height
+   makes it glide smoothly from one target to the next. */
+.tour-spotlight {
+  position: absolute;
+  border-radius: var(--radius-sm);
+  box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.55);
+  outline: 2px solid var(--accent);
+  outline-offset: 0;
+  pointer-events: none;
+  transition: top 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+    left 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+    width 0.35s cubic-bezier(0.4, 0, 0.2, 1),
+    height 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.tour-tooltip {
+  position: absolute;
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md, 10px);
+  box-shadow: var(--shadow-lg);
+  padding: 16px 18px;
+  box-sizing: border-box;
+  animation: tour-tip-in 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes tour-tip-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Centered steps get their transform from inline style, so don't animate a
+   conflicting translate for those. */
+.tour-tooltip:not(.arrow-up):not(.arrow-down) {
+  animation: tour-tip-fade 0.28s ease;
+}
+
+@keyframes tour-tip-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* Little pointer triangle toward the spotlighted element. */
+.tour-tooltip.arrow-up::before,
+.tour-tooltip.arrow-down::before {
+  content: "";
+  position: absolute;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 7px solid transparent;
+}
+
+.tour-tooltip.arrow-up::before {
+  top: -14px;
+  border-bottom-color: var(--bg-primary);
+}
+
+.tour-tooltip.arrow-down::before {
+  bottom: -14px;
+  border-top-color: var(--bg-primary);
+}
+
+.tour-tooltip-title {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 6px;
+}
+
+.tour-tooltip-body {
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-secondary);
+  margin-bottom: 14px;
+}
+
+.tour-tooltip-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.tour-dots {
+  display: flex;
+  gap: 5px;
+}
+
+.tour-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--border);
+  transition: background var(--transition), transform var(--transition);
+}
+
+.tour-dot.active {
+  background: var(--accent);
+  transform: scale(1.3);
+}
+
+.tour-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.tour-btn {
+  font-size: 12px;
+  font-weight: 500;
+  padding: 6px 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: background var(--transition), color var(--transition), border-color var(--transition);
+}
+
+.tour-btn-ghost {
+  background: none;
+  color: var(--text-secondary);
+}
+
+.tour-btn-ghost:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.tour-btn-primary {
+  background: var(--accent);
+  color: #fff;
+}
+
+.tour-btn-primary:hover {
+  background: var(--accent-hover);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tour-overlay,
+  .tour-tooltip,
+  .tour-spotlight {
+    animation: none;
+    transition: none;
+  }
+}
