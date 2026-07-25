@@ -274,6 +274,7 @@ pub fn run() {
             commands::check_vault_exists,
             commands::list_conflicts,
             commands::resolve_conflict,
+            commands::save_image,
             set_tray_visible,
             open_scratchpad,
             update_global_shortcut,

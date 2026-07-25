@@ -1581,6 +1581,7 @@ function App() {
                 isSplit={!!splitNote}
                 tagColors={appSettings.tagColors}
                 dictionary={appSettings.dictionary}
+                notesFolder={notesFolder}
               />
               {splitNote && splitNote.id !== selectedNote.id && (
                 <Editor
@@ -1602,6 +1603,7 @@ function App() {
                   onCloseSplit={() => setSplitNoteId(null)}
                   tagColors={appSettings.tagColors}
                   dictionary={appSettings.dictionary}
+                  notesFolder={notesFolder}
                 />
               )}
             </div>

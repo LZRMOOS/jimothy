@@ -1211,6 +1211,13 @@ body {
   caret-color: var(--text-primary);
 }
 
+.editor-body .tiptap img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 4px;
+  margin: 0.5em 0;
+}
+
 .editor-body .tiptap p.is-editor-empty:first-child::before {
   content: attr(data-placeholder);
   color: var(--text-hint);

@@ -97,8 +97,6 @@ function MarkdownReference({ macros }: { macros?: Record<string, string> }) {
       <h4>Links & References</h4>
       <table className="ref-table">
         <tbody>
-          <tr><td className="ref-syntax">[text](url)</td><td>Hyperlink</td></tr>
-          <tr><td className="ref-syntax">![alt](url)</td><td>Image</td></tr>
           <tr><td className="ref-syntax">[[note name</td><td>Link to note (autocomplete)</td></tr>
           <tr><td className="ref-syntax">#tag</td><td>Tag (searchable)</td></tr>
           <tr><td className="ref-syntax">@name</td><td>Dictionary mention</td></tr>

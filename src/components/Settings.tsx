@@ -2122,14 +2122,6 @@ console.log(hello);
                 <h3>Links &amp; Images</h3>
                 <table className="md-ref-table">
                   <tbody>
-                    <tr>
-                      <td className="md-ref-syntax">[text](url)</td>
-                      <td className="md-ref-desc">Hyperlink</td>
-                    </tr>
-                    <tr>
-                      <td className="md-ref-syntax">![alt](url)</td>
-                      <td className="md-ref-desc">Image</td>
-                    </tr>
                   </tbody>
                 </table>
 

@@ -2,6 +2,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 
+use base64::Engine;
 use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use sha2::{Sha256, Digest};
@@ -97,6 +98,33 @@ fn persist_note(
     }
     note.file_path = new_path.to_string_lossy().to_string();
     Ok(())
+}
+
+fn extract_image_paths(body: &str) -> Vec<&str> {
+    let mut paths = Vec::new();
+    for cap in body.match_indices(".scratch/images/") {
+        let start = cap.0;
+        // Walk forward to find end of path (next whitespace, ), or ")
+        let rest = &body[start..];
+        let end = rest.find(|c: char| c == ')' || c == '"' || c == '\'' || c.is_whitespace())
+            .unwrap_or(rest.len());
+        let path = &rest[..end];
+        if !path.is_empty() {
+            paths.push(path);
+        }
+    }
+    paths
+}
+
+fn cleanup_removed_images(folder: &Path, old_body: &str, new_body: &str) {
+    let old_images = extract_image_paths(old_body);
+    let new_images: Vec<&str> = extract_image_paths(new_body);
+    for img in old_images {
+        if !new_images.contains(&img) {
+            let path = folder.join(img);
+            let _ = fs::remove_file(&path);
+        }
+    }
 }
 
 fn load_config(folder: &Path, filename: &str) -> Option<VaultConfig> {
@@ -318,6 +346,7 @@ pub fn save_note(
         .find(|n| n.id == id)
         .ok_or("Note not found")?;
 
+    let old_body = note.body.clone();
     note.title = title;
     note.body = body;
     note.codex = codex;
@@ -330,6 +359,8 @@ pub fn save_note(
         note,
         "Vault is locked. Unlock before saving.",
     )?;
+
+    cleanup_removed_images(&folder, &old_body, &note.body);
 
     let dto = NoteDto::from(&*note);
     drop(notes);
@@ -376,6 +407,7 @@ pub fn delete_note(id: String, state: State<'_, AppState>) -> Result<(), String>
         .ok_or("Note not found")?;
 
     let note = &notes[idx];
+    cleanup_removed_images(&folder, &note.body, "");
     storage::delete_note_file(&folder, note)?;
     notes.remove(idx);
 
@@ -1230,6 +1262,26 @@ pub fn resolve_conflict(
     }
 
     Ok(())
+}
+
+#[tauri::command]
+pub fn save_image(data: String, extension: String, state: State<'_, AppState>) -> Result<String, String> {
+    let folder = state.folder()?;
+    let images_dir = folder.join(".scratch").join("images");
+    fs::create_dir_all(&images_dir)
+        .map_err(|e| format!("Failed to create images dir: {}", e))?;
+
+    let bytes = base64::engine::general_purpose::STANDARD
+        .decode(&data)
+        .map_err(|e| format!("Invalid base64: {}", e))?;
+
+    let id = ulid::Ulid::new().to_string();
+    let filename = format!("{}.{}", id, extension);
+    let path = images_dir.join(&filename);
+    fs::write(&path, &bytes)
+        .map_err(|e| format!("Failed to write image: {}", e))?;
+
+    Ok(path.to_string_lossy().to_string())
 }
 
 #[cfg(test)]

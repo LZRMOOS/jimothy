@@ -18,6 +18,7 @@ import { createMentionExtension } from "../extensions/mention";
 import { createTagHighlightExtension } from "../extensions/tagHighlight";
 import { createTaskPriorityExtension } from "../extensions/taskPriority";
 import { createTaskDueDateExtension } from "../extensions/taskDueDate";
+import { createImageExtension, createImagePasteExtension } from "../extensions/imagePaste";
 import { extractTags } from "../utils/tags";
 
 const lowlight = createLowlight(common);
@@ -282,12 +283,13 @@ type Props = {
   isSplit?: boolean;
   tagColors?: Record<string, string>;
   dictionary?: string[];
+  notesFolder?: string | null;
 };
 
 type TocHeading = { level: number; text: string; pos: number };
 type Backlink = { id: string; title: string };
 
-export function Editor({ note, saveStatus, onTitleChange, onBodyChange, onCodexChange, onEditingChange, onBaseVersion, onFlush, searchQuery = "", codexList, isSensitive, editorRef, macros = {}, allNotes = [], onNavigateToNote, frozen, onToggleFreeze, tocDefault, onCloseSplit, onToggleSplit, isSplit, tagColors, dictionary = [] }: Props) {
+export function Editor({ note, saveStatus, onTitleChange, onBodyChange, onCodexChange, onEditingChange, onBaseVersion, onFlush, searchQuery = "", codexList, isSensitive, editorRef, macros = {}, allNotes = [], onNavigateToNote, frozen, onToggleFreeze, tocDefault, onCloseSplit, onToggleSplit, isSplit, tagColors, dictionary = [], notesFolder = null }: Props) {
   const [showCharCount, setShowCharCount] = useState(false);
   const [isTitleFocused, setIsTitleFocused] = useState(false);
   const [showToc, setShowToc] = useState(false);
@@ -334,6 +336,10 @@ export function Editor({ note, saveStatus, onTitleChange, onBodyChange, onCodexC
   const dictionaryRef = useRef(dictionary);
   dictionaryRef.current = dictionary;
   const [mentionExt] = useState(() => createMentionExtension(dictionaryRef));
+  const notesFolderRef = useRef(notesFolder);
+  notesFolderRef.current = notesFolder;
+  const [imageExt] = useState(() => createImageExtension(notesFolderRef));
+  const [imagePasteExt] = useState(() => createImagePasteExtension(notesFolderRef));
   const suppressUpdate = useRef(false);
 
   const editor = useEditor({
@@ -372,6 +378,8 @@ export function Editor({ note, saveStatus, onTitleChange, onBodyChange, onCodexC
       tagExt,
       createTaskPriorityExtension(),
       createTaskDueDateExtension(),
+      imageExt,
+      imagePasteExt,
     ],
     content: note.body,
     onUpdate: ({ editor }) => {
