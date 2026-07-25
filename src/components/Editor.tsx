@@ -20,6 +20,8 @@ import { createTaskPriorityExtension } from "../extensions/taskPriority";
 import { createTaskDueDateExtension } from "../extensions/taskDueDate";
 import { createImageExtension, createImagePasteExtension } from "../extensions/imagePaste";
 import { createEmojiExtension, type EmojiEntry } from "../extensions/emoji";
+import { createTableExtensions } from "../extensions/tableExtensions";
+import { TableToolbar } from "./TableToolbar";
 import { extractTags } from "../utils/tags";
 
 const lowlight = createLowlight(common);
@@ -88,7 +90,7 @@ const BUILTIN_MACROS: Record<string, () => string> = {
   "/time": () => new Date().toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" }),
 };
 
-function expandMacro(view: any, macrosRef: { current: Record<string, string> }): boolean {
+function expandMacro(view: any, macrosRef: { current: Record<string, string> }, editor: any): boolean {
   const { state } = view;
   const { from } = state.selection;
   const $from = state.doc.resolve(from);
@@ -97,6 +99,20 @@ function expandMacro(view: any, macrosRef: { current: Record<string, string> }):
   if (!match) return false;
 
   const trigger = match[1];
+
+  // /table inserts a real table node, not text — the macro string path can't
+  // build one, so hand off to the Tiptap command after clearing the trigger.
+  if (trigger === "/table") {
+    const triggerStart = from - trigger.length;
+    editor
+      .chain()
+      .focus()
+      .deleteRange({ from: triggerStart, to: from })
+      .insertTable({ rows: 2, cols: 2, withHeaderRow: true })
+      .run();
+    return true;
+  }
+
   let expansion: string | null = null;
 
   if (BUILTIN_MACROS[trigger]) {
@@ -130,16 +146,17 @@ function createMacroExtension(macrosRef: { current: Record<string, string> }) {
   return Extension.create({
     name: "macroExpansion",
     addProseMirrorPlugins() {
+      const editor = this.editor;
       return [
         new Plugin({
           props: {
             handleTextInput(view, _from, _to, text) {
               if (text !== " ") return false;
-              return expandMacro(view, macrosRef);
+              return expandMacro(view, macrosRef, editor);
             },
             handleKeyDown(view, event) {
               if (event.key !== "Enter") return false;
-              return expandMacro(view, macrosRef);
+              return expandMacro(view, macrosRef, editor);
             },
           },
         }),
@@ -345,6 +362,7 @@ export function Editor({ note, saveStatus, onTitleChange, onBodyChange, onCodexC
   const emojisRef = useRef(emojis);
   emojisRef.current = emojis;
   const [emojiExt] = useState(() => createEmojiExtension(emojisRef));
+  const [tableExts] = useState(() => createTableExtensions());
   const suppressUpdate = useRef(false);
 
   const editor = useEditor({
@@ -386,6 +404,7 @@ export function Editor({ note, saveStatus, onTitleChange, onBodyChange, onCodexC
       imageExt,
       imagePasteExt,
       emojiExt,
+      ...tableExts,
     ],
     content: note.body,
     onUpdate: ({ editor }) => {
@@ -922,6 +941,7 @@ export function Editor({ note, saveStatus, onTitleChange, onBodyChange, onCodexC
           }
         }}>
           <EditorContent editor={editor} />
+          {editor && !frozen && <TableToolbar editor={editor} />}
           {backlinks.length > 0 && (
             <div className="editor-backlinks">
               <div className="editor-backlinks-header">

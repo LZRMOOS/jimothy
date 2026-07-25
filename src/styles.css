@@ -1176,6 +1176,7 @@ body {
   flex: 1;
   overflow-y: auto;
   padding: 4px 20px;
+  position: relative;
 }
 
 .editor-toc {
@@ -1335,6 +1336,101 @@ body {
 
 .image-delete-btn:hover {
   color: var(--danger);
+}
+
+/* GFM tables */
+.editor-body .tiptap table {
+  border-collapse: collapse;
+  table-layout: fixed;
+  width: 100%;
+  margin: 0.75em 0;
+  overflow: hidden;
+}
+
+.editor-body .tiptap table td,
+.editor-body .tiptap table th {
+  border: 1px solid var(--border);
+  padding: 6px 10px;
+  vertical-align: top;
+  box-sizing: border-box;
+  position: relative;
+  min-width: 3em;
+}
+
+.editor-body .tiptap table th {
+  background: var(--bg-secondary);
+  font-weight: 600;
+  text-align: left;
+}
+
+/* Cells hold a single paragraph in GFM; drop its default margins. */
+.editor-body .tiptap table td > p,
+.editor-body .tiptap table th > p {
+  margin: 0;
+}
+
+/* Highlight the cell(s) covered by the current selection. */
+.editor-body .tiptap table .selectedCell::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: color-mix(in srgb, var(--accent) 18%, transparent);
+  pointer-events: none;
+}
+
+/* Column resize handle (display-only; widths aren't persisted to Markdown). */
+.editor-body .tiptap table .column-resize-handle {
+  position: absolute;
+  right: -2px;
+  top: 0;
+  bottom: 0;
+  width: 4px;
+  background: var(--accent);
+  cursor: col-resize;
+  z-index: 4;
+}
+
+.editor-body .tiptap.resize-cursor {
+  cursor: col-resize;
+}
+
+/* Floating table controls, mirrors the image resize toolbar. */
+.table-toolbar {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  border-radius: var(--radius-sm);
+  background: var(--bg-tertiary);
+  border: 1px solid var(--border);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  z-index: 5;
+}
+
+.table-toolbar-btn {
+  border: none;
+  background: none;
+  color: var(--text-secondary);
+  font-size: 11px;
+  line-height: 1;
+  white-space: nowrap;
+  padding: 4px 6px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background var(--transition), color var(--transition);
+}
+
+.table-toolbar-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.table-toolbar-sep {
+  width: 1px;
+  align-self: stretch;
+  margin: 2px 2px;
+  background: var(--border);
 }
 
 /* Inline custom emoji: sized to text, no block margins */

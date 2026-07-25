@@ -1223,6 +1223,13 @@ function App() {
         },
       },
       {
+        id: "insert-table",
+        label: "Insert Table",
+        action: () => {
+          editorRef.current?.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run();
+        },
+      },
+      {
         id: "duplicate-note",
         label: "Duplicate Note",
         action: () => handleDuplicate(selectedId),

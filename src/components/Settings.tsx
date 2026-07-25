@@ -1805,6 +1805,10 @@ export function Settings({
                     <kbd className="macro-trigger">/time</kbd>
                     <span className="macro-expansion">Inserts the current time (e.g., 3:45 PM)</span>
                   </div>
+                  <div className="macro-row">
+                    <kbd className="macro-trigger">/table</kbd>
+                    <span className="macro-expansion">Inserts a 2×2 table</span>
+                  </div>
                 </div>
                 <h3>Custom</h3>
                 <p className="settings-hint">
@@ -2344,6 +2348,10 @@ console.log(hello);
                     <tr>
                       <td className="md-ref-syntax">/time</td>
                       <td className="md-ref-desc">Insert current time</td>
+                    </tr>
+                    <tr>
+                      <td className="md-ref-syntax">/table</td>
+                      <td className="md-ref-desc">Insert a 2×2 table (or run Insert Table from the command palette)</td>
                     </tr>
                     <tr>
                       <td className="md-ref-syntax">/custom</td>

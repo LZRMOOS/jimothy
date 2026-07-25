@@ -14,6 +14,7 @@ Built with Tauri 2, React, TypeScript, and Rust.
 - **Dictionary mentions** — type `@` to insert mentions from a user-defined dictionary
 - **Custom emoji** — drop in your own images and type `:name:` to insert them; reusable as codex icons
 - **Image paste** — paste or drop images straight into a note, stored as portable relative paths
+- **Tables** — GFM pipe tables with an inline toolbar for adding/removing rows and columns; stored as portable Markdown
 - **Inline tags** — `#tag` syntax with custom per-tag colors, searchable and filterable
 - **Task management** — priority pills (!high, !med, !low) and due date pills (!YYYY-MM-DD) in checkboxes
 - **Codexes** — group notes into collections with a collapsible icon sidebar, custom emoji icons, and custom colors

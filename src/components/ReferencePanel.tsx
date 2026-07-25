@@ -108,6 +108,7 @@ function MarkdownReference({ macros }: { macros?: Record<string, string> }) {
         <tbody>
           <tr><td className="ref-syntax">/date</td><td>Today's date</td></tr>
           <tr><td className="ref-syntax">/time</td><td>Current time</td></tr>
+          <tr><td className="ref-syntax">/table</td><td>Insert a 2×2 table (or Insert Table in {mod}K)</td></tr>
           {macroEntries.map(([trigger, expansion]) => (
             <tr key={trigger}><td className="ref-syntax">{trigger}</td><td>{expansion}</td></tr>
           ))}

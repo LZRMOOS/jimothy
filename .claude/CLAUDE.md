@@ -69,8 +69,9 @@ Two independent layers of encryption:
 - **Custom emoji**: Type `:` to insert custom emoji/icons loaded from a user folder, invoked by filename (`pepe.png` → `:pepe:`); reusable as codex icons
 - **Inline tags**: Type `#tag` for searchable, color-coded inline tags
 - **Task extensions**: Priority pills (!high, !med, !low) and due date pills (!YYYY-MM-DD) in checkboxes
-- **Text macros**: /date, /time, and user-defined custom macros that expand as you type
+- **Text macros**: /date, /time, and user-defined custom macros that expand as you type. /table is a special-cased built-in that inserts a real 2×2 table node (not a text expansion) — see `expandMacro` in Editor.tsx.
 - **Find & replace**: Cmd+F for find, Cmd+H for find & replace with match cycling (Cmd+] / Cmd+[)
+- **Tables**: GFM pipe tables via Tiptap table extensions; stored as portable plain-text Markdown (strictly rectangular, no merged cells or block content in cells). Insert via the "Insert Table" command palette action or the `/table` macro; a floating toolbar (`TableToolbar.tsx`) adds/removes rows and columns and toggles the header row when the cursor is inside a table. Column resizing is display-only (widths not persisted to Markdown).
 - **Freeze notes**: Lock a note to prevent accidental edits
 - **Copy as plain text**: Copied text strips markdown formatting (transformCopiedText: false)
 - Word and character count display
