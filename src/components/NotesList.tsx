@@ -111,7 +111,7 @@ export function NotesList({ notes, backlinkIndex, selectedId, onSelect, onDelete
         return (
           <div key={note.id}>
             <div
-              className={`note-item ${note.id === selectedId ? "selected" : ""} ${pinnedIds.includes(note.id) ? "pinned" : ""}`}
+              className={`note-item ${note.id === selectedId ? "selected" : ""} ${pinnedIds.includes(note.id) ? "pinned" : ""} ${note.archived ? "archived" : ""}`}
               onClick={() => onSelect(note.id)}
               onContextMenu={(e) => handleContextMenu(e, note.id)}
             >

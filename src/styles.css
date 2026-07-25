@@ -797,6 +797,13 @@ body {
   letter-spacing: -0.01em;
 }
 
+/* Archived notes read as de-emphasized: muted, lighter-weight, italic title. */
+.note-item.archived .note-item-title {
+  color: var(--text-secondary);
+  font-weight: 500;
+  font-style: italic;
+}
+
 .sensitive-icon {
   flex-shrink: 0;
   color: var(--text-hint);
@@ -1035,6 +1042,13 @@ body {
   color: var(--text-primary);
   outline: none;
   letter-spacing: -0.02em;
+}
+
+/* Archived notes read as de-emphasized in the editor, matching the list. */
+.editor-title.archived {
+  color: var(--text-secondary);
+  font-weight: 600;
+  font-style: italic;
 }
 
 .editor-title::placeholder {

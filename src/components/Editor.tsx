@@ -735,7 +735,7 @@ export function Editor({ note, saveStatus, onTitleChange, onBodyChange, onCodexC
           <input
             ref={titleInputRef}
             type="text"
-            className="editor-title"
+            className={`editor-title ${note.archived ? "archived" : ""}`}
             value={localTitle}
             onChange={(e) => {
               if (frozen) return;
