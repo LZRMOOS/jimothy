@@ -223,6 +223,10 @@ pub fn set_notes_folder(
     storage::validate_folder(&folder)?;
     storage::ensure_quicknotes_dirs(&folder)?;
 
+    // Seed app-bundled starter emoji on first sight (idempotent; respects
+    // user deletions via the seed manifest).
+    seed_starter_emojis(&folder, &app_handle);
+
     // Clean up orphaned temp files from previous sessions
     storage::cleanup_temp_files(&folder);
 
@@ -1296,6 +1300,77 @@ const EMOJI_MAX_GIF_BYTES: usize = 3 * 1024 * 1024;
 /// Extensions we store emoji under. Static images become `.png`; animated
 /// emoji keep their original `.gif`.
 const EMOJI_EXTENSIONS: [&str; 2] = ["png", "gif"];
+
+/// Filename of the seed manifest inside `.scratch/emojis/`. Records the
+/// shortcodes we've ever seeded into this vault so a starter emoji the user
+/// deleted never reappears on the next launch (or after a re-seed when a new
+/// release ships new starters). Lives in the synced folder, so the "already
+/// seeded" decision follows the vault across devices.
+const EMOJI_SEED_MANIFEST: &str = ".seeded.json";
+
+/// Copy the app-bundled starter emoji into a vault's `.scratch/emojis/` the
+/// first time each one is seen. Idempotent and non-fatal: any failure (missing
+/// resource dir in dev, unreadable manifest, etc.) is logged-by-return and
+/// never blocks folder init. Emoji are never encrypted, so this runs
+/// regardless of vault status and needs no key.
+fn seed_starter_emojis(folder: &Path, app_handle: &AppHandle) {
+    use tauri::Manager;
+
+    let resource_dir = match app_handle
+        .path()
+        .resolve("resources/starter-emojis", tauri::path::BaseDirectory::Resource)
+    {
+        Ok(dir) if dir.exists() => dir,
+        _ => return, // no bundled starters (e.g. dev without a build) — nothing to do
+    };
+
+    let emojis_dir = folder.join(".scratch").join("emojis");
+    if fs::create_dir_all(&emojis_dir).is_err() {
+        return;
+    }
+
+    // Load the set of shortcodes we've already seeded into this vault.
+    let manifest_path = emojis_dir.join(EMOJI_SEED_MANIFEST);
+    let mut seeded: Vec<String> = fs::read_to_string(&manifest_path)
+        .ok()
+        .and_then(|s| serde_json::from_str(&s).ok())
+        .unwrap_or_default();
+
+    let mut changed = false;
+    let read = match fs::read_dir(&resource_dir) {
+        Ok(r) => r,
+        Err(_) => return,
+    };
+    for entry in read.flatten() {
+        let src = entry.path();
+        if !src.is_file() {
+            continue;
+        }
+        let stem = match src.file_stem().and_then(|s| s.to_str()) {
+            Some(n) if emoji_name_valid(n) => n.to_string(),
+            _ => continue,
+        };
+        // Skip if we've seeded this name before (even if the user has since
+        // deleted it) or if a same-named emoji already exists on disk.
+        if seeded.contains(&stem) || find_emoji_path(&emojis_dir, &stem).is_some() {
+            continue;
+        }
+        let dest = match src.extension().and_then(|e| e.to_str()) {
+            Some(ext) => emojis_dir.join(format!("{}.{}", stem, ext)),
+            None => continue,
+        };
+        if fs::copy(&src, &dest).is_ok() {
+            seeded.push(stem);
+            changed = true;
+        }
+    }
+
+    if changed {
+        if let Ok(json) = serde_json::to_string(&seeded) {
+            let _ = fs::write(&manifest_path, json);
+        }
+    }
+}
 
 /// Resolve a shortcode to its on-disk file, trying each known extension. Emoji
 /// can be stored as `.png` or `.gif`, so callers must not assume `.png`.
