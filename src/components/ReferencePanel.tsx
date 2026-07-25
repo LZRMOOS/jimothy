@@ -100,6 +100,7 @@ function MarkdownReference({ macros }: { macros?: Record<string, string> }) {
           <tr><td className="ref-syntax">[[note name</td><td>Link to note (autocomplete)</td></tr>
           <tr><td className="ref-syntax">#tag</td><td>Tag (searchable)</td></tr>
           <tr><td className="ref-syntax">@name</td><td>Dictionary mention</td></tr>
+          <tr><td className="ref-syntax">:name:</td><td>Custom emoji</td></tr>
         </tbody>
       </table>
       <h4>Macros</h4>
@@ -146,6 +147,7 @@ function ControlsReference() {
         <tbody>
           <tr><td className="ref-key">[[</td><td>Link to note</td></tr>
           <tr><td className="ref-key">@</td><td>Dictionary mention</td></tr>
+          <tr><td className="ref-key">:</td><td>Custom emoji</td></tr>
           <tr><td className="ref-key">/macro</td><td>Expand macro</td></tr>
         </tbody>
       </table>

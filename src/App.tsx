@@ -6,6 +6,8 @@ import { useEventListener } from "./hooks/useEventListener";
 import { SearchBar } from "./components/SearchBar";
 import { NotesList } from "./components/NotesList";
 import { Editor } from "./components/Editor";
+import type { EmojiEntry } from "./extensions/emoji";
+import { CodexIconPicker, renderCodexIcon } from "./components/CodexIconPicker";
 import { Dropdown } from "./components/Dropdown";
 import { FolderSetup } from "./components/FolderSetup";
 import { UnlockScreen } from "./components/UnlockScreen";
@@ -81,6 +83,7 @@ function App() {
   const [viewingArchive, setViewingArchive] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [editingCodexIcon, setEditingCodexIcon] = useState<string | null>(null);
+  const [codexIconAnchor, setCodexIconAnchor] = useState<HTMLElement | null>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const [, setIsEditingNote] = useState(false);
   const isEditingNoteRef = useRef(false);
@@ -119,9 +122,23 @@ function App() {
   // latest settings without waiting for a re-render.
   const appSettingsRef = useRef<AppSettings>(appSettings);
   const [notesFolder, setNotesFolder] = useState<string | null>(null);
+  const [emojis, setEmojis] = useState<EmojiEntry[]>([]);
   useEffect(() => {
     appSettingsRef.current = appSettings;
   }, [appSettings]);
+
+  const reloadEmojis = useCallback(async () => {
+    try {
+      const list = (await invoke("list_emojis")) as EmojiEntry[];
+      setEmojis(list);
+    } catch {
+      setEmojis([]);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (notesFolder) reloadEmojis();
+  }, [notesFolder, reloadEmojis]);
 
   const splitNote = useMemo(() => splitNoteId ? notes.find((n) => n.id === splitNoteId) || null : null, [notes, splitNoteId]);
 
@@ -1345,40 +1362,30 @@ function App() {
             </svg>
           </button>
           {codexList.map((codex) => (
-            editingCodexIcon === codex ? (
-              <input
-                key={codex}
-                className="codex-sidebar-item codex-icon-input"
-                autoFocus
-                maxLength={2}
-                defaultValue={appSettings.codexIcons?.[codex] || ""}
-                onBlur={(e) => {
-                  const emoji = e.target.value.trim();
-                  const newIcons = { ...appSettings.codexIcons, [codex]: emoji };
-                  if (!emoji) delete newIcons[codex];
-                  handleSettingsChange({ ...appSettings, codexIcons: newIcons });
-                  setEditingCodexIcon(null);
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === "Enter" || e.key === "Escape") {
-                    (e.target as HTMLInputElement).blur();
-                  }
-                }}
-              />
-            ) : (
+            <div key={codex} className="codex-sidebar-item-wrap">
               <button
-                key={codex}
                 className={`codex-sidebar-item ${activeCodex === codex && !viewingArchive ? "active" : ""}`}
                 style={appSettings.codexColors?.[codex] ? { color: appSettings.codexColors[codex] } : undefined}
                 onClick={() => { setActiveCodex(activeCodex === codex ? null : codex); setViewingArchive(false); }}
-                onDoubleClick={() => setEditingCodexIcon(codex)}
+                onDoubleClick={(e) => { setEditingCodexIcon(codex); setCodexIconAnchor(e.currentTarget); }}
                 title={`${codex} (double-click to set icon)`}
               >
-                <span className="codex-sidebar-letter">
-                  {appSettings.codexIcons?.[codex] || codex[0].toUpperCase()}
-                </span>
+                {renderCodexIcon(appSettings.codexIcons?.[codex], emojis, codex[0].toUpperCase())}
               </button>
-            )
+              {editingCodexIcon === codex && (
+                <CodexIconPicker
+                  value={appSettings.codexIcons?.[codex] || ""}
+                  emojis={emojis}
+                  anchorEl={codexIconAnchor}
+                  onSelect={(icon) => {
+                    const newIcons = { ...appSettings.codexIcons, [codex]: icon };
+                    if (!icon) delete newIcons[codex];
+                    handleSettingsChange({ ...appSettings, codexIcons: newIcons });
+                  }}
+                  onClose={() => { setEditingCodexIcon(null); setCodexIconAnchor(null); }}
+                />
+              )}
+            </div>
           ))}
           <div className="codex-sidebar-bottom">
             {archivedCount > 0 && (
@@ -1444,6 +1451,8 @@ function App() {
           onDeleteTag={handleDeleteTag}
           onRenameCodex={handleRenameCodex}
           codexCounts={codexCounts}
+          emojis={emojis}
+          onReloadEmojis={reloadEmojis}
         />
       ) : (
         <div className="main-content">
@@ -1582,6 +1591,7 @@ function App() {
                 tagColors={appSettings.tagColors}
                 dictionary={appSettings.dictionary}
                 notesFolder={notesFolder}
+                emojis={emojis}
               />
               {splitNote && splitNote.id !== selectedNote.id && (
                 <Editor
@@ -1604,6 +1614,7 @@ function App() {
                   tagColors={appSettings.tagColors}
                   dictionary={appSettings.dictionary}
                   notesFolder={notesFolder}
+                  emojis={emojis}
                 />
               )}
             </div>

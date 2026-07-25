@@ -19,6 +19,7 @@ import { createTagHighlightExtension } from "../extensions/tagHighlight";
 import { createTaskPriorityExtension } from "../extensions/taskPriority";
 import { createTaskDueDateExtension } from "../extensions/taskDueDate";
 import { createImageExtension, createImagePasteExtension } from "../extensions/imagePaste";
+import { createEmojiExtension, type EmojiEntry } from "../extensions/emoji";
 import { extractTags } from "../utils/tags";
 
 const lowlight = createLowlight(common);
@@ -284,12 +285,13 @@ type Props = {
   tagColors?: Record<string, string>;
   dictionary?: string[];
   notesFolder?: string | null;
+  emojis?: EmojiEntry[];
 };
 
 type TocHeading = { level: number; text: string; pos: number };
 type Backlink = { id: string; title: string };
 
-export function Editor({ note, saveStatus, onTitleChange, onBodyChange, onCodexChange, onEditingChange, onBaseVersion, onFlush, searchQuery = "", codexList, isSensitive, editorRef, macros = {}, allNotes = [], onNavigateToNote, frozen, onToggleFreeze, tocDefault, onCloseSplit, onToggleSplit, isSplit, tagColors, dictionary = [], notesFolder = null }: Props) {
+export function Editor({ note, saveStatus, onTitleChange, onBodyChange, onCodexChange, onEditingChange, onBaseVersion, onFlush, searchQuery = "", codexList, isSensitive, editorRef, macros = {}, allNotes = [], onNavigateToNote, frozen, onToggleFreeze, tocDefault, onCloseSplit, onToggleSplit, isSplit, tagColors, dictionary = [], notesFolder = null, emojis = [] }: Props) {
   const [showCharCount, setShowCharCount] = useState(false);
   const [isTitleFocused, setIsTitleFocused] = useState(false);
   const [showToc, setShowToc] = useState(false);
@@ -340,6 +342,9 @@ export function Editor({ note, saveStatus, onTitleChange, onBodyChange, onCodexC
   notesFolderRef.current = notesFolder;
   const [imageExt] = useState(() => createImageExtension(notesFolderRef));
   const [imagePasteExt] = useState(() => createImagePasteExtension(notesFolderRef));
+  const emojisRef = useRef(emojis);
+  emojisRef.current = emojis;
+  const [emojiExt] = useState(() => createEmojiExtension(emojisRef));
   const suppressUpdate = useRef(false);
 
   const editor = useEditor({
@@ -380,6 +385,7 @@ export function Editor({ note, saveStatus, onTitleChange, onBodyChange, onCodexC
       createTaskDueDateExtension(),
       imageExt,
       imagePasteExt,
+      emojiExt,
     ],
     content: note.body,
     onUpdate: ({ editor }) => {
@@ -609,6 +615,20 @@ export function Editor({ note, saveStatus, onTitleChange, onBodyChange, onCodexC
       onBaseVersionRef.current?.(note.id, note.updated_at);
     }
   }, [note.id, note.body, note.updated_at, editor, frozen]);
+
+  // Emoji load asynchronously from disk; when the list arrives (or changes),
+  // re-parse the note so `:name:` shortcodes render as images. Skip while the
+  // user is typing so we never clobber the active buffer.
+  const emojiCountRef = useRef(emojis.length);
+  useEffect(() => {
+    if (!editor) return;
+    if (emojiCountRef.current === emojis.length) return;
+    emojiCountRef.current = emojis.length;
+    if (editor.isFocused) return;
+    suppressUpdate.current = true;
+    editor.commands.setContent(note.body);
+    suppressUpdate.current = false;
+  }, [emojis.length, editor, note.body]);
 
   // Extract headings from editor document for TOC
   useEffect(() => {

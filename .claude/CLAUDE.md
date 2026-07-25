@@ -13,7 +13,7 @@ A fast, keyboard-first desktop notes app built with Tauri 2, React, TypeScript, 
 ### Frontend (src/)
 - **React 19** with TypeScript
 - **Tiptap** WYSIWYG Markdown editor with syntax highlighting, task lists, macros
-- **Tiptap extensions**: Note links (`noteLink.tsx`), dictionary mentions (`mention.tsx`), inline tags (`tagHighlight.ts`), task priority (`taskPriority.ts`), task due date (`taskDueDate.ts`)
+- **Tiptap extensions**: Note links (`noteLink.tsx`), dictionary mentions (`mention.tsx`), custom emoji (`emoji.tsx`), inline tags (`tagHighlight.ts`), task priority (`taskPriority.ts`), task due date (`taskDueDate.ts`), image paste (`imagePaste.ts`)
 - **tiptap-markdown** for Markdown serialization (storage.markdown.serialize/parse)
 - **MiniSearch** for full-text search with highlighted results
 - **Components**: SearchBar, NotesList, Editor, Settings, CommandPalette, ReferencePanel, Scratchpad, PasswordInput, FolderSetup, etc.
@@ -66,6 +66,7 @@ Two independent layers of encryption:
   - Click handler checks `.note-link` DOM target to prevent false navigation
   - Displayed with `@` prefix in editor to distinguish from normal links
 - **Dictionary mentions**: Type `@` to insert mentions from a user-defined dictionary
+- **Custom emoji**: Type `:` to insert custom emoji/icons loaded from a user folder, invoked by filename (`pepe.png` → `:pepe:`); reusable as codex icons
 - **Inline tags**: Type `#tag` for searchable, color-coded inline tags
 - **Task extensions**: Priority pills (!high, !med, !low) and due date pills (!YYYY-MM-DD) in checkboxes
 - **Text macros**: /date, /time, and user-defined custom macros that expand as you type
@@ -91,7 +92,7 @@ Two independent layers of encryption:
 - Zoom support (Cmd+/- for text size)
 - System tray with hide-on-close behavior, launch minimized to tray when autostart enabled
 - Native macOS menu bar with standard shortcuts
-- Settings with tabs: General, Organization, Controls, Macros, Dictionary, Colors, Storage, Security, Markdown
+- Settings with tabs: General, Organization, Controls, Macros, Dictionary, Emoji, Colors, Storage, Security, Markdown
 - **Vault profiles**: Multiple vault locations switchable from the header dropdown; each profile has a name, path, and optional color
 - **Settings split**: Local settings (device-specific, including vault profiles, in app config dir) vs portable preferences (synced in .scratch/preferences.json)
 - When writing, use a more fun, quirky straightforward language, do not use em-dashes.
@@ -118,7 +119,7 @@ cargo test --manifest-path src-tauri/Cargo.toml  # Rust tests
 ```
 src/
   components/     React UI components (Editor, NotesList, Settings, Scratchpad, etc.)
-  extensions/     Tiptap editor extensions (noteLink, mention, tagHighlight, taskPriority, taskDueDate)
+  extensions/     Tiptap editor extensions (noteLink, mention, emoji, tagHighlight, taskPriority, taskDueDate, imagePaste)
   hooks/          Custom React hooks for state/side effects
   types/          TypeScript type definitions
   utils/          Utility functions (search, etc.)
@@ -189,6 +190,13 @@ Dropbox is last-writer-wins at the file level, so conflicts can't be fully preve
 - Triggered with `@` in the editor, shows autocomplete from user-defined dictionary
 - Rendered as styled `<span data-type="mention">` elements
 - Dictionary managed in Settings > Dictionary tab
+
+### Custom Emoji
+- Extension: `src/extensions/emoji.tsx` — inline atom node modeled on `mention.tsx`
+- **Stored as literal `:name:` text in markdown, resolved to an image at render time** (like Slack/Discord). Portable, degrades to `:name:` text if the image is missing mid-sync, and naturally exempt from the per-note image cleanup (that only tracks `.scratch/images/` paths).
+- Triggered with `:` via `@tiptap/suggestion`; `renderHTML` resolves the name against `emojisRef` to an `asset://` URL via `convertFileSrc`. Markdown text-rule parse only converts names present in `emojisRef` (same guard as mentions).
+- Images live in `.scratch/emojis/` (syncs via Dropbox). Backend commands `list_emojis` / `import_emoji` / `delete_emoji` (commands/mod.rs) validate square + min 100x100, downscale oversized images to 128x128 (`image` crate), and store as `.png`.
+- Managed in Settings > Emoji tab. Reusable as codex icons: codex icon values are either a `:name:` shortcode or a literal char; `renderCodexIcon` / `CodexIconPicker` (src/components/CodexIconPicker.tsx) handle both.
 
 ### Inline Tags
 - Extension: `src/extensions/tagHighlight.ts`
@@ -271,6 +279,10 @@ All commands defined in `src-tauri/src/commands/mod.rs`:
 - `update_capture_shortcut(shortcut)` - Change the scratchpad capture shortcut
 - `open_folder(path)` - Open a folder in Finder (macOS)
 - `check_vault_exists(path)` - Check if a path contains a vault config (.scratch/vault.json)
+- `save_image(data, extension)` - Save a pasted/dropped image to `.scratch/images/`, returns absolute path
+- `list_emojis()` - List custom emoji in `.scratch/emojis/` (returns `Vec<EmojiEntry>`)
+- `import_emoji(data, filename)` - Validate (square, min 100x100), downscale, save emoji as `.png`
+- `delete_emoji(name)` - Delete a custom emoji by name
 
 ## Configuration Files
 
@@ -288,6 +300,8 @@ All commands defined in `src-tauri/src/commands/mod.rs`:
     protection.json         # Protection config
     preferences.json        # Portable preferences (synced across devices)
     scratchpad.json         # Quick-capture entries
+    images/                 # Pasted/dropped images (portable, synced)
+    emojis/                 # Custom emoji images (portable, synced)
     trash/                  # Deleted notes
 ```
 

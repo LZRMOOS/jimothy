@@ -1,14 +1,15 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { open } from "@tauri-apps/plugin-dialog";
 import { enable, disable, isEnabled } from "@tauri-apps/plugin-autostart";
-import { invoke } from "@tauri-apps/api/core";
+import { invoke, convertFileSrc } from "@tauri-apps/api/core";
 import { getVersion } from "@tauri-apps/api/app";
 import { Dropdown } from "./Dropdown";
 import { PasswordInput } from "./PasswordInput";
 import type { AppSettings, VaultStatus, ThemeColors, ColorPreset, VaultProfile } from "../types";
+import type { EmojiEntry } from "../extensions/emoji";
 import { isMac, modName, altName, superName } from "../utils/platform";
 
-type SettingsTab = "general" | "organization" | "keyboard" | "macros" | "dictionary" | "colors" | "storage" | "security" | "markdown";
+type SettingsTab = "general" | "organization" | "keyboard" | "macros" | "dictionary" | "emoji" | "colors" | "storage" | "security" | "markdown";
 
 function NoteProtectionSection({
   protectionStatus,
@@ -894,6 +895,75 @@ function DictionaryEditor({ entries, onChange }: { entries: string[]; onChange: 
   );
 }
 
+function EmojiEditor({ emojis, onReload }: { emojis: EmojiEntry[]; onReload: () => Promise<void> }) {
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  const fileRef = useRef<HTMLInputElement>(null);
+
+  const handleFiles = async (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+    setError(null);
+    setBusy(true);
+    try {
+      for (const file of Array.from(files)) {
+        if (!file.type.startsWith("image/")) {
+          setError(`${file.name} is not an image`);
+          continue;
+        }
+        const buffer = await file.arrayBuffer();
+        const bytes = new Uint8Array(buffer);
+        let binary = "";
+        for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]);
+        const base64 = btoa(binary);
+        try {
+          await invoke("import_emoji", { data: base64, filename: file.name });
+        } catch (e) {
+          setError(String(e));
+        }
+      }
+      await onReload();
+    } finally {
+      setBusy(false);
+      if (fileRef.current) fileRef.current.value = "";
+    }
+  };
+
+  const handleDelete = async (name: string) => {
+    await invoke("delete_emoji", { name });
+    await onReload();
+  };
+
+  return (
+    <div className="macro-editor">
+      {emojis.length > 0 && (
+        <div className="emoji-grid">
+          {emojis.map((e) => (
+            <div key={e.name} className="emoji-grid-item">
+              <img className="emoji-grid-img" src={convertFileSrc(e.path)} alt={e.name} />
+              <span className="emoji-grid-name">:{e.name}:</span>
+              <button className="macro-remove" onClick={() => handleDelete(e.name)} title="Remove">×</button>
+            </div>
+          ))}
+        </div>
+      )}
+      <div className="macro-add">
+        <input
+          ref={fileRef}
+          type="file"
+          accept="image/*"
+          multiple
+          style={{ display: "none" }}
+          onChange={(e) => handleFiles(e.target.files)}
+        />
+        <button className="btn secondary btn-sm" onClick={() => fileRef.current?.click()} disabled={busy}>
+          {busy ? "Adding..." : "Add emoji"}
+        </button>
+      </div>
+      {error && <p className="emoji-error">{error}</p>}
+    </div>
+  );
+}
+
 function CodexList({ codexList, codexCounts, onRenameCodex, codexColors, onChangeColor }: {
   codexList: string[];
   codexCounts: Record<string, number>;
@@ -1132,6 +1202,8 @@ type Props = {
   onDeleteTag?: (tag: string) => void;
   onRenameCodex?: (oldName: string, newName: string) => void;
   codexCounts: Record<string, number>;
+  emojis: EmojiEntry[];
+  onReloadEmojis: () => Promise<void>;
 };
 
 export function Settings({
@@ -1159,6 +1231,8 @@ export function Settings({
   onDeleteTag,
   onRenameCodex,
   codexCounts,
+  emojis,
+  onReloadEmojis,
 }: Props) {
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
@@ -1309,6 +1383,7 @@ export function Settings({
     { id: "keyboard", label: "Controls" },
     { id: "macros", label: "Macros" },
     { id: "dictionary", label: "Dictionary" },
+    { id: "emoji", label: "Emoji" },
     { id: "colors", label: "Colors" },
     { id: "storage", label: "Storage" },
     { id: "security", label: "Security" },
@@ -1691,6 +1766,18 @@ export function Settings({
                   entries={settings.dictionary || []}
                   onChange={(dictionary) => onSettingsChange({ ...settings, dictionary })}
                 />
+              </div>
+            )}
+
+            {activeTab === "emoji" && (
+              <div className="settings-section">
+                <h3>Custom Emoji</h3>
+                <p className="settings-hint">
+                  Drop in your own emoji and icons. Type <kbd>:</kbd> in the editor to
+                  autocomplete by name. Images must be square and at least 100&times;100
+                  pixels; bigger ones get downscaled. You can also use them as codex icons.
+                </p>
+                <EmojiEditor emojis={emojis} onReload={onReloadEmojis} />
               </div>
             )}
 
@@ -2168,6 +2255,21 @@ console.log(hello);
                   Mentions are highlighted and searchable with <code>@name</code> in the search bar.
                   Manage entries in{" "}
                   <button className="settings-link" onClick={() => setActiveTab("dictionary")}>Dictionary</button>.
+                </p>
+
+                <h3>Custom Emoji</h3>
+                <table className="md-ref-table">
+                  <tbody>
+                    <tr>
+                      <td className="md-ref-syntax">:name:</td>
+                      <td className="md-ref-desc">Custom emoji / icon</td>
+                    </tr>
+                  </tbody>
+                </table>
+                <p className="settings-hint">
+                  Type <code>:</code> in the editor to autocomplete your custom emoji.
+                  Add your own images and use them as codex icons in{" "}
+                  <button className="settings-link" onClick={() => setActiveTab("emoji")}>Emoji</button>.
                 </p>
 
                 <h3>Macros</h3>

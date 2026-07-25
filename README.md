@@ -12,6 +12,8 @@ Built with Tauri 2, React, TypeScript, and Rust.
 - **WYSIWYG Markdown** — Tiptap editor with syntax highlighting, task lists, code blocks, and word/char count
 - **Internal note links** — type `[[` to link to other notes with autocomplete; links survive title renames
 - **Dictionary mentions** — type `@` to insert mentions from a user-defined dictionary
+- **Custom emoji** — drop in your own images and type `:name:` to insert them; reusable as codex icons
+- **Image paste** — paste or drop images straight into a note, stored as portable relative paths
 - **Inline tags** — `#tag` syntax with custom per-tag colors, searchable and filterable
 - **Task management** — priority pills (!high, !med, !low) and due date pills (!YYYY-MM-DD) in checkboxes
 - **Codexes** — group notes into collections with a collapsible icon sidebar, custom emoji icons, and custom colors
@@ -89,7 +91,7 @@ cargo test --manifest-path src-tauri/Cargo.toml   # Rust
 ```
 src/                    React frontend
   components/           SearchBar, NotesList, Editor, Settings, CommandPalette, ReferencePanel, Scratchpad, etc.
-  extensions/           Tiptap editor extensions (noteLink, mention, tagHighlight, taskPriority, taskDueDate)
+  extensions/           Tiptap editor extensions (noteLink, mention, emoji, tagHighlight, taskPriority, taskDueDate, imagePaste)
   hooks/                useNotes, useVault, useProtection, useIdleLock, useUpdater, useEventListener
   types/                TypeScript type definitions
   utils/                Utility functions (search)
@@ -127,10 +129,11 @@ Accessible via Cmd+, or the command palette. Tabs:
 | Controls | Full shortcut reference (search, notes, editor, view, app) |
 | Macros | Built-in (/date, /time) and custom text expansion macros |
 | Dictionary | User-defined @mention dictionary |
+| Emoji | Custom emoji/icons (add, delete); type `:` to insert, reusable as codex icons |
 | Colors | Theme (system/light/dark), custom color overrides per theme, color presets |
 | Storage | Active vault info, open in Finder, rebuild index, vault profiles (add, rename, change location, set color) |
 | Security | Vault encryption, auto-lock timeout, note protection, change password |
-| Markdown | Syntax reference for formatting, code blocks, lists, tasks, links, tags, mentions |
+| Markdown | Syntax reference for formatting, code blocks, lists, tasks, links, tags, mentions, emoji |
 
 Local settings (device-specific) stored at `~/Library/Application Support/jimothy/settings.json` (macOS) or `%APPDATA%/jimothy/settings.json` (Windows).
 

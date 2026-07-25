@@ -529,12 +529,43 @@ body {
 }
 
 .codex-icon-input {
+  width: 44px;
   border: 1px solid var(--accent);
   background: var(--bg-primary);
   color: var(--text-primary);
   font-size: 12px;
   text-align: center;
   outline: none;
+  border-radius: var(--radius-sm);
+  padding: 4px;
+}
+
+.codex-icon-emoji {
+  width: 18px;
+  height: 18px;
+  object-fit: contain;
+}
+
+.codex-sidebar-item-wrap {
+  position: relative;
+  display: flex;
+  justify-content: center;
+}
+
+.codex-icon-picker {
+  position: fixed;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.codex-icon-picker .codex-input {
+  width: 160px;
+}
+
+.codex-icon-suggestions {
+  width: 160px;
 }
 
 .codex-sidebar-bottom {
@@ -1216,6 +1247,84 @@ body {
   height: auto;
   border-radius: 4px;
   margin: 0.5em 0;
+}
+
+/* Inline custom emoji: sized to text, no block margins */
+.editor-body .tiptap img.emoji,
+img.emoji {
+  display: inline-block;
+  height: 1.3em;
+  width: 1.3em;
+  max-width: 1.3em;
+  margin: 0 0.05em;
+  vertical-align: -0.25em;
+  border-radius: 0;
+  object-fit: contain;
+}
+
+.emoji-missing {
+  opacity: 0.6;
+  font-family: var(--font-mono, monospace);
+}
+
+.emoji-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5em;
+}
+
+.emoji-item-img {
+  width: 20px;
+  height: 20px;
+  object-fit: contain;
+  flex-shrink: 0;
+}
+
+.emoji-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+  gap: 0.5em;
+  margin-bottom: 0.75em;
+}
+
+.emoji-grid-item {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.3em;
+  padding: 0.6em 0.4em;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-elevated, var(--bg-secondary));
+}
+
+.emoji-grid-img {
+  width: 40px;
+  height: 40px;
+  object-fit: contain;
+}
+
+.emoji-grid-name {
+  font-size: 0.72rem;
+  color: var(--text-secondary);
+  font-family: var(--font-mono, monospace);
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.emoji-grid-item .macro-remove {
+  position: absolute;
+  top: 2px;
+  right: 2px;
+}
+
+.emoji-error {
+  color: var(--danger, #e5484d);
+  font-size: 0.85rem;
+  margin-top: 0.5em;
 }
 
 .editor-body .tiptap p.is-editor-empty:first-child::before {

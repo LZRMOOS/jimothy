@@ -1284,6 +1284,130 @@ pub fn save_image(data: String, extension: String, state: State<'_, AppState>) -
     Ok(path.to_string_lossy().to_string())
 }
 
+/// Largest dimension we keep for a custom emoji. Anything bigger is downscaled.
+const EMOJI_MAX_DIM: u32 = 128;
+/// Smallest square we accept. Tiny images look bad scaled up to text height.
+const EMOJI_MIN_DIM: u32 = 100;
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct EmojiEntry {
+    /// Shortcode name (filename without extension), e.g. "pepe".
+    pub name: String,
+    /// Absolute path on disk.
+    pub path: String,
+}
+
+fn emoji_name_valid(name: &str) -> bool {
+    !name.is_empty()
+        && name
+            .chars()
+            .all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '-')
+}
+
+#[tauri::command]
+pub fn list_emojis(state: State<'_, AppState>) -> Result<Vec<EmojiEntry>, String> {
+    let folder = state.folder()?;
+    let emojis_dir = folder.join(".scratch").join("emojis");
+    if !emojis_dir.exists() {
+        return Ok(Vec::new());
+    }
+
+    let mut entries = Vec::new();
+    let read = fs::read_dir(&emojis_dir)
+        .map_err(|e| format!("Failed to read emojis dir: {}", e))?;
+    for entry in read.flatten() {
+        let path = entry.path();
+        if !path.is_file() {
+            continue;
+        }
+        let name = match path.file_stem().and_then(|s| s.to_str()) {
+            Some(n) if emoji_name_valid(n) => n.to_string(),
+            _ => continue,
+        };
+        entries.push(EmojiEntry {
+            name,
+            path: path.to_string_lossy().to_string(),
+        });
+    }
+    entries.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
+    Ok(entries)
+}
+
+#[tauri::command]
+pub fn import_emoji(
+    data: String,
+    filename: String,
+    state: State<'_, AppState>,
+) -> Result<EmojiEntry, String> {
+    let folder = state.folder()?;
+    let emojis_dir = folder.join(".scratch").join("emojis");
+    fs::create_dir_all(&emojis_dir)
+        .map_err(|e| format!("Failed to create emojis dir: {}", e))?;
+
+    // Derive the shortcode name from the file's base name.
+    let stem = Path::new(&filename)
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .unwrap_or("")
+        .to_lowercase()
+        .chars()
+        .map(|c| if c == ' ' { '-' } else { c })
+        .filter(|c| c.is_ascii_alphanumeric() || *c == '_' || *c == '-')
+        .collect::<String>();
+    if !emoji_name_valid(&stem) {
+        return Err("Emoji name must contain letters, numbers, dashes or underscores".into());
+    }
+
+    let bytes = base64::engine::general_purpose::STANDARD
+        .decode(&data)
+        .map_err(|e| format!("Invalid base64: {}", e))?;
+
+    let img = image::load_from_memory(&bytes)
+        .map_err(|e| format!("Could not read image: {}", e))?;
+    let (w, h) = (img.width(), img.height());
+    if w != h {
+        return Err(format!("Emoji must be square (got {}x{})", w, h));
+    }
+    if w < EMOJI_MIN_DIM {
+        return Err(format!(
+            "Emoji must be at least {}x{} pixels (got {}x{})",
+            EMOJI_MIN_DIM, EMOJI_MIN_DIM, w, h
+        ));
+    }
+
+    // Downscale oversized images to keep sync light; emoji never render large.
+    let out = if w > EMOJI_MAX_DIM {
+        img.resize(EMOJI_MAX_DIM, EMOJI_MAX_DIM, image::imageops::FilterType::Lanczos3)
+    } else {
+        img
+    };
+
+    let path = emojis_dir.join(format!("{}.png", stem));
+    out.save_with_format(&path, image::ImageFormat::Png)
+        .map_err(|e| format!("Failed to write emoji: {}", e))?;
+
+    Ok(EmojiEntry {
+        name: stem,
+        path: path.to_string_lossy().to_string(),
+    })
+}
+
+#[tauri::command]
+pub fn delete_emoji(name: String, state: State<'_, AppState>) -> Result<(), String> {
+    if !emoji_name_valid(&name) {
+        return Err("Invalid emoji name".into());
+    }
+    let folder = state.folder()?;
+    let path = folder
+        .join(".scratch")
+        .join("emojis")
+        .join(format!("{}.png", name));
+    if path.exists() {
+        fs::remove_file(&path).map_err(|e| format!("Failed to delete emoji: {}", e))?;
+    }
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
