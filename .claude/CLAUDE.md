@@ -210,9 +210,10 @@ Dropbox is last-writer-wins at the file level, so conflicts can't be fully preve
 - Close = hide, not quit: `CloseRequested` saves geometry (while still visible) then `prevent_close()` + `hide()`. Real quit is the tray "Quit" item (`app.exit(0)`).
 - Persisted at `{config_dir}/jimothy/.window-state.json` (separate from settings.json).
 
-### Local vs Portable Settings (App.tsx)
+### Local vs Portable Settings (src/utils/settings.ts + App.tsx)
 - `LocalSettings` (device-specific, in `settings.json`) vs `Preferences` (synced, in `.scratch/preferences.json`). `AppSettings = LocalSettings & Preferences`.
-- `LOCAL_KEYS` in the load `useEffect` MUST list every key in the `LocalSettings` type. The loader reads only those back as local, and the migration step treats anything NOT in `LOCAL_KEYS` as portable — a missing key gets wrongly synced into preferences.json and stripped locally. Keep `LOCAL_KEYS`, the `LocalSettings` type, and the destructuring in `handleSettingsChange` in sync.
+- `LOCAL_KEYS` in `src/utils/settings.ts` is the single source of truth for the partition. It MUST list every key in the `LocalSettings` type; anything not listed is treated as portable. `splitSettings(settings)` partitions a full settings object into `{ local, prefs }` (dropping `undefined` values) — used by both the load-migration path and the save path so they can never drift. Keep `LOCAL_KEYS` and the `LocalSettings` type in sync.
+- App.tsx has ONE settings writer, `persistSettings(next)`, which calls `splitSettings` and writes both files. `handleSettingsChange` and `handleChangeFolder` both read fresh state from `appSettingsRef.current` (not closure-captured `appSettings`) to avoid a stale-closure clobber when two updates fire in the same tick (e.g. add-profile then change-folder). Do not re-introduce inline partitioning or a second writer.
 
 ## Tauri IPC Commands
 

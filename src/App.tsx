@@ -26,6 +26,7 @@ import { useIdleLock } from "./hooks/useIdleLock";
 import type { AppSettings, LocalSettings, Preferences } from "./types";
 import { extractTags, noteHasTag } from "./utils/tags";
 import { mod, shift } from "./utils/platform";
+import { LOCAL_KEYS, isLocalKey, splitSettings } from "./utils/settings";
 
 function App() {
   const {
@@ -113,7 +114,14 @@ function App() {
     theme: "system",
     confirmDelete: true,
   });
+  // Always-current mirror of appSettings, so handlers that fire in the same
+  // tick as a setAppSettings (e.g. add-profile-then-switch-folder) can read the
+  // latest settings without waiting for a re-render.
+  const appSettingsRef = useRef<AppSettings>(appSettings);
   const [notesFolder, setNotesFolder] = useState<string | null>(null);
+  useEffect(() => {
+    appSettingsRef.current = appSettings;
+  }, [appSettings]);
 
   const splitNote = useMemo(() => splitNoteId ? notes.find((n) => n.id === splitNoteId) || null : null, [notes, splitNoteId]);
 
@@ -232,19 +240,6 @@ function App() {
   );
 
   useEffect(() => {
-    // Must list EVERY key in the LocalSettings type. The load path reads only
-    // these back as local, and the migration below treats anything NOT listed
-    // here as portable — so a missing key gets wrongly synced into
-    // preferences.json and stripped from local settings.
-    const LOCAL_KEYS: (keyof LocalSettings)[] = [
-      "notesFolder",
-      "showTrayIcon",
-      "zoomLevel",
-      "globalShortcut",
-      "captureShortcut",
-      "vaultProfiles",
-    ];
-
     async function init() {
       try {
         const settingsJson = (await invoke("get_app_settings")) as string;
@@ -272,7 +267,7 @@ function App() {
         const portableFromLocal: Preferences = {};
         let needsMigration = false;
         for (const [k, v] of Object.entries(saved)) {
-          if (!LOCAL_KEYS.includes(k as keyof LocalSettings) && v !== undefined) {
+          if (!isLocalKey(k) && v !== undefined) {
             (portableFromLocal as Record<string, unknown>)[k] = v;
             needsMigration = true;
           }
@@ -547,19 +542,28 @@ function App() {
     sensitiveUnlockTime.current = {};
   }, [lockVault]);
 
-  const handleSettingsChange = useCallback(
-    async (newSettings: AppSettings) => {
-      setAppSettings(newSettings);
-      const { showTrayIcon, zoomLevel, globalShortcut, captureShortcut, vaultProfiles } = newSettings;
-      const local: LocalSettings = { notesFolder: notesFolder || undefined, showTrayIcon, zoomLevel, globalShortcut, captureShortcut, vaultProfiles };
-      const { theme, confirmDelete, idleLockMinutes, defaultCodex, tocDefault, dailyNoteCodex, dailyNoteFormat, codexIcons, codexColors, pinnedNotes, frozenNotes, pinnedCommands, protectedNotes, macros, colorsLight, colorsDark, colorPresets, tagColors, dictionary } = newSettings;
-      const prefs: Preferences = { theme, confirmDelete, idleLockMinutes, defaultCodex, tocDefault, dailyNoteCodex, dailyNoteFormat, codexIcons, codexColors, pinnedNotes, frozenNotes, pinnedCommands, protectedNotes, macros, colorsLight, colorsDark, colorPresets, tagColors, dictionary };
+  // The single writer for settings. Splits into local (settings.json) and
+  // portable (preferences.json) via the shared LOCAL_KEYS partition so the two
+  // files always agree on ownership. notesFolder is always taken from current
+  // state, never trusted from the caller's (possibly stale) copy.
+  const persistSettings = useCallback(
+    async (next: AppSettings) => {
+      const { local, prefs } = splitSettings({ ...next, notesFolder: notesFolder || undefined });
       await Promise.all([
         invoke("save_app_settings", { settingsJson: JSON.stringify(local) }),
         invoke("save_preferences", { prefsJson: JSON.stringify(prefs) }),
       ]);
     },
     [notesFolder]
+  );
+
+  const handleSettingsChange = useCallback(
+    async (newSettings: AppSettings) => {
+      appSettingsRef.current = newSettings;
+      setAppSettings(newSettings);
+      await persistSettings(newSettings);
+    },
+    [persistSettings]
   );
 
   const handleRenameCodex = useCallback(async (oldName: string, newName: string) => {
@@ -588,10 +592,14 @@ function App() {
     async (path: string) => {
       await initFolder(path);
       setNotesFolder(path);
-      const { showTrayIcon, zoomLevel, globalShortcut, captureShortcut, vaultProfiles } = appSettings;
-      const local: LocalSettings = { notesFolder: path, showTrayIcon, zoomLevel, globalShortcut, captureShortcut, vaultProfiles };
+      // Persist local settings (including any just-updated vaultProfiles) with
+      // the new folder. Read current settings via functional setState so we
+      // never clobber changes made in the same tick (e.g. onAdd sets profiles
+      // then switches folder). The prefs file is unchanged here.
+      const { local } = splitSettings({ ...appSettingsRef.current, notesFolder: path });
       await invoke("save_app_settings", { settingsJson: JSON.stringify(local) });
       await checkVaultStatus();
+      // Load the portable preferences that belong to the new folder.
       try {
         const prefsJson = (await invoke("get_preferences")) as string;
         const prefs: Preferences = JSON.parse(prefsJson);
@@ -600,7 +608,7 @@ function App() {
         // New folder, no preferences yet
       }
     },
-    [initFolder, appSettings, checkVaultStatus]
+    [initFolder, checkVaultStatus]
   );
 
   const handleTogglePin = useCallback(
