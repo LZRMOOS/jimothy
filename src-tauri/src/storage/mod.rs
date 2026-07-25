@@ -76,9 +76,15 @@ fn is_windows_reserved(name: &str) -> bool {
     )
 }
 
+/// Plaintext notes are named purely by their (immutable) ULID id. Because the
+/// filename never changes when the title does, a title edit is an in-place
+/// write instead of a delete-old + create-new rename. That matters for Dropbox:
+/// renames sync as a delete + create pair, and if two machines rename the same
+/// note concurrently the folder ends up with two files sharing one id. Stable
+/// id-only names eliminate that whole class of duplicate-id collisions.
+/// (`.snote` and `.pnote` files already follow this convention.)
 pub fn note_filename(note: &Note) -> String {
-    let slug = sanitize_filename(&note.title);
-    format!("{}--{}.md", slug, note.id)
+    format!("{}.md", note.id)
 }
 
 pub fn write_note_atomic(folder: &Path, note: &Note) -> Result<PathBuf, String> {
@@ -261,9 +267,10 @@ pub fn save_conflict_copy(
 }
 
 /// Find the current on-disk path for a note id, across all storage formats.
-/// Vault (`.snote`) and protected (`.pnote`) files are named purely by id, so we
-/// stat them directly. Plaintext (`.md`) filenames embed the title slug, so we
-/// scan for the `--{id}.md` suffix.
+/// All formats are now named purely by id (`{id}.snote`, `{id}.pnote`,
+/// `{id}.md`), so we stat those directly. Legacy plaintext files still use the
+/// old `{slug}--{id}.md` name until their next save migrates them, so we fall
+/// back to scanning for the `--{id}.md` suffix.
 pub fn find_note_file(folder: &Path, note_id: &str) -> Option<PathBuf> {
     let snote = folder.join(format!("{}.snote", note_id));
     if snote.exists() {
@@ -273,7 +280,12 @@ pub fn find_note_file(folder: &Path, note_id: &str) -> Option<PathBuf> {
     if pnote.exists() {
         return Some(pnote);
     }
+    let md = folder.join(format!("{}.md", note_id));
+    if md.exists() {
+        return Some(md);
+    }
 
+    // Legacy fallback: {slug}--{id}.md files not yet migrated by a save.
     let suffix = format!("--{}.md", note_id);
     let entries = fs::read_dir(folder).ok()?;
     for entry in entries.flatten() {
@@ -686,7 +698,7 @@ mod tests {
     fn test_note_filename() {
         let note = make_note("Meeting Notes");
         let filename = note_filename(&note);
-        assert_eq!(filename, "meeting-notes--01ABC.md");
+        assert_eq!(filename, "01ABC.md");
     }
 
     #[test]
@@ -710,7 +722,7 @@ mod tests {
         note.file_path = path.to_string_lossy().to_string();
 
         assert!(path.exists());
-        assert!(path.to_string_lossy().contains("test-note--01ABC.md"));
+        assert!(path.to_string_lossy().contains("01ABC.md"));
 
         let loaded = load_notes_from_folder(dir.path());
         assert_eq!(loaded.len(), 1);
@@ -730,7 +742,7 @@ mod tests {
 
         assert!(!path.exists());
         let trash = dir.path().join(".scratch").join("trash");
-        assert!(trash.join("delete-me--01ABC.md").exists());
+        assert!(trash.join("01ABC.md").exists());
     }
 
     #[test]
@@ -876,6 +888,42 @@ mod tests {
         let found = find_note_file(dir.path(), "ABC123").unwrap();
         assert_eq!(found.file_name().unwrap(), "some-title--ABC123.md");
         assert!(find_note_file(dir.path(), "NOPE").is_none());
+    }
+
+    #[test]
+    fn test_find_note_file_id_only_md() {
+        let dir = tempfile::tempdir().unwrap();
+        // New-style id-only name and a legacy slug name for a different note.
+        fs::write(dir.path().join("ABC123.md"), "x").unwrap();
+        fs::write(dir.path().join("legacy-title--ZZZ.md"), "x").unwrap();
+
+        let found = find_note_file(dir.path(), "ABC123").unwrap();
+        assert_eq!(found.file_name().unwrap(), "ABC123.md");
+        // Legacy fallback still resolves.
+        let legacy = find_note_file(dir.path(), "ZZZ").unwrap();
+        assert_eq!(legacy.file_name().unwrap(), "legacy-title--ZZZ.md");
+    }
+
+    #[test]
+    fn test_save_migrates_legacy_filename_in_place() {
+        // A legacy {slug}--{id}.md file, when rewritten, lands at {id}.md and the
+        // old file is cleaned up (mirrors save_note's old_path removal).
+        let dir = tempfile::tempdir().unwrap();
+        let mut note = make_note("Old Title");
+        let legacy = dir.path().join("old-title--01ABC.md");
+        fs::write(&legacy, notes::serialize_note(&note)).unwrap();
+        note.file_path = legacy.to_string_lossy().to_string();
+
+        note.title = "New Title".to_string();
+        let new_path = write_note_atomic(dir.path(), &note).unwrap();
+        assert_eq!(new_path.file_name().unwrap(), "01ABC.md");
+
+        let old_path = PathBuf::from(&note.file_path);
+        if old_path != new_path && old_path.exists() {
+            fs::remove_file(&old_path).unwrap();
+        }
+        assert!(!legacy.exists());
+        assert!(new_path.exists());
     }
 
     #[test]
