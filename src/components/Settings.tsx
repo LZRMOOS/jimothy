@@ -577,7 +577,6 @@ function ColorSettings({ settings, onSettingsChange }: { settings: AppSettings; 
     window.matchMedia("(prefers-color-scheme: dark)").matches
   );
   const [presetName, setPresetName] = useState("");
-  const [selectedPreset, setSelectedPreset] = useState("__default__");
   const [diceRolling, setDiceRolling] = useState(false);
 
   useEffect(() => {
@@ -589,10 +588,6 @@ function ColorSettings({ settings, onSettingsChange }: { settings: AppSettings; 
 
   const theme = settings.theme || "system";
   const isDark = theme === "system" ? systemDark : theme === "dark";
-
-  useEffect(() => {
-    setSelectedPreset("__default__");
-  }, [isDark]);
 
   const colors = isDark ? (settings.colorsDark || {}) : (settings.colorsLight || {});
   const defaults = isDark ? DEFAULT_COLORS_DARK : DEFAULT_COLORS_LIGHT;
@@ -609,8 +604,14 @@ function ColorSettings({ settings, onSettingsChange }: { settings: AppSettings; 
   const mode = isDark ? "dark" : "light";
   const modePresets = presets.filter((p) => p.mode === mode);
 
+  const derivedPreset = (() => {
+    if (Object.keys(colors).length === 0) return "__default__";
+    const colorsJson = JSON.stringify(colors);
+    const match = modePresets.find((p) => JSON.stringify(p.colors) === colorsJson);
+    return match ? match.name : "__default__";
+  })();
+
   const handlePresetChange = (value: string) => {
-    setSelectedPreset(value);
     if (value === "__default__") {
       const field = isDark ? "colorsDark" : "colorsLight";
       onSettingsChange({ ...settings, [field]: undefined });
@@ -640,12 +641,11 @@ function ColorSettings({ settings, onSettingsChange }: { settings: AppSettings; 
     }
     onSettingsChange({ ...settings, colorPresets: updated });
     setPresetName("");
-    setSelectedPreset(name);
   };
 
   const handleOverwritePreset = () => {
-    if (selectedPreset === "__default__") return;
-    const index = presets.findIndex((p) => p.name === selectedPreset && p.mode === mode);
+    if (derivedPreset === "__default__") return;
+    const index = presets.findIndex((p) => p.name === derivedPreset && p.mode === mode);
     if (index < 0) return;
     const currentColors = isDark ? (settings.colorsDark || {}) : (settings.colorsLight || {});
     const updated = presets.map((p, i) => i === index ? { ...p, colors: currentColors } : p);
@@ -653,12 +653,11 @@ function ColorSettings({ settings, onSettingsChange }: { settings: AppSettings; 
   };
 
   const handleDeletePreset = () => {
-    if (selectedPreset === "__default__") return;
-    const index = presets.findIndex((p) => p.name === selectedPreset && p.mode === mode);
+    if (derivedPreset === "__default__") return;
+    const index = presets.findIndex((p) => p.name === derivedPreset && p.mode === mode);
     if (index < 0) return;
     const updated = presets.filter((_, i) => i !== index);
     onSettingsChange({ ...settings, colorPresets: updated.length > 0 ? updated : undefined });
-    setSelectedPreset("__default__");
   };
 
   const handleRandomize = () => {
@@ -666,7 +665,6 @@ function ColorSettings({ settings, onSettingsChange }: { settings: AppSettings; 
     const field = isDark ? "colorsDark" : "colorsLight";
     const generated = generateRandomTheme(isDark);
     onSettingsChange({ ...settings, [field]: generated });
-    setSelectedPreset("__default__");
     setTimeout(() => setDiceRolling(false), 600);
   };
 
@@ -675,7 +673,7 @@ function ColorSettings({ settings, onSettingsChange }: { settings: AppSettings; 
     ...modePresets.map((p) => ({ value: p.name, label: p.name })),
   ];
 
-  const isUserPreset = selectedPreset !== "__default__";
+  const isUserPreset = derivedPreset !== "__default__";
 
   return (
     <div className="color-settings">
@@ -690,7 +688,7 @@ function ColorSettings({ settings, onSettingsChange }: { settings: AppSettings; 
         <div className="color-preset-row">
           <Dropdown
             options={presetOptions}
-            value={selectedPreset}
+            value={derivedPreset}
             onChange={handlePresetChange}
             className="color-preset-dropdown"
           />
