@@ -1288,6 +1288,23 @@ pub fn save_image(data: String, extension: String, state: State<'_, AppState>) -
 const EMOJI_MAX_DIM: u32 = 128;
 /// Smallest square we accept. Tiny images look bad scaled up to text height.
 const EMOJI_MIN_DIM: u32 = 100;
+/// Cap on animated GIFs. We keep the original bytes (re-encoding kills the
+/// animation) so there's no downscale to lean on — this stops a giant GIF from
+/// bloating the synced folder.
+const EMOJI_MAX_GIF_BYTES: usize = 3 * 1024 * 1024;
+
+/// Extensions we store emoji under. Static images become `.png`; animated
+/// emoji keep their original `.gif`.
+const EMOJI_EXTENSIONS: [&str; 2] = ["png", "gif"];
+
+/// Resolve a shortcode to its on-disk file, trying each known extension. Emoji
+/// can be stored as `.png` or `.gif`, so callers must not assume `.png`.
+fn find_emoji_path(dir: &Path, name: &str) -> Option<PathBuf> {
+    EMOJI_EXTENSIONS
+        .iter()
+        .map(|ext| dir.join(format!("{}.{}", name, ext)))
+        .find(|p| p.exists())
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EmojiEntry {
@@ -1362,6 +1379,13 @@ pub fn import_emoji(
         .decode(&data)
         .map_err(|e| format!("Invalid base64: {}", e))?;
 
+    // Detect the format up front. Re-encoding an animated GIF to PNG flattens
+    // it to a single frame, so GIFs take a different path: we validate the
+    // first frame's dimensions but write the original bytes untouched.
+    let is_gif = image::guess_format(&bytes)
+        .map(|f| f == image::ImageFormat::Gif)
+        .unwrap_or(false);
+
     let img = image::load_from_memory(&bytes)
         .map_err(|e| format!("Could not read image: {}", e))?;
     let (w, h) = (img.width(), img.height());
@@ -1375,16 +1399,38 @@ pub fn import_emoji(
         ));
     }
 
-    // Downscale oversized images to keep sync light; emoji never render large.
-    let out = if w > EMOJI_MAX_DIM {
-        img.resize(EMOJI_MAX_DIM, EMOJI_MAX_DIM, image::imageops::FilterType::Lanczos3)
-    } else {
-        img
-    };
+    // A shortcode can only map to one file, so drop any existing version in a
+    // different format before writing (e.g. replacing a .png with a .gif).
+    if let Some(existing) = find_emoji_path(&emojis_dir, &stem) {
+        let _ = fs::remove_file(&existing);
+    }
 
-    let path = emojis_dir.join(format!("{}.png", stem));
-    out.save_with_format(&path, image::ImageFormat::Png)
-        .map_err(|e| format!("Failed to write emoji: {}", e))?;
+    let path = if is_gif {
+        // Keep animation intact by preserving the original bytes. There's no
+        // downscale here, so guard on file size instead of dimensions.
+        if bytes.len() > EMOJI_MAX_GIF_BYTES {
+            return Err(format!(
+                "Animated emoji must be under {}MB (got {:.1}MB)",
+                EMOJI_MAX_GIF_BYTES / (1024 * 1024),
+                bytes.len() as f64 / (1024.0 * 1024.0)
+            ));
+        }
+        let path = emojis_dir.join(format!("{}.gif", stem));
+        fs::write(&path, &bytes).map_err(|e| format!("Failed to write emoji: {}", e))?;
+        path
+    } else {
+        // Downscale oversized static images to keep sync light; emoji never
+        // render large.
+        let out = if w > EMOJI_MAX_DIM {
+            img.resize(EMOJI_MAX_DIM, EMOJI_MAX_DIM, image::imageops::FilterType::Lanczos3)
+        } else {
+            img
+        };
+        let path = emojis_dir.join(format!("{}.png", stem));
+        out.save_with_format(&path, image::ImageFormat::Png)
+            .map_err(|e| format!("Failed to write emoji: {}", e))?;
+        path
+    };
 
     Ok(EmojiEntry {
         name: stem,
@@ -1397,12 +1443,8 @@ pub fn delete_emoji(name: String, state: State<'_, AppState>) -> Result<(), Stri
     if !emoji_name_valid(&name) {
         return Err("Invalid emoji name".into());
     }
-    let folder = state.folder()?;
-    let path = folder
-        .join(".scratch")
-        .join("emojis")
-        .join(format!("{}.png", name));
-    if path.exists() {
+    let emojis_dir = state.folder()?.join(".scratch").join("emojis");
+    if let Some(path) = find_emoji_path(&emojis_dir, &name) {
         fs::remove_file(&path).map_err(|e| format!("Failed to delete emoji: {}", e))?;
     }
     Ok(())
@@ -1427,26 +1469,25 @@ pub fn rename_emoji(
     if !emoji_name_valid(&old_name) {
         return Err("Invalid emoji name".into());
     }
+    let emojis_dir = state.folder()?.join(".scratch").join("emojis");
+    let old_path = find_emoji_path(&emojis_dir, &old_name)
+        .ok_or_else(|| "Emoji not found".to_string())?;
+
     if new_stem == old_name {
         // No change; just return the existing entry.
-        let path = state
-            .folder()?
-            .join(".scratch")
-            .join("emojis")
-            .join(format!("{}.png", old_name));
         return Ok(EmojiEntry {
             name: old_name,
-            path: path.to_string_lossy().to_string(),
+            path: old_path.to_string_lossy().to_string(),
         });
     }
 
-    let emojis_dir = state.folder()?.join(".scratch").join("emojis");
-    let old_path = emojis_dir.join(format!("{}.png", old_name));
-    let new_path = emojis_dir.join(format!("{}.png", new_stem));
-    if !old_path.exists() {
-        return Err("Emoji not found".into());
-    }
-    if new_path.exists() {
+    // Keep whatever extension the file already has (.png or .gif).
+    let ext = old_path
+        .extension()
+        .and_then(|e| e.to_str())
+        .unwrap_or("png");
+    let new_path = emojis_dir.join(format!("{}.{}", new_stem, ext));
+    if find_emoji_path(&emojis_dir, &new_stem).is_some() {
         return Err(format!("An emoji named :{}: already exists", new_stem));
     }
     fs::rename(&old_path, &new_path).map_err(|e| format!("Failed to rename emoji: {}", e))?;

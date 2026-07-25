@@ -1017,7 +1017,7 @@ function EmojiEditor({ emojis, onReload }: { emojis: EmojiEntry[]; onReload: () 
           className="btn secondary btn-sm"
           onClick={() => fileRef.current?.click()}
           disabled={busy}
-          title="Select one or more square images (at least 100×100px). Larger images are downscaled automatically."
+          title="Select one or more square images (at least 100×100px). Larger images are downscaled automatically. Animated GIFs keep their animation (under 3MB)."
         >
           {busy ? "Adding..." : "Add emoji"}
         </button>
