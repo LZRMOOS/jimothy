@@ -232,7 +232,18 @@ function App() {
   );
 
   useEffect(() => {
-    const LOCAL_KEYS: (keyof LocalSettings)[] = ["notesFolder", "showTrayIcon", "zoomLevel", "globalShortcut"];
+    // Must list EVERY key in the LocalSettings type. The load path reads only
+    // these back as local, and the migration below treats anything NOT listed
+    // here as portable — so a missing key gets wrongly synced into
+    // preferences.json and stripped from local settings.
+    const LOCAL_KEYS: (keyof LocalSettings)[] = [
+      "notesFolder",
+      "showTrayIcon",
+      "zoomLevel",
+      "globalShortcut",
+      "captureShortcut",
+      "vaultProfiles",
+    ];
 
     async function init() {
       try {

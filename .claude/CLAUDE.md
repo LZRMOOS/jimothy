@@ -204,6 +204,16 @@ Dropbox is last-writer-wins at the file level, so conflicts can't be fully preve
 - Title changes update locally before backend save completes
 - Frontend assumes success, backend returns updated DTO on completion
 
+### Window State & Visibility (lib.rs)
+- `tauri-plugin-window-state` owns **geometry only** — it's built with `StateFlags::SIZE | POSITION | MAXIMIZED` (NOT `all()`, which would include `VISIBLE`). Do not add `VISIBLE`: the plugin would re-show the window from saved state and defeat launch-minimized.
+- **Visibility is owned by our code, not the plugin.** The main window is created `visible:false` (tauri.conf.json). The setup hook is the single source of truth for startup: if autostart is enabled, leave it hidden (launch minimized to tray); otherwise `show()` + `set_focus()`. At runtime the tray/close handlers own show/hide.
+- Close = hide, not quit: `CloseRequested` saves geometry (while still visible) then `prevent_close()` + `hide()`. Real quit is the tray "Quit" item (`app.exit(0)`).
+- Persisted at `{config_dir}/jimothy/.window-state.json` (separate from settings.json).
+
+### Local vs Portable Settings (App.tsx)
+- `LocalSettings` (device-specific, in `settings.json`) vs `Preferences` (synced, in `.scratch/preferences.json`). `AppSettings = LocalSettings & Preferences`.
+- `LOCAL_KEYS` in the load `useEffect` MUST list every key in the `LocalSettings` type. The loader reads only those back as local, and the migration step treats anything NOT in `LOCAL_KEYS` as portable — a missing key gets wrongly synced into preferences.json and stripped locally. Keep `LOCAL_KEYS`, the `LocalSettings` type, and the destructuring in `handleSettingsChange` in sync.
+
 ## Tauri IPC Commands
 
 All commands defined in `src-tauri/src/commands/mod.rs`:

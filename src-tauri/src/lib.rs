@@ -139,7 +139,20 @@ pub fn run() {
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_fs::init())
-        .plugin(tauri_plugin_window_state::Builder::new().build())
+        // Let the plugin own geometry only (size / position / maximized). We
+        // deliberately drop the VISIBLE flag so it never shows or hides the
+        // window on its own — startup visibility is decided by our setup hook
+        // below (launch-minimized-to-tray when autostart is on), and the tray /
+        // close handlers own hide/show at runtime. With VISIBLE included the
+        // plugin would re-show the window from saved state, defeating
+        // launch-minimized and racing our own show()/hide() calls.
+        .plugin(
+            tauri_plugin_window_state::Builder::new()
+                .with_state_flags(
+                    StateFlags::SIZE | StateFlags::POSITION | StateFlags::MAXIMIZED,
+                )
+                .build(),
+        )
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_autostart::init(
             tauri_plugin_autostart::MacosLauncher::LaunchAgent,
@@ -367,7 +380,12 @@ pub fn run() {
                 })?;
             }
 
-            // Show window on startup unless autostart is enabled (launch minimized to tray)
+            // Decide startup visibility. The window is created hidden
+            // (visible:false in tauri.conf.json) and the window-state plugin no
+            // longer touches visibility, so this is the single source of truth:
+            // when autostart is on we leave it hidden (launch minimized to
+            // tray); otherwise we show and focus it. Geometry was already
+            // restored by the plugin's on_window_ready.
             let autostart_enabled = app.handle().autolaunch().is_enabled().unwrap_or(false);
             if !autostart_enabled {
                 if let Some(window) = app.get_webview_window("main") {
@@ -380,7 +398,13 @@ pub fn run() {
         })
         .on_window_event(|window, event| {
             if let WindowEvent::CloseRequested { api, .. } = event {
-                let _ = window.app_handle().save_window_state(StateFlags::all());
+                // Persist geometry while the window is still visible (before we
+                // hide it), so size/position survive even if the app is later
+                // killed while hidden. Geometry-only — never save visibility, or
+                // we'd record visible:false and (were VISIBLE restored) start hidden.
+                let _ = window.app_handle().save_window_state(
+                    StateFlags::SIZE | StateFlags::POSITION | StateFlags::MAXIMIZED,
+                );
                 api.prevent_close();
                 let _ = window.hide();
             }
