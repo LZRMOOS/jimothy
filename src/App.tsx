@@ -1038,6 +1038,30 @@ function App() {
     if (selectedId) await handleDeleteById(selectedId);
   }, [selectedId, handleDeleteById]);
 
+  // Guard against files dropped anywhere outside the editor body. With Tauri's
+  // native drop disabled, WKWebView otherwise navigates to the dropped file
+  // (replacing the whole app with a bare image, no way back). Swallow drags
+  // everywhere except inside the ProseMirror editor, which has its own handler.
+  useEffect(() => {
+    const isInsideEditor = (target: EventTarget | null) =>
+      target instanceof Element && !!target.closest("[data-editor='true']");
+    const onDragOver = (e: DragEvent) => {
+      if (!isInsideEditor(e.target)) {
+        e.preventDefault();
+        if (e.dataTransfer) e.dataTransfer.dropEffect = "none";
+      }
+    };
+    const onDrop = (e: DragEvent) => {
+      if (!isInsideEditor(e.target)) e.preventDefault();
+    };
+    window.addEventListener("dragover", onDragOver);
+    window.addEventListener("drop", onDrop);
+    return () => {
+      window.removeEventListener("dragover", onDragOver);
+      window.removeEventListener("drop", onDrop);
+    };
+  }, []);
+
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       const mod = e.metaKey || e.ctrlKey;
