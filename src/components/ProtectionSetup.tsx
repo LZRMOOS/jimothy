@@ -54,9 +54,9 @@ export function ProtectionSetup({ onSetup }: Props) {
         <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
           <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
         </svg>
-        <p className="sensitive-prompt-title">Set Up File Protection</p>
+        <p className="sensitive-prompt-title">Set Up Note Protection</p>
         <p className="sensitive-prompt-hint">
-          This password will be used to encrypt all files you mark as protected.
+          This password will be used to encrypt all notes you mark as protected.
           Note contents are encrypted on disk while titles remain searchable.
         </p>
         <form onSubmit={handleSubmit}>

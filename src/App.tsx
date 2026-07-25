@@ -470,7 +470,7 @@ function App() {
   });
 
   useEventListener("folder-unavailable", () => {
-    setNotification("Notes folder is no longer accessible.");
+    setNotification("Vault location is no longer accessible.");
   });
 
   useEventListener<{ id: string }>("note-conflict-active", (payload) => {
@@ -646,7 +646,7 @@ function App() {
   const handleSelectNote = useCallback(
     (id: string) => {
       const note = notes.find((n) => n.id === id);
-      // Per-file protection in plaintext mode
+      // Per-note protection in plaintext mode
       const isFileProtected = note?.encrypted && vaultStatus === "plaintext";
       // Re-auth gate in vault mode
       const isVaultProtected = vaultStatus === "unlocked" && (appSettings.protectedNotes || []).includes(id);
@@ -1154,7 +1154,7 @@ function App() {
       label: (() => {
         if (vaultStatus === "plaintext") {
           return notes.find(n => n.id === selectedId)?.encrypted
-            ? "Remove File Protection" : "Protect File";
+            ? "Remove Note Protection" : "Protect Note";
         }
         return (appSettings.protectedNotes || []).includes(selectedId)
           ? "Remove Protection" : "Mark as Protected";
@@ -1435,9 +1435,9 @@ function App() {
             />
           ) : protectionUnlockPending ? (
             <SensitivePrompt
-              title={protectionUnlockPending.startsWith("unprotect:") ? "Remove file protection" : "Authenticate"}
+              title={protectionUnlockPending.startsWith("unprotect:") ? "Remove note protection" : "Authenticate"}
               hint={protectionUnlockPending.startsWith("unprotect:")
-                ? "Enter your protection password to decrypt this note and convert it back to a regular file."
+                ? "Enter your protection password to decrypt this note and remove its protection."
                 : "Enter your protection password to encrypt this note."}
               onUnlock={async () => {
                 const action = protectionUnlockPending;

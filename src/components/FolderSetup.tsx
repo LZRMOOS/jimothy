@@ -79,7 +79,7 @@ export function FolderSetup({ onFolderSelected }: Props) {
         </div>
 
         <p className="folder-setup-prompt">
-          First things first, pick a home for your notes:
+          First things first, pick a home for your vault:
         </p>
 
         <div className="folder-actions">
@@ -89,12 +89,12 @@ export function FolderSetup({ onFolderSelected }: Props) {
             </button>
           )}
           <button className="btn secondary" onClick={handleChooseFolder}>
-            Choose a Different Folder...
+            Choose a Different Location...
           </button>
         </div>
 
         <p className="folder-setup-sync-hint">
-          Want notes on multiple devices? Pick a folder inside Dropbox, iCloud Drive, or your preferred sync service.
+          Want notes on multiple devices? Pick a location inside Dropbox, iCloud Drive, or your preferred sync service.
         </p>
 
         {error && <p className="error">{error}</p>}

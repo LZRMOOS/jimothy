@@ -211,7 +211,7 @@ export function NotesList({ notes, backlinkIndex, selectedId, onSelect, onDelete
               }}
             >
               {sensitiveIds.includes(contextMenu.noteId)
-                ? "Remove File Protection" : "Protect File"}
+                ? "Remove Note Protection" : "Protect Note"}
             </button>
           )}
           {onToggleFreeze && (

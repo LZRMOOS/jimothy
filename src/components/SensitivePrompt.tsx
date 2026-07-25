@@ -19,7 +19,7 @@ export function SensitivePrompt({
   onVerify,
   verifyCommand = "verify_password",
   title = "This note is protected",
-  hint = "This note is encrypted with file protection. Enter your protection password to decrypt and view its contents.",
+  hint = "This note is encrypted with note protection. Enter your protection password to decrypt and view its contents.",
 }: Props) {
   const [password, setPassword] = useState("");
   const [errorCount, setErrorCount] = useState(0);

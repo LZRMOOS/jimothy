@@ -52,7 +52,7 @@ function NoteProtectionSection({
       setShowDisable(false);
       setDisablePw("");
       await onReloadNotes();
-      showToast("File protection disabled");
+      showToast("Note protection disabled");
     } else {
       setDisableErr(protectionError || "Failed to disable protection.");
       triggerShake(setDisableShake);
@@ -93,17 +93,17 @@ function NoteProtectionSection({
 
   return (
     <>
-      <h3>File Protection<InfoTooltip><ul><li>Encrypt individual notes while keeping the rest as plaintext</li><li>All protected files share a single password</li><li>Protected files are stored as .pnote files on disk</li><li>When vault is also enabled, file protection adds a re-authentication gate for marked notes</li></ul></InfoTooltip></h3>
+      <h3>Note Protection<InfoTooltip><ul><li>Encrypt individual notes while keeping the rest as plaintext</li><li>All protected notes share a single password</li><li>Protected notes are stored as .pnote files on disk</li><li>When vault is also enabled, note protection adds a re-authentication gate for marked notes</li></ul></InfoTooltip></h3>
       {protectionStatus === "none" && (
         <p className="settings-hint">
           No protection password set. Right-click a note and select &ldquo;Protect
-          File&rdquo; to set up per-file encryption.
+          Note&rdquo; to set up per-note encryption.
         </p>
       )}
       {(protectionStatus === "locked" || protectionStatus === "unlocked") && !showDisable && !showChange && (
         <>
           <p className="settings-hint">
-            File protection is active. Protected files are individually encrypted
+            Note protection is active. Protected notes are individually encrypted
             on disk.
           </p>
           <div className="settings-actions">
@@ -117,7 +117,7 @@ function NoteProtectionSection({
               className="btn danger-outline"
               onClick={() => { setShowDisable(true); setShowChange(false); }}
             >
-              Disable File Protection
+              Disable Note Protection
             </button>
           </div>
         </>
@@ -1582,23 +1582,24 @@ export function Settings({
 
             {activeTab === "storage" && (
               <div className="settings-section">
-                <h3>Notes Folder<InfoTooltip><ul><li>Where your notes are stored as Markdown files</li><li>Use a synced folder (Dropbox, iCloud) to access notes across devices</li></ul></InfoTooltip></h3>
+                <h3>Vault Location<InfoTooltip><ul><li>The folder where your notes are stored as Markdown files</li><li>Use a synced location (Dropbox, iCloud) to access notes across devices</li></ul></InfoTooltip></h3>
                 <div className="settings-row">
                   <span className="folder-path">
                     {notesFolder || "Not set"}
                   </span>
                 </div>
-                <p className="settings-hint">To sync notes across devices, point this to a folder inside Dropbox, iCloud Drive, or another sync service.</p>
+                <p className="settings-hint">To sync notes across devices, point this to a location inside Dropbox, iCloud Drive, or another sync service.</p>
                 <div className="settings-actions">
-                  <button className="btn secondary" onClick={handleChangeFolder}>
-                    Change Folder
+                  <button className="btn secondary" onClick={handleChangeFolder} title="Select a different folder to use as your vault">
+                    Change Vault
                   </button>
                   <button
                     className="btn secondary"
                     onClick={handleOpenFolder}
                     disabled={!notesFolder}
+                    title="Open the vault location in Finder"
                   >
-                    Open Folder
+                    Open in Finder
                   </button>
                   <button className="btn secondary" onClick={onReloadNotes} title="Re-reads all notes from disk and rebuilds the search index. Use if notes appear missing or search results seem stale.">
                     Rebuild Index
@@ -1637,7 +1638,7 @@ export function Settings({
                   Also locks on system sleep and screen lock.
                 </p>
 
-                <h3>Vault Encryption<InfoTooltip><ul><li>Encrypts all notes on disk with one password</li><li>When locked, all files are unreadable without the password</li><li>Can be used alongside file protection — vault encrypts everything, while file protection adds re-authentication for individual notes</li></ul></InfoTooltip></h3>
+                <h3>Vault Encryption<InfoTooltip><ul><li>Encrypts all notes on disk with one password</li><li>When locked, all notes are unreadable without the password</li><li>Can be used alongside note protection — vault encrypts everything, while note protection adds re-authentication for individual notes</li></ul></InfoTooltip></h3>
 
                 {vaultStatus === "plaintext" && !showSetupForm && (
                   <div className="settings-actions">
