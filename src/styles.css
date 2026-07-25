@@ -3108,6 +3108,171 @@ body {
 
 /* Conflict dialog uses existing .btn variants */
 
+/* Conflict resolver (diff picker) */
+.conflict-resolver {
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 20px 24px;
+  max-width: 720px;
+  width: 92%;
+  max-height: 82vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  font-family: "JetBrains Mono", monospace;
+}
+
+.conflict-resolver-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
+}
+
+.conflict-resolver-header h2 {
+  font-size: 16px;
+  font-weight: 600;
+  margin: 0;
+  color: var(--text-primary);
+}
+
+.conflict-resolver-empty {
+  color: var(--text-secondary);
+  font-size: 13px;
+  padding: 16px 0;
+}
+
+.conflict-resolver-error {
+  color: var(--danger, #e5484d);
+  font-size: 12px;
+  margin: 0 0 12px 0;
+}
+
+.conflict-resolver-list {
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.conflict-card {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 14px 16px;
+}
+
+.conflict-card-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 8px;
+  word-break: break-word;
+}
+
+.conflict-card-note {
+  font-size: 12px;
+  color: var(--text-secondary);
+  line-height: 1.5;
+  margin: 0 0 12px 0;
+}
+
+.conflict-card-meta {
+  display: flex;
+  gap: 16px;
+  font-size: 11px;
+  margin-bottom: 6px;
+}
+
+.diff-legend.removed-legend {
+  color: var(--danger, #e5484d);
+}
+
+.diff-legend.added-legend {
+  color: var(--success, #30a46c);
+}
+
+.conflict-diff {
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg-secondary);
+  font-size: 12px;
+  line-height: 1.5;
+  max-height: 240px;
+  overflow: auto;
+  margin-bottom: 12px;
+}
+
+.diff-line {
+  display: flex;
+  white-space: pre-wrap;
+  word-break: break-word;
+  padding: 0 8px;
+}
+
+.diff-marker {
+  flex: 0 0 14px;
+  user-select: none;
+  opacity: 0.7;
+}
+
+.diff-text {
+  flex: 1;
+}
+
+.diff-line.diff-removed {
+  background: color-mix(in srgb, var(--danger, #e5484d) 14%, transparent);
+  color: var(--text-primary);
+}
+
+.diff-line.diff-added {
+  background: color-mix(in srgb, var(--success, #30a46c) 16%, transparent);
+  color: var(--text-primary);
+}
+
+.diff-line.diff-equal {
+  color: var(--text-secondary);
+}
+
+.conflict-commands {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 10px 12px;
+  font-size: 11px;
+  color: var(--text-secondary);
+  overflow-x: auto;
+  margin: 0 0 12px 0;
+  white-space: pre;
+}
+
+.conflict-card-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.conflict-resolver-footer {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+
+.notification-action {
+  background: none;
+  border: none;
+  color: var(--accent, #4a9eff);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+
+.notification-action:hover {
+  text-decoration: underline;
+}
+
 .conflict-dialog-content {
   background: var(--bg-primary);
   border-radius: var(--radius-lg);

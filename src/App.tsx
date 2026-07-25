@@ -15,6 +15,7 @@ import { SensitivePrompt } from "./components/SensitivePrompt";
 import { ProtectionSetup } from "./components/ProtectionSetup";
 import { ConflictDialog } from "./components/ConflictDialog";
 import type { ConflictChoice } from "./components/ConflictDialog";
+import { ConflictResolver } from "./components/ConflictResolver";
 import { DeleteDialog } from "./components/DeleteDialog";
 import { Settings } from "./components/Settings";
 import { ReferencePanel } from "./components/ReferencePanel";
@@ -95,7 +96,13 @@ function App() {
   const [isCreateMode, setIsCreateMode] = useState(false);
   const [initialized, setInitialized] = useState(false);
   const [notification, setNotification] = useState<string | null>(null);
+  // When set, the notification shows an extra action button (e.g. "Resolve").
+  const [notificationAction, setNotificationAction] = useState<{
+    label: string;
+    run: () => void;
+  } | null>(null);
   const [conflictNoteId, setConflictNoteId] = useState<string | null>(null);
+  const [showConflictResolver, setShowConflictResolver] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
   const [showCommandPalette, setShowCommandPalette] = useState(false);
@@ -465,8 +472,16 @@ function App() {
 
   useEventListener("dropbox-conflict", () => {
     setNotification(
-      "A Dropbox sync conflict was detected and preserved in the conflicts folder."
+      "A Dropbox sync conflict was detected and preserved. Review it to pick which version to keep."
     );
+    setNotificationAction({
+      label: "Resolve",
+      run: () => {
+        setNotification(null);
+        setNotificationAction(null);
+        setShowConflictResolver(true);
+      },
+    });
   });
 
   useEventListener("folder-unavailable", () => {
@@ -1141,6 +1156,7 @@ function App() {
       },
     ] : []),
     { id: "settings", label: "Open Settings", shortcut: `${mod},`, action: () => setShowSettings(true) },
+    { id: "resolve-conflicts", label: "Resolve Sync Conflicts", action: () => setShowConflictResolver(true) },
     { id: "reference-panel", label: showReferencePanel ? "Hide Reference Panel" : "Reference Panel", shortcut: `${mod}.`, action: () => setShowReferencePanel((s) => !s) },
     { id: "scratchpad", label: "Open Scratchpad", action: () => invoke("open_scratchpad") },
     { id: "lock-vault", label: "Lock Vault", action: handleLock },
@@ -1216,13 +1232,32 @@ function App() {
       {notification && (
         <div className="notification">
           <span>{notification}</span>
+          {notificationAction && (
+            <button
+              className="notification-action"
+              onClick={notificationAction.run}
+            >
+              {notificationAction.label}
+            </button>
+          )}
           <button
             className="notification-dismiss"
-            onClick={() => setNotification(null)}
+            onClick={() => {
+              setNotification(null);
+              setNotificationAction(null);
+            }}
           >
             Dismiss
           </button>
         </div>
+      )}
+      {showConflictResolver && (
+        <ConflictResolver
+          onClose={() => setShowConflictResolver(false)}
+          onResolved={() => {
+            loadNotes();
+          }}
+        />
       )}
       {showCommandPalette && (
         <CommandPalette

@@ -975,3 +975,273 @@ pub fn open_folder(path: String) -> Result<(), String> {
 pub fn check_vault_exists(path: String) -> bool {
     Path::new(&path).join(".scratch").join("vault.json").exists()
 }
+
+/// One entry in the conflict resolver: the preserved conflict file plus the
+/// current live note it collides with (if any).
+#[derive(serde::Serialize)]
+pub struct ConflictEntry {
+    /// Filename of the preserved copy inside `.scratch/conflicts/`.
+    pub filename: String,
+    /// Note id parsed from the conflict file (empty if unreadable).
+    pub note_id: String,
+    /// Title from the conflict file.
+    pub conflict_title: String,
+    /// Body from the conflict file (decrypted when possible).
+    pub conflict_body: String,
+    /// `updated_at` from the conflict file (RFC3339, empty if unknown).
+    pub conflict_updated_at: String,
+    /// True when the conflict file could be read/decrypted for a diff.
+    pub readable: bool,
+    /// True when a live note with the same id currently exists.
+    pub live_exists: bool,
+    pub live_title: String,
+    pub live_body: String,
+    pub live_updated_at: String,
+    /// Absolute path to the conflict file (for the "show commands" helper).
+    pub path: String,
+}
+
+/// Read + parse a single conflict file, decrypting with the vault key when the
+/// vault is unlocked. Returns (note, readable). An unreadable file (e.g. a
+/// locked-vault `.snote` or garbled content) still yields a stub so the user
+/// can see it and delete it.
+fn read_conflict_note(path: &Path, state: &AppState) -> (Option<Note>, bool) {
+    let content = match fs::read_to_string(path) {
+        Ok(c) => c,
+        Err(_) => return (None, false),
+    };
+
+    // Vault-encrypted notes are stored as JSON blobs (.snote) — try that first.
+    if let Ok(encrypted) = crypto::parse_encrypted_note(&content) {
+        let key = state.vault_key.lock().unwrap();
+        if let Some(ref key) = *key {
+            if let Ok(note) = crypto::decrypt_note(&encrypted, key) {
+                return (Some(note), true);
+            }
+        }
+        // Vault locked or wrong key — can't show contents.
+        return (None, false);
+    }
+
+    match crate::notes::parse_note(&content, &path.to_string_lossy()) {
+        Some(note) => (Some(note), true),
+        None => (None, false),
+    }
+}
+
+/// List every preserved conflict file with a diff-ready view against its live note.
+#[tauri::command]
+pub fn list_conflicts(state: State<'_, AppState>) -> Result<Vec<ConflictEntry>, String> {
+    let folder = state.folder()?;
+    let conflicts_dir = folder.join(".scratch").join("conflicts");
+
+    let mut out: Vec<ConflictEntry> = Vec::new();
+    let entries = match fs::read_dir(&conflicts_dir) {
+        Ok(e) => e,
+        // No directory yet just means no conflicts.
+        Err(_) => return Ok(out),
+    };
+
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if !path.is_file() {
+            continue;
+        }
+        let filename = path.file_name().unwrap_or_default().to_string_lossy().to_string();
+        if filename.starts_with('.') {
+            continue;
+        }
+
+        let (parsed, readable) = read_conflict_note(&path, &state);
+        let note_id = parsed.as_ref().map(|n| n.id.clone()).unwrap_or_default();
+
+        // Match against the live in-memory note by id.
+        let notes = state.notes.lock().unwrap();
+        let live = notes.iter().find(|n| !note_id.is_empty() && n.id == note_id);
+
+        out.push(ConflictEntry {
+            filename: filename.clone(),
+            note_id: note_id.clone(),
+            conflict_title: parsed.as_ref().map(|n| n.title.clone()).unwrap_or_default(),
+            conflict_body: parsed.as_ref().map(|n| n.body.clone()).unwrap_or_default(),
+            conflict_updated_at: parsed
+                .as_ref()
+                .map(|n| n.updated_at.to_rfc3339())
+                .unwrap_or_default(),
+            readable,
+            live_exists: live.is_some(),
+            live_title: live.map(|n| n.title.clone()).unwrap_or_default(),
+            live_body: live.map(|n| n.body.clone()).unwrap_or_default(),
+            live_updated_at: live.map(|n| n.updated_at.to_rfc3339()).unwrap_or_default(),
+            path: path.to_string_lossy().to_string(),
+        });
+    }
+
+    // Newest conflict first.
+    out.sort_by(|a, b| b.conflict_updated_at.cmp(&a.conflict_updated_at));
+    Ok(out)
+}
+
+/// Resolve a single conflict.
+/// - `keep-live`: discard the conflict copy, keep the current note untouched.
+/// - `delete`: same as keep-live (alias for unreadable files with no live match).
+/// - `keep-conflict`: overwrite the live note's content with the conflict copy.
+/// - `keep-both`: import the conflict copy as a brand-new note (fresh id).
+/// In every case the conflict file is removed afterward.
+#[tauri::command]
+pub fn resolve_conflict(
+    filename: String,
+    action: String,
+    state: State<'_, AppState>,
+) -> Result<(), String> {
+    let folder = state.folder()?;
+    let conflicts_dir = folder.join(".scratch").join("conflicts");
+    let conflict_path = conflicts_dir.join(&filename);
+
+    // Guard against path traversal — the resolved path must stay inside the dir.
+    let canonical_dir = conflicts_dir
+        .canonicalize()
+        .map_err(|e| format!("Conflicts folder unavailable: {}", e))?;
+    let canonical_file = conflict_path
+        .canonicalize()
+        .map_err(|_| "Conflict file not found".to_string())?;
+    if !canonical_file.starts_with(&canonical_dir) {
+        return Err("Invalid conflict filename".to_string());
+    }
+
+    match action.as_str() {
+        "keep-live" | "delete" => {
+            fs::remove_file(&canonical_file)
+                .map_err(|e| format!("Failed to delete conflict file: {}", e))?;
+        }
+        "keep-conflict" => {
+            let (parsed, readable) = read_conflict_note(&canonical_file, &state);
+            if !readable {
+                return Err("Conflict file could not be read (vault may be locked).".to_string());
+            }
+            let conflict = parsed.ok_or("Conflict file could not be parsed")?;
+
+            let vault_status = state.vault_status.lock().unwrap().clone();
+            let mut notes = state.notes.lock().unwrap();
+            let note = notes
+                .iter_mut()
+                .find(|n| n.id == conflict.id)
+                .ok_or("No matching live note to overwrite")?;
+
+            let old_path = PathBuf::from(&note.file_path);
+            note.title = conflict.title;
+            note.body = conflict.body;
+            note.codex = conflict.codex;
+            note.updated_at = Utc::now();
+
+            let new_path = match vault_status {
+                VaultStatus::Unlocked => {
+                    let key = state.vault_key.lock().unwrap();
+                    let key = key.as_ref().ok_or("Vault key not available")?;
+                    note.encrypted = true;
+                    storage::write_note_encrypted(&folder, note, key)?
+                }
+                VaultStatus::Locked => {
+                    return Err("Vault is locked. Unlock before resolving.".to_string());
+                }
+                VaultStatus::Plaintext => storage::write_note_atomic(&folder, note)?,
+            };
+            if old_path != new_path && old_path.exists() {
+                let _ = fs::remove_file(&old_path);
+            }
+            note.file_path = new_path.to_string_lossy().to_string();
+            drop(notes);
+
+            fs::remove_file(&canonical_file)
+                .map_err(|e| format!("Failed to delete conflict file: {}", e))?;
+        }
+        "keep-both" => {
+            let (parsed, readable) = read_conflict_note(&canonical_file, &state);
+            if !readable {
+                return Err("Conflict file could not be read (vault may be locked).".to_string());
+            }
+            let conflict = parsed.ok_or("Conflict file could not be parsed")?;
+
+            // Build a fresh note so it no longer collides on id.
+            let mut new_note = Note::new(format!("{} (conflict copy)", conflict.title));
+            new_note.body = conflict.body;
+            new_note.codex = conflict.codex;
+
+            let vault_status = state.vault_status.lock().unwrap().clone();
+            let new_path = match vault_status {
+                VaultStatus::Unlocked => {
+                    let key = state.vault_key.lock().unwrap();
+                    let key = key.as_ref().ok_or("Vault key not available")?;
+                    new_note.encrypted = true;
+                    storage::write_note_encrypted(&folder, &new_note, key)?
+                }
+                VaultStatus::Locked => {
+                    return Err("Vault is locked. Unlock before resolving.".to_string());
+                }
+                VaultStatus::Plaintext => storage::write_note_atomic(&folder, &new_note)?,
+            };
+            new_note.file_path = new_path.to_string_lossy().to_string();
+            state.notes.lock().unwrap().push(new_note);
+
+            fs::remove_file(&canonical_file)
+                .map_err(|e| format!("Failed to delete conflict file: {}", e))?;
+        }
+        other => return Err(format!("Unknown resolve action: {}", other)),
+    }
+
+    Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::io::Write;
+
+    fn write_temp(content: &str) -> (tempfile::TempDir, PathBuf) {
+        let dir = tempfile::tempdir().unwrap();
+        let path = dir.path().join("copy.md");
+        let mut f = std::fs::File::create(&path).unwrap();
+        f.write_all(content.as_bytes()).unwrap();
+        (dir, path)
+    }
+
+    #[test]
+    fn read_conflict_note_parses_plaintext() {
+        let content = "---\nid: ABC123\ntitle: Hello\ncreated_at: 2026-01-01T00:00:00+00:00\nupdated_at: 2026-01-01T00:00:00+00:00\nencrypted: false\n---\n\nBody text";
+        let (_dir, path) = write_temp(content);
+        let state = AppState::new();
+
+        let (note, readable) = read_conflict_note(&path, &state);
+        assert!(readable);
+        let note = note.unwrap();
+        assert_eq!(note.id, "ABC123");
+        assert_eq!(note.title, "Hello");
+        assert_eq!(note.body, "Body text");
+    }
+
+    #[test]
+    fn read_conflict_note_marks_garbage_unreadable() {
+        let (_dir, path) = write_temp("not a note at all");
+        let state = AppState::new();
+
+        let (note, readable) = read_conflict_note(&path, &state);
+        assert!(!readable);
+        assert!(note.is_none());
+    }
+
+    #[test]
+    fn read_conflict_note_handles_locked_vault_snote() {
+        // Encrypt a note, then try to read it with no vault key in state.
+        let (_cfg, key) = crypto::create_vault_config("pw").unwrap();
+        let mut note = Note::new("Secret".into());
+        note.body = "hidden".into();
+        let encrypted = crypto::encrypt_note(&note, &key).unwrap();
+        let json = crypto::serialize_encrypted_note(&encrypted).unwrap();
+        let (_dir, path) = write_temp(&json);
+
+        let state = AppState::new(); // vault_key is None → locked
+        let (parsed, readable) = read_conflict_note(&path, &state);
+        assert!(!readable);
+        assert!(parsed.is_none());
+    }
+}
