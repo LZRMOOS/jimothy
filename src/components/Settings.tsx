@@ -898,16 +898,20 @@ function DictionaryEditor({ entries, onChange }: { entries: string[]; onChange: 
 function EmojiEditor({ emojis, onReload }: { emojis: EmojiEntry[]; onReload: () => Promise<void> }) {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [filter, setFilter] = useState("");
+  const [editing, setEditing] = useState<string | null>(null);
+  const [editValue, setEditValue] = useState("");
   const fileRef = useRef<HTMLInputElement>(null);
 
   const handleFiles = async (files: FileList | null) => {
     if (!files || files.length === 0) return;
     setError(null);
     setBusy(true);
+    const failures: string[] = [];
     try {
       for (const file of Array.from(files)) {
         if (!file.type.startsWith("image/")) {
-          setError(`${file.name} is not an image`);
+          failures.push(`${file.name}: not an image`);
           continue;
         }
         const buffer = await file.arrayBuffer();
@@ -918,10 +922,14 @@ function EmojiEditor({ emojis, onReload }: { emojis: EmojiEntry[]; onReload: () 
         try {
           await invoke("import_emoji", { data: base64, filename: file.name });
         } catch (e) {
-          setError(String(e));
+          failures.push(`${file.name}: ${String(e)}`);
         }
       }
       await onReload();
+      if (failures.length > 0) {
+        const shown = failures.slice(0, 3).join("; ");
+        setError(failures.length > 3 ? `${shown}; and ${failures.length - 3} more` : shown);
+      }
     } finally {
       setBusy(false);
       if (fileRef.current) fileRef.current.value = "";
@@ -933,18 +941,68 @@ function EmojiEditor({ emojis, onReload }: { emojis: EmojiEntry[]; onReload: () 
     await onReload();
   };
 
+  const startEdit = (name: string) => {
+    setError(null);
+    setEditing(name);
+    setEditValue(name);
+  };
+
+  const submitEdit = async (oldName: string) => {
+    const next = editValue.trim();
+    setEditing(null);
+    if (!next || next === oldName) return;
+    try {
+      await invoke("rename_emoji", { oldName, newName: next });
+      await onReload();
+    } catch (e) {
+      setError(String(e));
+    }
+  };
+
+  const q = filter.trim().toLowerCase();
+  const visible = q ? emojis.filter((e) => e.name.toLowerCase().includes(q)) : emojis;
+
   return (
     <div className="macro-editor">
-      {emojis.length > 0 && (
+      {emojis.length > 8 && (
+        <input
+          className="emoji-filter"
+          placeholder="Filter emoji..."
+          value={filter}
+          onChange={(e) => setFilter(e.target.value)}
+        />
+      )}
+      {visible.length > 0 ? (
         <div className="emoji-grid">
-          {emojis.map((e) => (
+          {visible.map((e) => (
             <div key={e.name} className="emoji-grid-item">
+              <button className="emoji-grid-delete" onClick={() => handleDelete(e.name)} aria-label="Remove">×</button>
               <img className="emoji-grid-img" src={convertFileSrc(e.path)} alt={e.name} />
-              <span className="emoji-grid-name">:{e.name}:</span>
-              <button className="macro-remove" onClick={() => handleDelete(e.name)} title="Remove">×</button>
+              {editing === e.name ? (
+                <input
+                  className="emoji-grid-edit"
+                  autoFocus
+                  value={editValue}
+                  onChange={(ev) => setEditValue(ev.target.value)}
+                  onBlur={() => submitEdit(e.name)}
+                  onKeyDown={(ev) => {
+                    if (ev.key === "Enter") submitEdit(e.name);
+                    if (ev.key === "Escape") setEditing(null);
+                  }}
+                />
+              ) : (
+                <button
+                  className="emoji-grid-name"
+                  onClick={() => startEdit(e.name)}
+                >
+                  :{e.name}:
+                </button>
+              )}
             </div>
           ))}
         </div>
+      ) : (
+        <p className="settings-hint">{emojis.length === 0 ? "No emoji yet." : "No matches."}</p>
       )}
       <div className="macro-add">
         <input
@@ -955,7 +1013,12 @@ function EmojiEditor({ emojis, onReload }: { emojis: EmojiEntry[]; onReload: () 
           style={{ display: "none" }}
           onChange={(e) => handleFiles(e.target.files)}
         />
-        <button className="btn secondary btn-sm" onClick={() => fileRef.current?.click()} disabled={busy}>
+        <button
+          className="btn secondary btn-sm"
+          onClick={() => fileRef.current?.click()}
+          disabled={busy}
+          title="Select one or more square images (at least 100×100px). Larger images are downscaled automatically."
+        >
           {busy ? "Adding..." : "Add emoji"}
         </button>
       </div>
@@ -1773,9 +1836,8 @@ export function Settings({
               <div className="settings-section">
                 <h3>Custom Emoji</h3>
                 <p className="settings-hint">
-                  Drop in your own emoji and icons. Type <kbd>:</kbd> in the editor to
-                  autocomplete by name. Images must be square and at least 100&times;100
-                  pixels; bigger ones get downscaled. You can also use them as codex icons.
+                  Your own emoji and icons. Type <kbd>:</kbd> in the editor to autocomplete by name,
+                  or use them as codex icons.
                 </p>
                 <EmojiEditor emojis={emojis} onReload={onReloadEmojis} />
               </div>

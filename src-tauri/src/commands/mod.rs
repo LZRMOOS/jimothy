@@ -1408,6 +1408,55 @@ pub fn delete_emoji(name: String, state: State<'_, AppState>) -> Result<(), Stri
     Ok(())
 }
 
+#[tauri::command]
+pub fn rename_emoji(
+    old_name: String,
+    new_name: String,
+    state: State<'_, AppState>,
+) -> Result<EmojiEntry, String> {
+    // Normalize the requested name the same way import does.
+    let new_stem = new_name
+        .to_lowercase()
+        .chars()
+        .map(|c| if c == ' ' { '-' } else { c })
+        .filter(|c| c.is_ascii_alphanumeric() || *c == '_' || *c == '-')
+        .collect::<String>();
+    if !emoji_name_valid(&new_stem) {
+        return Err("Name must contain letters, numbers, dashes or underscores".into());
+    }
+    if !emoji_name_valid(&old_name) {
+        return Err("Invalid emoji name".into());
+    }
+    if new_stem == old_name {
+        // No change; just return the existing entry.
+        let path = state
+            .folder()?
+            .join(".scratch")
+            .join("emojis")
+            .join(format!("{}.png", old_name));
+        return Ok(EmojiEntry {
+            name: old_name,
+            path: path.to_string_lossy().to_string(),
+        });
+    }
+
+    let emojis_dir = state.folder()?.join(".scratch").join("emojis");
+    let old_path = emojis_dir.join(format!("{}.png", old_name));
+    let new_path = emojis_dir.join(format!("{}.png", new_stem));
+    if !old_path.exists() {
+        return Err("Emoji not found".into());
+    }
+    if new_path.exists() {
+        return Err(format!("An emoji named :{}: already exists", new_stem));
+    }
+    fs::rename(&old_path, &new_path).map_err(|e| format!("Failed to rename emoji: {}", e))?;
+
+    Ok(EmojiEntry {
+        name: new_stem,
+        path: new_path.to_string_lossy().to_string(),
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
