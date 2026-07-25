@@ -1248,6 +1248,12 @@ body {
   position: relative;
   margin: 0;
   flex-shrink: 0;
+  outline: none;
+}
+
+.editor-body .tiptap ul[data-type="taskList"] li input[type="checkbox"]:focus {
+  outline: none;
+  box-shadow: none;
 }
 
 .editor-body .tiptap ul[data-type="taskList"] li input[type="checkbox"]:hover {

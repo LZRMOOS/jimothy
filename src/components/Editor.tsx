@@ -859,7 +859,20 @@ export function Editor({ note, saveStatus, onTitleChange, onBodyChange, onCodexC
         </div>
       )}
       <div className="editor-content-area">
-        <div className="editor-body" ref={editorBodyRef}>
+        <div className="editor-body" ref={editorBodyRef} onKeyDownCapture={(e) => {
+          if (e.key !== "Tab" || e.altKey || e.metaKey || e.ctrlKey || !editor) return;
+          const isTask = editor.isActive("taskItem");
+          const isList = editor.isActive("listItem");
+          if (!isTask && !isList) return;
+          e.preventDefault();
+          e.stopPropagation();
+          const nodeType = isTask ? "taskItem" : "listItem";
+          if (e.shiftKey) {
+            editor.commands.liftListItem(nodeType);
+          } else {
+            editor.commands.sinkListItem(nodeType);
+          }
+        }}>
           <EditorContent editor={editor} />
           {backlinks.length > 0 && (
             <div className="editor-backlinks">
