@@ -1611,6 +1611,60 @@ img.emoji {
   margin: 0.7em 0 0.2em;
 }
 
+/* Collapsible headings */
+.heading-collapse-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  margin-left: 6px;
+  vertical-align: middle;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s;
+  border-radius: 3px;
+  user-select: none;
+}
+
+.heading-collapse-toggle::before {
+  content: "";
+  display: block;
+  width: 0;
+  height: 0;
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-top: 5px solid var(--text-secondary);
+  transition: transform 0.15s;
+}
+
+.heading-collapse-toggle.collapsed::before {
+  transform: rotate(-90deg);
+}
+
+.editor-body .tiptap h1:hover .heading-collapse-toggle,
+.editor-body .tiptap h2:hover .heading-collapse-toggle,
+.editor-body .tiptap h3:hover .heading-collapse-toggle,
+.editor-body .tiptap h4:hover .heading-collapse-toggle,
+.editor-body .tiptap h5:hover .heading-collapse-toggle,
+.editor-body .tiptap h6:hover .heading-collapse-toggle,
+.heading-collapse-toggle:hover,
+.heading-collapse-toggle.collapsed {
+  opacity: 1;
+}
+
+.heading-collapse-toggle:hover {
+  background: var(--bg-hover);
+}
+
+.heading-is-collapsed {
+  margin-bottom: 0 !important;
+}
+
+.collapsed-content {
+  display: none;
+}
+
 .editor-body .tiptap p {
   margin: 0.4em 0;
 }

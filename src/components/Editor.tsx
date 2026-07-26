@@ -21,6 +21,7 @@ import { createTaskDueDateExtension } from "../extensions/taskDueDate";
 import { createImageExtension, createImagePasteExtension } from "../extensions/imagePaste";
 import { createEmojiExtension, type EmojiEntry } from "../extensions/emoji";
 import { createTableExtensions } from "../extensions/tableExtensions";
+import { createCollapsibleHeadingExtension } from "../extensions/collapsibleHeading";
 import { TableToolbar } from "./TableToolbar";
 import { extractTags } from "../utils/tags";
 
@@ -363,6 +364,7 @@ export function Editor({ note, saveStatus, onTitleChange, onBodyChange, onCodexC
   emojisRef.current = emojis;
   const [emojiExt] = useState(() => createEmojiExtension(emojisRef));
   const [tableExts] = useState(() => createTableExtensions());
+  const [collapsibleHeadingExt] = useState(() => createCollapsibleHeadingExtension());
   const suppressUpdate = useRef(false);
 
   const editor = useEditor({
@@ -405,6 +407,7 @@ export function Editor({ note, saveStatus, onTitleChange, onBodyChange, onCodexC
       imagePasteExt,
       emojiExt,
       ...tableExts,
+      collapsibleHeadingExt,
     ],
     content: note.body,
     onUpdate: ({ editor }) => {
