@@ -2536,6 +2536,47 @@ img.emoji {
   padding-bottom: 4rem;
 }
 
+.settings-subtabs {
+  display: flex;
+  gap: 4px;
+  margin-bottom: 1.5rem;
+  border-bottom: 1px solid var(--border-color);
+  padding-bottom: 4px;
+}
+
+.settings-subtab {
+  padding: 6px 16px;
+  border: none;
+  background: none;
+  color: var(--text-secondary);
+  font-size: 12px;
+  cursor: pointer;
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+  font-weight: 500;
+  transition: all var(--transition);
+  position: relative;
+}
+
+.settings-subtab:hover {
+  color: var(--text-primary);
+  background: var(--bg-hover);
+}
+
+.settings-subtab.active {
+  color: var(--accent);
+  background: transparent;
+}
+
+.settings-subtab.active::after {
+  content: "";
+  position: absolute;
+  bottom: -4px;
+  left: 0;
+  right: 0;
+  height: 2px;
+  background: var(--accent);
+}
+
 .settings-section h3 {
   display: flex;
   align-items: center;
@@ -4461,6 +4502,13 @@ img.emoji {
 }
 
 /* About Section */
+.about-info {
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-color);
+  border-radius: 6px;
+  padding: 0.75rem;
+}
+
 .about-info .settings-row {
   display: flex;
   justify-content: space-between;

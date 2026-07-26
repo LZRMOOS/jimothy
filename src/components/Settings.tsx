@@ -11,7 +11,8 @@ import type { EmojiEntry } from "../extensions/emoji";
 import { isMac, modName, altName, superName } from "../utils/platform";
 import { HIDEABLE_COMMANDS } from "../utils/commands";
 
-type SettingsTab = "general" | "about" | "organization" | "keyboard" | "macros" | "dictionary" | "emoji" | "colors" | "storage" | "security" | "markdown";
+type SettingsTab = "general" | "organization" | "keyboard" | "macros" | "dictionary" | "emoji" | "colors" | "storage" | "security" | "markdown";
+type GeneralTab = "behavior" | "about";
 
 // Self-contained PIN quick-unlock control. Works for either escrow: the vault
 // (rendered while the vault is unlocked) or note protection (rendered in
@@ -1758,9 +1759,10 @@ export function Settings({
     }
   };
 
+  const [generalTab, setGeneralTab] = useState<GeneralTab>("behavior");
+
   const tabs: { id: SettingsTab; label: string }[] = [
     { id: "general", label: "General" },
-    { id: "about", label: "About" },
     { id: "organization", label: "Organization" },
     { id: "keyboard", label: "Controls" },
     { id: "macros", label: "Macros" },
@@ -1770,6 +1772,11 @@ export function Settings({
     { id: "storage", label: "Storage" },
     { id: "security", label: "Security" },
     { id: "markdown", label: "Markdown" },
+  ];
+
+  const generalTabs: { id: GeneralTab; label: string }[] = [
+    { id: "behavior", label: "Behavior" },
+    { id: "about", label: "About" },
   ];
 
   return (
@@ -1796,7 +1803,21 @@ export function Settings({
           <div className="settings-content">
             {activeTab === "general" && (
               <div className="settings-section">
-                <h3>Behavior</h3>
+                <nav className="settings-subtabs">
+                  {generalTabs.map((tab) => (
+                    <button
+                      key={tab.id}
+                      className={`settings-subtab ${generalTab === tab.id ? "active" : ""}`}
+                      onClick={() => setGeneralTab(tab.id)}
+                    >
+                      {tab.label}
+                    </button>
+                  ))}
+                </nav>
+
+                {generalTab === "behavior" && (
+                  <>
+                    <h3>Behavior</h3>
                 <div className="settings-row">
                   <div className="settings-row-text">
                     <label htmlFor="confirm-delete">Confirm before deleting</label>
@@ -1890,45 +1911,43 @@ export function Settings({
                     }
                   />
                 </div>
-              </div>
-            )}
+                  </>
+                )}
 
-            {activeTab === "about" && (
-              <div className="settings-section">
-                <h3>Updates</h3>
-                <div className="about-info">
-                  <div className="settings-row">
-                    <label>Version</label>
-                    <span>{appVersion || "..."}</span>
-                  </div>
-                </div>
-                <p className="settings-hint">Auto-updates coming soon</p>
+                {generalTab === "about" && (
+                  <>
+                    <h3>Updates</h3>
+                    <div className="about-info">
+                      <div className="settings-row">
+                        <label>Version</label>
+                        <span>{appVersion || "..."}</span>
+                      </div>
+                    </div>
+                    <p className="settings-hint">Auto-updates coming soon</p>
 
-                <h3>Developer</h3>
-                <div className="about-info">
-                  <div className="settings-row">
-                    <label>Name</label>
-                    <span>Wei Dai</span>
-                  </div>
-                  <div className="settings-row">
-                    <label>Website</label>
-                    <a href="https://lzrmoos.com" target="_blank" rel="noopener noreferrer">
-                      lzrmoos.com
-                    </a>
-                  </div>
-                  <div className="settings-row">
-                    <label>Email</label>
-                    <a href="mailto:dev@lzrmoos.com">dev@lzrmoos.com</a>
-                  </div>
-                  <div className="settings-row">
-                    <label>GitHub</label>
-                    <a href="https://github.com/LZRMOOS/jimothy" target="_blank" rel="noopener noreferrer">
-                      github.com/LZRMOOS/jimothy
-                    </a>
-                  </div>
-                </div>
+                    <h3>Developer</h3>
+                    <div className="about-info">
+                      <div className="settings-row">
+                        <label>Website</label>
+                        <a href="https://lzrmoos.com" target="_blank" rel="noopener noreferrer">
+                          lzrmoos.com
+                        </a>
+                      </div>
+                      <div className="settings-row">
+                        <label>Email</label>
+                        <a href="mailto:dev@lzrmoos.com">dev@lzrmoos.com</a>
+                      </div>
+                      <div className="settings-row">
+                        <label>GitHub</label>
+                        <a href="https://github.com/LZRMOOS/jimothy" target="_blank" rel="noopener noreferrer">
+                          github.com/LZRMOOS/jimothy
+                        </a>
+                      </div>
+                    </div>
 
-                <p className="about-copyright">© 2026 Wei Dai. All Rights Reserved.</p>
+                    <p className="about-copyright">© 2026 LZRMOOS. All Rights Reserved.</p>
+                  </>
+                )}
               </div>
             )}
 
