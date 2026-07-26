@@ -122,7 +122,7 @@ function App() {
   const [showConflictResolver, setShowConflictResolver] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
-  const [settingsTab, setSettingsTab] = useState<"general" | "organization" | "keyboard" | "macros" | "dictionary" | "emoji" | "colors" | "storage" | "security" | "markdown" | undefined>(undefined);
+  const [settingsTab, setSettingsTab] = useState<"general" | "organization" | "keyboard" | "editor" | "storage" | "security" | "markdown" | undefined>(undefined);
   const [showCommandPalette, setShowCommandPalette] = useState(false);
   const [showReferencePanel, setShowReferencePanel] = useState(false);
   const [showTour, setShowTour] = useState(false);

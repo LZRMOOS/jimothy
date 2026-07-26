@@ -11,8 +11,10 @@ import type { EmojiEntry } from "../extensions/emoji";
 import { isMac, modName, altName, superName } from "../utils/platform";
 import { HIDEABLE_COMMANDS } from "../utils/commands";
 
-type SettingsTab = "general" | "organization" | "keyboard" | "macros" | "dictionary" | "emoji" | "colors" | "storage" | "security" | "markdown";
+type SettingsTab = "general" | "organization" | "keyboard" | "editor" | "storage" | "security" | "markdown";
 type GeneralTab = "behavior" | "about";
+type KeyboardTab = "shortcuts" | "commands";
+type EditorTab = "colors" | "macros" | "dictionary" | "emoji";
 
 // Self-contained PIN quick-unlock control. Works for either escrow: the vault
 // (rendered while the vault is unlocked) or note protection (rendered in
@@ -1760,15 +1762,14 @@ export function Settings({
   };
 
   const [generalTab, setGeneralTab] = useState<GeneralTab>("behavior");
+  const [keyboardTab, setKeyboardTab] = useState<KeyboardTab>("shortcuts");
+  const [editorTab, setEditorTab] = useState<EditorTab>("colors");
 
   const tabs: { id: SettingsTab; label: string }[] = [
     { id: "general", label: "General" },
     { id: "organization", label: "Organization" },
     { id: "keyboard", label: "Controls" },
-    { id: "macros", label: "Macros" },
-    { id: "dictionary", label: "Dictionary" },
-    { id: "emoji", label: "Emoji" },
-    { id: "colors", label: "Colors" },
+    { id: "editor", label: "Customization" },
     { id: "storage", label: "Storage" },
     { id: "security", label: "Security" },
     { id: "markdown", label: "Markdown" },
@@ -1777,6 +1778,18 @@ export function Settings({
   const generalTabs: { id: GeneralTab; label: string }[] = [
     { id: "behavior", label: "Behavior" },
     { id: "about", label: "About" },
+  ];
+
+  const keyboardTabs: { id: KeyboardTab; label: string }[] = [
+    { id: "shortcuts", label: "Shortcuts" },
+    { id: "commands", label: "Commands" },
+  ];
+
+  const editorTabs: { id: EditorTab; label: string }[] = [
+    { id: "colors", label: "Colors" },
+    { id: "macros", label: "Macros" },
+    { id: "dictionary", label: "Dictionary" },
+    { id: "emoji", label: "Emoji" },
   ];
 
   return (
@@ -2054,24 +2067,38 @@ export function Settings({
 
             {activeTab === "keyboard" && (
               <div className="settings-section">
-                <h3>Global</h3>
-                <div className="settings-row">
-                  <label>Toggle window</label>
-                  <ShortcutRecorder
-                    value={settings.globalShortcut || (isMac ? "Command+Shift+Space" : "Control+Shift+Space")}
-                    onChange={(shortcut) => onSettingsChange({ ...settings, globalShortcut: shortcut })}
-                  />
-                </div>
-                <div className="settings-row">
-                  <label>Scratchpad</label>
-                  <ShortcutRecorder
-                    value={settings.captureShortcut || (isMac ? "Command+Alt+Space" : "Control+Alt+Space")}
-                    onChange={(shortcut) => onSettingsChange({ ...settings, captureShortcut: shortcut })}
-                    command="update_capture_shortcut"
-                  />
-                </div>
-                <p className="settings-hint">Click a shortcut to change it. Scratchpad opens a floating notepad from any app.</p>
-                <h3>Search</h3>
+                <nav className="settings-subtabs">
+                  {keyboardTabs.map((tab) => (
+                    <button
+                      key={tab.id}
+                      className={`settings-subtab ${keyboardTab === tab.id ? "active" : ""}`}
+                      onClick={() => setKeyboardTab(tab.id)}
+                    >
+                      {tab.label}
+                    </button>
+                  ))}
+                </nav>
+
+                {keyboardTab === "shortcuts" && (
+                  <>
+                    <h3>Global</h3>
+                    <div className="settings-row">
+                      <label>Toggle window</label>
+                      <ShortcutRecorder
+                        value={settings.globalShortcut || (isMac ? "Command+Shift+Space" : "Control+Shift+Space")}
+                        onChange={(shortcut) => onSettingsChange({ ...settings, globalShortcut: shortcut })}
+                      />
+                    </div>
+                    <div className="settings-row">
+                      <label>Scratchpad</label>
+                      <ShortcutRecorder
+                        value={settings.captureShortcut || (isMac ? "Command+Alt+Space" : "Control+Alt+Space")}
+                        onChange={(shortcut) => onSettingsChange({ ...settings, captureShortcut: shortcut })}
+                        command="update_capture_shortcut"
+                      />
+                    </div>
+                    <p className="settings-hint">Click a shortcut to change it. Scratchpad opens a floating notepad from any app.</p>
+                    <h3>Search</h3>
                 <div className="settings-row">
                   <label>Find in note</label>
                   <kbd className="shortcut-display">{mod}+F</kbd>
@@ -2190,110 +2217,133 @@ export function Settings({
                   <label>Reference panel</label>
                   <kbd className="shortcut-display">{mod}+.</kbd>
                 </div>
-                <h3>Command Palette<InfoTooltip>Uncheck a command to hide it from the {mod}+K palette. Its keyboard shortcut still works, this only affects what shows up in the list.</InfoTooltip></h3>
-                <p className="settings-hint">Choose which commands appear in the {mod}+K palette. Hiding one keeps its shortcut working.</p>
-                <div className="command-visibility-grid" role="table">
-                  {HIDEABLE_COMMANDS.map((cmd) => {
-                    const hidden = (settings.hiddenCommands || []).includes(cmd.id);
-                    return (
-                      <label className="command-visibility-cell" key={cmd.id} htmlFor={`cmd-visible-${cmd.id}`}>
-                        <input
-                          id={`cmd-visible-${cmd.id}`}
-                          type="checkbox"
-                          checked={!hidden}
-                          onChange={(e) => {
-                            const current = settings.hiddenCommands || [];
-                            const next = e.target.checked
-                              ? current.filter((id) => id !== cmd.id)
-                              : [...current, cmd.id];
-                            onSettingsChange({ ...settings, hiddenCommands: next });
-                          }}
-                        />
-                        <span className={hidden ? "command-visibility-hidden" : ""}>{cmd.label}</span>
-                      </label>
-                    );
-                  })}
-                </div>
+                  </>
+                )}
+
+                {keyboardTab === "commands" && (
+                  <>
+                    <h3>Command Palette<InfoTooltip>Uncheck a command to hide it from the {mod}+K palette. Its keyboard shortcut still works, this only affects what shows up in the list.</InfoTooltip></h3>
+                    <p className="settings-hint">Choose which commands appear in the {mod}+K palette. Hiding one keeps its shortcut working.</p>
+                    <div className="command-visibility-grid" role="table">
+                      {HIDEABLE_COMMANDS.map((cmd) => {
+                        const hidden = (settings.hiddenCommands || []).includes(cmd.id);
+                        return (
+                          <label className="command-visibility-cell" key={cmd.id} htmlFor={`cmd-visible-${cmd.id}`}>
+                            <input
+                              id={`cmd-visible-${cmd.id}`}
+                              type="checkbox"
+                              checked={!hidden}
+                              onChange={(e) => {
+                                const current = settings.hiddenCommands || [];
+                                const next = e.target.checked
+                                  ? current.filter((id) => id !== cmd.id)
+                                  : [...current, cmd.id];
+                                onSettingsChange({ ...settings, hiddenCommands: next });
+                              }}
+                            />
+                            <span className={hidden ? "command-visibility-hidden" : ""}>{cmd.label}</span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  </>
+                )}
               </div>
             )}
 
-            {activeTab === "macros" && (
+            {activeTab === "editor" && (
               <div className="settings-section">
-                <h3>Text Macros</h3>
-                <p className="settings-hint">
-                  Macros expand while you type in the editor. Type a trigger
-                  (like /date) followed by Space or Enter and it will be replaced
-                  with the expansion text.
-                </p>
-                <h3>Built-in</h3>
-                <div className="macro-list">
-                  <div className="macro-row">
-                    <kbd className="macro-trigger">/date</kbd>
-                    <span className="macro-expansion">Inserts today's date (e.g., July 23, 2026)</span>
-                  </div>
-                  <div className="macro-row">
-                    <kbd className="macro-trigger">/time</kbd>
-                    <span className="macro-expansion">Inserts the current time (e.g., 3:45 PM)</span>
-                  </div>
-                  <div className="macro-row">
-                    <kbd className="macro-trigger">/table</kbd>
-                    <span className="macro-expansion">Inserts a 2×2 table</span>
-                  </div>
-                </div>
-                <h3>Custom</h3>
-                <p className="settings-hint">
-                  Add your own triggers below. Use letters and numbers for the trigger name.
-                </p>
-                <MacroEditor
-                  macros={settings.macros || {}}
-                  onChange={(macros) => onSettingsChange({ ...settings, macros })}
-                />
-              </div>
-            )}
+                <nav className="settings-subtabs">
+                  {editorTabs.map((tab) => (
+                    <button
+                      key={tab.id}
+                      className={`settings-subtab ${editorTab === tab.id ? "active" : ""}`}
+                      onClick={() => setEditorTab(tab.id)}
+                    >
+                      {tab.label}
+                    </button>
+                  ))}
+                </nav>
 
-            {activeTab === "dictionary" && (
-              <div className="settings-section">
-                <h3>Dictionary</h3>
-                <p className="settings-hint">
-                  Add people, places, or anything you mention often. Type <kbd>@</kbd> in
-                  the editor to autocomplete from this list. Mentions are highlighted and
-                  searchable.
-                </p>
-                <DictionaryEditor
-                  entries={settings.dictionary || []}
-                  onChange={(dictionary) => onSettingsChange({ ...settings, dictionary })}
-                />
-              </div>
-            )}
+                {editorTab === "colors" && (
+                  <>
+                    <h3>Appearance<InfoTooltip><ul><li>System follows your OS light/dark setting</li><li>Accent and background colors are saved per theme, so light and dark can look different</li><li>Pick a preset or set custom colors below</li></ul></InfoTooltip></h3>
+                    <div className="settings-row">
+                      <label>Theme</label>
+                      <Dropdown
+                        value={settings.theme || "system"}
+                        onChange={(v) => handleThemeChange(v as "system" | "light" | "dark")}
+                        options={[
+                          { value: "system", label: "System" },
+                          { value: "light", label: "Light" },
+                          { value: "dark", label: "Dark" },
+                        ]}
+                      />
+                    </div>
+                    <h3>Colors</h3>
+                    <ColorSettings settings={settings} onSettingsChange={onSettingsChange} />
+                  </>
+                )}
 
-            {activeTab === "emoji" && (
-              <div className="settings-section">
-                <h3>Custom Emoji</h3>
-                <p className="settings-hint">
-                  Your own emoji and icons. Type <kbd>:</kbd> in the editor to autocomplete by name,
-                  or use them as codex icons.
-                </p>
-                <EmojiEditor emojis={emojis} onReload={onReloadEmojis} />
-              </div>
-            )}
+                {editorTab === "macros" && (
+                  <>
+                    <h3>Text Macros</h3>
+                    <p className="settings-hint">
+                      Macros expand while you type in the editor. Type a trigger
+                      (like /date) followed by Space or Enter and it will be replaced
+                      with the expansion text.
+                    </p>
+                    <h4 style={{fontSize: "11px", fontWeight: 600, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: "0.05em", marginTop: "1rem", marginBottom: "0.5rem"}}>Built-in</h4>
+                    <div className="macro-list">
+                      <div className="macro-row">
+                        <kbd className="macro-trigger">/date</kbd>
+                        <span className="macro-expansion">Inserts today's date (e.g., July 23, 2026)</span>
+                      </div>
+                      <div className="macro-row">
+                        <kbd className="macro-trigger">/time</kbd>
+                        <span className="macro-expansion">Inserts the current time (e.g., 3:45 PM)</span>
+                      </div>
+                      <div className="macro-row">
+                        <kbd className="macro-trigger">/table</kbd>
+                        <span className="macro-expansion">Inserts a 2×2 table</span>
+                      </div>
+                    </div>
+                    <h4 style={{fontSize: "11px", fontWeight: 600, color: "var(--text-secondary)", textTransform: "uppercase", letterSpacing: "0.05em", marginTop: "1.5rem", marginBottom: "0.5rem"}}>Custom</h4>
+                    <p className="settings-hint">
+                      Add your own triggers below. Use letters and numbers for the trigger name.
+                    </p>
+                    <MacroEditor
+                      macros={settings.macros || {}}
+                      onChange={(macros) => onSettingsChange({ ...settings, macros })}
+                    />
+                  </>
+                )}
 
-            {activeTab === "colors" && (
-              <div className="settings-section">
-                <h3>Appearance<InfoTooltip><ul><li>System follows your OS light/dark setting</li><li>Accent and background colors are saved per theme, so light and dark can look different</li><li>Pick a preset or set custom colors below</li></ul></InfoTooltip></h3>
-                <div className="settings-row">
-                  <label>Theme</label>
-                  <Dropdown
-                    value={settings.theme || "system"}
-                    onChange={(v) => handleThemeChange(v as "system" | "light" | "dark")}
-                    options={[
-                      { value: "system", label: "System" },
-                      { value: "light", label: "Light" },
-                      { value: "dark", label: "Dark" },
-                    ]}
-                  />
-                </div>
-                <h3>Colors</h3>
-                <ColorSettings settings={settings} onSettingsChange={onSettingsChange} />
+                {editorTab === "dictionary" && (
+                  <>
+                    <h3>Dictionary</h3>
+                    <p className="settings-hint">
+                      Add people, places, or anything you mention often. Type <kbd>@</kbd> in
+                      the editor to autocomplete from this list. Mentions are highlighted and
+                      searchable.
+                    </p>
+                    <DictionaryEditor
+                      entries={settings.dictionary || []}
+                      onChange={(dictionary) => onSettingsChange({ ...settings, dictionary })}
+                    />
+                  </>
+                )}
+
+                {editorTab === "emoji" && (
+                  <>
+                    <h3>Custom Emoji</h3>
+                    <p className="settings-hint">
+                      Your own emoji and icons. Type <kbd>:</kbd> in the editor to autocomplete by name,
+                      or use them as codex icons.
+                    </p>
+                    <EmojiEditor emojis={emojis} onReload={onReloadEmojis} />
+                  </>
+                )}
               </div>
             )}
 
@@ -2766,7 +2816,7 @@ console.log(hello);
                 <p className="settings-hint">
                   Tags are highlighted in the editor and searchable with <code>#tag</code> in
                   the search bar. Customize tag colors in{" "}
-                  <button className="settings-link" onClick={() => setActiveTab("colors")}>Colors</button>.
+                  <button className="settings-link" onClick={() => { setActiveTab("editor"); setEditorTab("colors"); }}>Customization</button>.
                 </p>
 
                 <h3>Dictionary Mentions</h3>
@@ -2782,7 +2832,7 @@ console.log(hello);
                   Type <code>@</code> in the editor to autocomplete from your dictionary.
                   Mentions are highlighted and searchable with <code>@name</code> in the search bar.
                   Manage entries in{" "}
-                  <button className="settings-link" onClick={() => setActiveTab("dictionary")}>Dictionary</button>.
+                  <button className="settings-link" onClick={() => { setActiveTab("editor"); setEditorTab("dictionary"); }}>Customization</button>.
                 </p>
 
                 <h3>Custom Emoji</h3>
@@ -2797,7 +2847,7 @@ console.log(hello);
                 <p className="settings-hint">
                   Type <code>:</code> in the editor to autocomplete your custom emoji.
                   Add your own images and use them as codex icons in{" "}
-                  <button className="settings-link" onClick={() => setActiveTab("emoji")}>Emoji</button>.
+                  <button className="settings-link" onClick={() => { setActiveTab("editor"); setEditorTab("emoji"); }}>Customization</button>.
                 </p>
 
                 <h3>Macros</h3>
@@ -2824,7 +2874,7 @@ console.log(hello);
                 <p className="settings-hint">
                   Type a macro trigger followed by Space or Enter to expand it.
                   Create custom macros in{" "}
-                  <button className="settings-link" onClick={() => setActiveTab("macros")}>Macros</button>.
+                  <button className="settings-link" onClick={() => { setActiveTab("editor"); setEditorTab("macros"); }}>Customization</button>.
                 </p>
 
                 <h3>Other</h3>
