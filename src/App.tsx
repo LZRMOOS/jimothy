@@ -31,6 +31,8 @@ import { mod, shift } from "./utils/platform";
 import { LOCAL_KEYS, isLocalKey, splitSettings } from "./utils/settings";
 import { FEATURE_TOUR_TITLE, FEATURE_TOUR_BODY } from "./utils/featureTour";
 import { TourOverlay } from "./components/TourOverlay";
+import { TasksPanel } from "./components/TasksPanel";
+import { TASK_CODEX } from "./utils/taskList";
 
 // App-wide defaults for portable preferences that should still have a value in
 // a vault whose preferences.json omits them. Everything else (codexes, tag
@@ -95,6 +97,7 @@ function App() {
   const [query, setQuery] = useState("");
   const [activeCodex, setActiveCodex] = useState<string | null>(null);
   const [viewingArchive, setViewingArchive] = useState(false);
+  const [viewingTasks, setViewingTasks] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [editingCodexIcon, setEditingCodexIcon] = useState<string | null>(null);
   const [codexIconAnchor, setCodexIconAnchor] = useState<HTMLElement | null>(null);
@@ -182,7 +185,7 @@ function App() {
   }, [notes, splitNoteId]);
 
   const activeNotes = useMemo(() =>
-    viewingArchive ? notes.filter((n) => n.archived) : notes.filter((n) => !n.archived),
+    viewingArchive ? notes.filter((n) => n.archived) : notes.filter((n) => !n.archived && n.codex !== TASK_CODEX),
     [notes, viewingArchive]
   );
 
@@ -195,14 +198,15 @@ function App() {
   }, [viewingArchive, archivedCount]);
 
   const codexList = useMemo(() =>
-    Array.from(new Set(notes.filter((n) => !n.archived).map((n) => n.codex).filter(Boolean) as string[])).sort(),
+    Array.from(new Set(notes.filter((n) => !n.archived).map((n) => n.codex).filter((c): c is string => !!c && c !== TASK_CODEX))).sort(),
     [notes]
   );
+
 
   const codexCounts = useMemo(() => {
     const counts: Record<string, number> = {};
     for (const n of notes) {
-      if (n.archived || !n.codex) continue;
+      if (n.archived || !n.codex || n.codex === TASK_CODEX) continue;
       counts[n.codex] = (counts[n.codex] || 0) + 1;
     }
     return counts;
@@ -1475,8 +1479,8 @@ function App() {
       {!sidebarCollapsed && (
         <div className="codex-sidebar" data-tour="sidebar">
           <button
-            className={`codex-sidebar-item ${activeCodex === null && !viewingArchive ? "active" : ""}`}
-            onClick={() => { setActiveCodex(null); setViewingArchive(false); }}
+            className={`codex-sidebar-item ${activeCodex === null && !viewingArchive && !viewingTasks ? "active" : ""}`}
+            onClick={() => { setActiveCodex(null); setViewingArchive(false); setViewingTasks(false); }}
             title="All Notes"
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -1491,7 +1495,7 @@ function App() {
               <button
                 className={`codex-sidebar-item ${activeCodex === codex && !viewingArchive ? "active" : ""}`}
                 style={appSettings.codexColors?.[codex] ? { color: appSettings.codexColors[codex] } : undefined}
-                onClick={() => { setActiveCodex(activeCodex === codex ? null : codex); setViewingArchive(false); }}
+                onClick={() => { setActiveCodex(activeCodex === codex ? null : codex); setViewingArchive(false); setViewingTasks(false); }}
                 onDoubleClick={(e) => { setEditingCodexIcon(codex); setCodexIconAnchor(e.currentTarget); }}
                 title={`${codex} (double-click to set icon)`}
               >
@@ -1513,10 +1517,20 @@ function App() {
             </div>
           ))}
           <div className="codex-sidebar-bottom">
+            <button
+              className={`codex-sidebar-item ${viewingTasks ? "active" : ""}`}
+              onClick={() => { setViewingTasks((s) => !s); setActiveCodex(null); setViewingArchive(false); }}
+              title="Tasks"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="3" width="18" height="18" rx="3" />
+                <polyline points="9 11 12 14 16 9" />
+              </svg>
+            </button>
             {archivedCount > 0 && (
               <button
                 className={`codex-sidebar-item codex-sidebar-archive ${viewingArchive ? "active" : ""}`}
-                onClick={() => { setViewingArchive((s) => !s); setActiveCodex(null); }}
+                onClick={() => { setViewingArchive((s) => !s); setActiveCodex(null); setViewingTasks(false); }}
                 title={`Archive (${archivedCount})`}
               >
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -1581,6 +1595,19 @@ function App() {
           onReloadEmojis={reloadEmojis}
           initialTab={settingsTab}
         />
+      ) : viewingTasks ? (
+        <div className="main-content">
+          <TasksPanel
+            notes={notes}
+            onSave={(id, title, body, codex) => saveNote(id, title, body, codex ?? null)}
+            onCreate={async (title, codex) => {
+              const note = (await invoke("create_note", { title, codex: codex || null })) as typeof notes[0];
+              await loadNotes();
+              return note;
+            }}
+            onNavigateNote={(id) => { setViewingTasks(false); setSelectedId(id); }}
+          />
+        </div>
       ) : (
         <div className="main-content">
           {!sidebarCollapsed && (
