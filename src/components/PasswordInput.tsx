@@ -7,10 +7,11 @@ type Props = {
   className?: string;
   error?: boolean;
   disabled?: boolean;
+  autoFocus?: boolean;
 };
 
 export const PasswordInput = forwardRef<HTMLInputElement, Props>(
-  ({ placeholder = "Password", value, onChange, className = "settings-input", error, disabled }, ref) => {
+  ({ placeholder = "Password", value, onChange, className = "settings-input", error, disabled, autoFocus }, ref) => {
     const [visible, setVisible] = useState(false);
     return (
       <div className="password-input-wrapper">
@@ -22,6 +23,7 @@ export const PasswordInput = forwardRef<HTMLInputElement, Props>(
           onChange={(e) => onChange(e.target.value)}
           className={`${className}${error ? " unlock-input-error" : ""}`}
           disabled={disabled}
+          autoFocus={autoFocus}
           autoComplete="off"
           autoCapitalize="off"
           autoCorrect="off"

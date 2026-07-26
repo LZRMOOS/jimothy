@@ -59,6 +59,9 @@ function App() {
     vaultLoading,
     checkVaultStatus,
     unlockVault,
+    pinUnlock,
+    pinVerify,
+    pinUnlockProtection,
     lockVault,
     setupVault,
     changePassword,
@@ -126,9 +129,29 @@ function App() {
   const appSettingsRef = useRef<AppSettings>(appSettings);
   const [notesFolder, setNotesFolder] = useState<string | null>(null);
   const [emojis, setEmojis] = useState<EmojiEntry[]>([]);
+  const [pinEnrolled, setPinEnrolled] = useState(false);
+  // Whether the PIN also covers note protection (a separate escrow entry). Lets
+  // the sensitive-note gate offer the PIN even while the vault is unlocked.
+  const [pinProtectionEnrolled, setPinProtectionEnrolled] = useState(false);
   useEffect(() => {
     appSettingsRef.current = appSettings;
   }, [appSettings]);
+
+  // Refresh whether a PIN is enrolled whenever the vault is locked (so the
+  // unlock screen shows the PIN affordance) or the folder changes.
+  useEffect(() => {
+    if (!notesFolder) { setPinEnrolled(false); return; }
+    invoke("pin_enrolled").then((v) => setPinEnrolled(!!v)).catch(() => setPinEnrolled(false));
+  }, [notesFolder, vaultStatus]);
+
+  // Track the protection PIN escrow separately — it gates the sensitive-note
+  // re-auth prompt, which is reachable while the vault is unlocked.
+  useEffect(() => {
+    if (!notesFolder) { setPinProtectionEnrolled(false); return; }
+    invoke("pin_protection_enrolled")
+      .then((v) => setPinProtectionEnrolled(!!v))
+      .catch(() => setPinProtectionEnrolled(false));
+  }, [notesFolder, vaultStatus, protectionStatus]);
 
   const reloadEmojis = useCallback(async () => {
     try {
@@ -555,6 +578,20 @@ function App() {
       return success;
     },
     [unlockVault, loadNotes]
+  );
+
+  const handlePinUnlock = useCallback(
+    async (pin: string) => {
+      const res = await pinUnlock(pin);
+      if (res.status === "ok") {
+        await loadNotes();
+      } else if (res.status === "wiped" || res.status === "not-enrolled") {
+        // The escrow is gone; reflect that so the PIN affordance disappears.
+        setPinEnrolled(false);
+      }
+      return res;
+    },
+    [pinUnlock, loadNotes]
   );
 
   const handleLock = useCallback(async () => {
@@ -1323,6 +1360,8 @@ function App() {
         onUnlock={handleUnlock}
         error={vaultError}
         loading={vaultLoading}
+        pinEnrolled={pinEnrolled}
+        onPinUnlock={handlePinUnlock}
       />
     );
   }
@@ -1508,6 +1547,7 @@ function App() {
           protectionStatus={protectionStatus}
           onChangeProtectionPassword={changeProtectionPassword}
           onDisableProtection={disableProtection}
+          onUnlockProtection={unlockProtection}
           protectionError={protectionError}
           protectionLoading={protectionLoading}
           codexList={codexList}
@@ -1620,6 +1660,8 @@ function App() {
               onNavigate={navigateNote}
               onVerify={vaultStatus === "plaintext" ? verifyProtection : undefined}
               verifyCommand={vaultStatus !== "plaintext" ? "verify_password" : undefined}
+              pinEnrolled={vaultStatus === "plaintext" ? pinProtectionEnrolled : pinEnrolled}
+              onPinSubmit={vaultStatus === "plaintext" ? pinUnlockProtection : pinVerify}
             />
           ) : selectedNote ? (
             <div className={`editor-split-container${splitNote ? " split-active" : ""}`} data-tour="editor">

@@ -59,6 +59,12 @@ export function ProtectionSetup({ onSetup }: Props) {
           This password will be used to encrypt all notes you mark as protected.
           Note contents are encrypted on disk while titles remain searchable.
         </p>
+        <p className="sensitive-prompt-hint sensitive-prompt-advice">
+          No rules on length or characters, it's all up to you. A few random
+          words make a password that's easy to remember and hard to crack. Don't
+          reuse one from elsewhere, and keep it safe: there's no way to recover
+          it if you forget it.
+        </p>
         <form onSubmit={handleSubmit}>
           <PasswordInput
             ref={inputRef}

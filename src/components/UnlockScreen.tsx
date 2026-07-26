@@ -1,28 +1,47 @@
 import { useState, useRef, useEffect } from "react";
 import { PasswordInput } from "./PasswordInput";
+import { PinInput } from "./PinInput";
+import { usePinEntry } from "../hooks/usePinEntry";
+import type { PinUnlockResult } from "../hooks/useVault";
 
 type Props = {
   onUnlock: (password: string) => Promise<boolean>;
   error: string | null;
   loading: boolean;
+  /** Whether a PIN is enrolled for this vault on this device. */
+  pinEnrolled?: boolean;
+  /** Attempt a PIN unlock; returns the discriminated result. */
+  onPinUnlock?: (pin: string) => Promise<PinUnlockResult>;
 };
 
-export function UnlockScreen({ onUnlock, error, loading }: Props) {
+export function UnlockScreen({ onUnlock, error, loading, pinEnrolled, onPinUnlock }: Props) {
   const [password, setPassword] = useState("");
   const [shake, setShake] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const pinRef = useRef<HTMLInputElement>(null);
+
+  const pinEntry = usePinEntry({
+    pinEnrolled,
+    onPinSubmit: onPinUnlock,
+    onSuccess: () => {}, // App swaps to the unlocked view on its own.
+    inputRef: pinRef,
+    formatWrong: (remaining) =>
+      `Incorrect PIN. ${remaining} attempt${remaining === 1 ? "" : "s"} left.`,
+    wipedMessage: "Too many attempts. PIN removed — please use your password.",
+  });
 
   useEffect(() => {
-    inputRef.current?.focus();
-  }, []);
+    if (pinEntry.usePin) pinRef.current?.focus();
+    else inputRef.current?.focus();
+  }, [pinEntry.usePin]);
 
   useEffect(() => {
-    if (error) {
+    if (error || pinEntry.message) {
       setShake(true);
       const t = setTimeout(() => setShake(false), 500);
       return () => clearTimeout(t);
     }
-  }, [error]);
+  }, [error, pinEntry.message]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -44,22 +63,69 @@ export function UnlockScreen({ onUnlock, error, loading }: Props) {
           </svg>
         </div>
         <h2>Notes Locked</h2>
-        <p>Enter your password to unlock your notes.</p>
-        <form onSubmit={handleSubmit}>
-          <PasswordInput
-            ref={inputRef}
-            className="unlock-input"
-            placeholder="Password"
-            value={password}
-            onChange={setPassword}
-            error={!!error}
-            disabled={loading}
-          />
-          <button className="btn primary unlock-btn" type="submit" disabled={loading}>
-            {loading ? "Unlocking…" : "Unlock"}
-          </button>
-        </form>
-        {error && <p className="unlock-error">{error}</p>}
+
+        {pinEntry.usePin && onPinUnlock ? (
+          <>
+            <p>Enter your PIN to unlock your notes.</p>
+            <form onSubmit={pinEntry.submit}>
+              <PinInput
+                length={4}
+                firstSlotRef={pinRef}
+                value={pinEntry.pin}
+                onChange={pinEntry.changePin}
+                onComplete={(v) => pinEntry.submit(v)}
+                autoFocus
+                disabled={loading}
+                error={!!pinEntry.message}
+              />
+              <button
+                className="btn primary unlock-btn"
+                type="submit"
+                disabled={loading || pinEntry.busy || !pinEntry.canSubmit}
+              >
+                {loading || pinEntry.busy ? "Unlocking…" : "Unlock"}
+              </button>
+            </form>
+            <button
+              className="btn-link unlock-alt"
+              type="button"
+              disabled={loading}
+              onClick={pinEntry.switchToPassword}
+            >
+              Use password instead
+            </button>
+            {pinEntry.message && <p className="unlock-error">{pinEntry.message}</p>}
+          </>
+        ) : (
+          <>
+            <p>Enter your password to unlock your notes.</p>
+            <form onSubmit={handleSubmit}>
+              <PasswordInput
+                ref={inputRef}
+                className="unlock-input"
+                placeholder="Password"
+                value={password}
+                onChange={setPassword}
+                error={!!error}
+                disabled={loading}
+              />
+              <button className="btn primary unlock-btn" type="submit" disabled={loading}>
+                {loading ? "Unlocking…" : "Unlock"}
+              </button>
+            </form>
+            {pinEntry.available && (
+              <button
+                className="btn-link unlock-alt"
+                type="button"
+                disabled={loading}
+                onClick={pinEntry.switchToPin}
+              >
+                Use PIN instead
+              </button>
+            )}
+            {error && <p className="unlock-error">{error}</p>}
+          </>
+        )}
       </div>
     </div>
   );

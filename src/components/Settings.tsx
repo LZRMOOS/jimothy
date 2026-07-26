@@ -5,6 +5,7 @@ import { invoke, convertFileSrc } from "@tauri-apps/api/core";
 import { getVersion } from "@tauri-apps/api/app";
 import { Dropdown } from "./Dropdown";
 import { PasswordInput } from "./PasswordInput";
+import { PinInput } from "./PinInput";
 import type { AppSettings, VaultStatus, ThemeColors, ColorPreset, VaultProfile } from "../types";
 import type { EmojiEntry } from "../extensions/emoji";
 import { isMac, modName, altName, superName } from "../utils/platform";
@@ -12,10 +13,262 @@ import { HIDEABLE_COMMANDS } from "../utils/commands";
 
 type SettingsTab = "general" | "organization" | "keyboard" | "macros" | "dictionary" | "emoji" | "colors" | "storage" | "security" | "markdown";
 
+// Self-contained PIN quick-unlock control. Works for either escrow: the vault
+// (rendered while the vault is unlocked) or note protection (rendered in
+// plaintext mode while protection is unlocked). `checkEnrolled` reports whether
+// the relevant escrow exists; enrolling wraps whichever keys are in memory.
+function PinControl({
+  checkEnrolled,
+  description,
+  tooltip,
+  showToast,
+  refreshToken,
+  locked,
+  onUnlock,
+}: {
+  checkEnrolled: () => Promise<boolean>;
+  description: string;
+  // Extra detail (caveats, storage/security notes) shown in a hover tooltip so
+  // the inline description can stay a single line.
+  tooltip?: React.ReactNode;
+  showToast: (msg: string) => void;
+  // Bump to force a re-check after the backend purges an escrow out-of-band
+  // (e.g. a vault password change wipes the vault escrow).
+  refreshToken?: number;
+  // The layer's key isn't in memory yet (e.g. note protection is locked), so we
+  // can't wrap it under a PIN until the user unlocks. When true, "Set PIN"
+  // prompts for the password inline (via onUnlock) before showing the PIN
+  // fields. Removing an already-enrolled PIN stays available regardless.
+  locked?: boolean;
+  onUnlock?: (password: string) => Promise<boolean>;
+}) {
+  const [enrolled, setEnrolled] = useState(false);
+  const [showForm, setShowForm] = useState(false);
+  const [pinValue, setPinValue] = useState("");
+  const [pinConfirm, setPinConfirm] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+  // Inline unlock step, only used when `locked`: gate the PIN fields behind the
+  // layer's password so we have a key to wrap.
+  const [unlockPw, setUnlockPw] = useState("");
+  const [needsUnlock, setNeedsUnlock] = useState(false);
+  const [shake, setShake] = useState(false);
+
+  const triggerShake = () => {
+    setShake(true);
+    setTimeout(() => setShake(false), 500);
+  };
+
+  // Keep the latest checkEnrolled without making it an effect dependency — the
+  // prop is an inline arrow recreated each render, which would otherwise re-run
+  // the check (and its IPC) on every render.
+  const checkEnrolledRef = useRef(checkEnrolled);
+  checkEnrolledRef.current = checkEnrolled;
+
+  // The PIN control sits at the bottom of the Security tab, so opening the form
+  // can push it (and its submit button) below the fold. Scroll a sentinel at the
+  // very bottom of the form region into view so everything above it — inputs and
+  // buttons — is guaranteed visible. Double rAF: the input's autoFocus triggers
+  // the browser's own "scroll focused element into view" (which only nudges the
+  // input's edge in, leaving the buttons cut off); running a frame later lets our
+  // scroll win. The sentinel's scroll-margin adds breathing room at the bottom.
+  const formBottomRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (showForm || needsUnlock) {
+      requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+          formBottomRef.current?.scrollIntoView({ behavior: "smooth", block: "end" });
+        });
+      });
+    }
+  }, [showForm, needsUnlock, error]);
+
+  const refresh = useCallback(() => {
+    checkEnrolledRef.current().then(setEnrolled).catch(() => {});
+  }, []);
+
+  useEffect(() => { refresh(); }, [refresh, refreshToken]);
+
+  const handleEnroll = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    if (!/^\d{4}$/.test(pinValue)) {
+      setError("PIN must be 4 digits.");
+      triggerShake();
+      return;
+    }
+    if (pinValue !== pinConfirm) {
+      setError("PINs do not match.");
+      triggerShake();
+      return;
+    }
+    setBusy(true);
+    try {
+      await invoke("enroll_pin", { pin: pinValue });
+      setShowForm(false);
+      setPinValue("");
+      setPinConfirm("");
+      setEnrolled(true);
+      showToast("PIN unlock enabled");
+    } catch (err) {
+      setError(String(err));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  // Start the flow. If the layer is locked we can't wrap its key yet, so prompt
+  // for the password first; otherwise jump straight to the PIN fields.
+  const startSetPin = () => {
+    setError(null);
+    setPinValue("");
+    setPinConfirm("");
+    setUnlockPw("");
+    if (locked && onUnlock) {
+      setNeedsUnlock(true);
+      setShowForm(false);
+    } else {
+      setNeedsUnlock(false);
+      setShowForm(true);
+    }
+  };
+
+  const handleUnlock = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!onUnlock || !unlockPw) return;
+    setError(null);
+    setBusy(true);
+    try {
+      const ok = await onUnlock(unlockPw);
+      if (ok) {
+        // Key is now in memory — advance to the PIN fields.
+        setUnlockPw("");
+        setNeedsUnlock(false);
+        setShowForm(true);
+      } else {
+        setError("Incorrect password.");
+        triggerShake();
+        setUnlockPw("");
+      }
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const cancelForm = () => {
+    setShowForm(false);
+    setNeedsUnlock(false);
+    setError(null);
+    setUnlockPw("");
+    setPinValue("");
+    setPinConfirm("");
+  };
+
+  const handleDisable = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      await invoke("disable_pin");
+      setEnrolled(false);
+      showToast("PIN unlock removed");
+    } catch (err) {
+      setError(String(err));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <>
+      <div className="settings-row settings-pin">
+        <div className="settings-row-text">
+          <label>PIN quick-unlock{tooltip && <InfoTooltip>{tooltip}</InfoTooltip>}</label>
+          <p className="settings-row-desc">{description}</p>
+          {error && !showForm && !needsUnlock && <p className="error">{error}</p>}
+        </div>
+        {enrolled ? (
+          <button className="btn danger-outline" disabled={busy} onClick={handleDisable}>
+            Remove PIN
+          </button>
+        ) : !showForm && !needsUnlock ? (
+          <button className="btn secondary" disabled={busy} onClick={startSetPin}>
+            Set PIN
+          </button>
+        ) : null}
+      </div>
+
+      <div>
+      {needsUnlock && !enrolled && (
+        <form className={`settings-form ${shake ? "shake" : ""}`} onSubmit={handleUnlock}>
+          <p className="settings-hint">
+            Enter your protection password to set a PIN for it.
+          </p>
+          <PasswordInput
+            placeholder="Protection password"
+            value={unlockPw}
+            onChange={setUnlockPw}
+            error={!!error}
+            autoFocus
+          />
+          {error && <p className="error">{error}</p>}
+          <div className="settings-actions">
+            <button type="submit" className="btn primary" disabled={busy || !unlockPw}>
+              {busy ? "Unlocking..." : "Continue"}
+            </button>
+            <button type="button" className="btn secondary" onClick={cancelForm}>
+              Cancel
+            </button>
+          </div>
+        </form>
+      )}
+
+      {showForm && !enrolled && (
+        <form className={`settings-form ${shake ? "shake" : ""}`} onSubmit={handleEnroll}>
+          <label className="pin-field-label">Enter a 4-digit PIN</label>
+          <PinInput
+            length={4}
+            value={pinValue}
+            onChange={(v) => { setPinValue(v); setError(null); }}
+            autoFocus
+            error={!!error}
+            ariaLabel="New PIN"
+          />
+          <label className="pin-field-label">Confirm PIN</label>
+          <PinInput
+            length={4}
+            value={pinConfirm}
+            onChange={(v) => { setPinConfirm(v); setError(null); }}
+            error={!!error}
+            ariaLabel="Confirm PIN"
+          />
+          {error && <p className="error">{error}</p>}
+          <div className="settings-actions">
+            <button type="submit" className="btn primary" disabled={busy || pinValue.length < 4}>
+              {busy ? "Saving..." : "Save PIN"}
+            </button>
+            <button
+              type="button"
+              className="btn secondary"
+              onClick={cancelForm}
+            >
+              Cancel
+            </button>
+          </div>
+        </form>
+      )}
+      {(showForm || needsUnlock) && !enrolled && (
+        <div ref={formBottomRef} className="scroll-sentinel" aria-hidden="true" />
+      )}
+      </div>
+    </>
+  );
+}
+
 function NoteProtectionSection({
   protectionStatus,
   onChangeProtectionPassword,
   onDisableProtection,
+  onUnlockProtection,
   protectionError,
   protectionLoading,
   onReloadNotes,
@@ -24,6 +277,7 @@ function NoteProtectionSection({
   protectionStatus: ProtectionStatus;
   onChangeProtectionPassword: (current: string, newPassword: string) => Promise<boolean>;
   onDisableProtection: (password: string) => Promise<boolean>;
+  onUnlockProtection: (password: string) => Promise<boolean>;
   protectionError: string | null;
   protectionLoading: boolean;
   onReloadNotes: () => Promise<void>;
@@ -40,7 +294,6 @@ function NoteProtectionSection({
   const [changeErr, setChangeErr] = useState<string | null>(null);
   const [changeErrField, setChangeErrField] = useState<"current" | "new" | "confirm" | null>(null);
   const [changeShake, setChangeShake] = useState(false);
-
   const triggerShake = (setter: (v: boolean) => void) => {
     setter(true);
     setTimeout(() => setter(false), 500);
@@ -122,10 +375,30 @@ function NoteProtectionSection({
               Disable Note Protection
             </button>
           </div>
+
+          <PinControl
+            checkEnrolled={() => invoke<boolean>("pin_protection_enrolled")}
+            description="Unlock your protected notes with a 4-digit PIN instead of your protection password."
+            tooltip={
+              <ul>
+                <li>Your password always works and is required again after any password change</li>
+                <li>The PIN-wrapped key is stored only on this device, never synced</li>
+                <li>Erased after 10 wrong tries, then you fall back to your password</li>
+                <li>Convenient but weaker than your password, so pick one you don't use elsewhere</li>
+              </ul>
+            }
+            showToast={showToast}
+            locked={protectionStatus === "locked"}
+            onUnlock={onUnlockProtection}
+          />
         </>
       )}
       {showChange && (
         <form className={`settings-form ${changeShake ? "shake" : ""}`} onSubmit={handleChange}>
+          <p className="settings-hint">
+            Pick a strong new password
+            <PasswordAdvice />
+          </p>
           <PasswordInput
             placeholder="Current password"
             value={currentPw}
@@ -1254,6 +1527,22 @@ function InfoTooltip({ text, children }: { text?: string; children?: React.React
   );
 }
 
+// Shared recommendation shown wherever the user sets a NEW password (vault
+// setup, note protection setup, change-password). There are no enforced rules,
+// so this is guidance, not validation — kept short and tucked into a tooltip.
+function PasswordAdvice() {
+  return (
+    <InfoTooltip>
+      <ul>
+        <li>No rules here, any password works. It's all up to you.</li>
+        <li>Longer beats complex: a few random words is easy to remember and hard to crack.</li>
+        <li>Don't reuse a password from somewhere else.</li>
+        <li>No way to recover it if you forget it, so keep it safe.</li>
+      </ul>
+    </InfoTooltip>
+  );
+}
+
 type ProtectionStatus = "none" | "locked" | "unlocked";
 
 type Props = {
@@ -1273,6 +1562,7 @@ type Props = {
   protectionStatus: ProtectionStatus;
   onChangeProtectionPassword: (current: string, newPassword: string) => Promise<boolean>;
   onDisableProtection: (password: string) => Promise<boolean>;
+  onUnlockProtection: (password: string) => Promise<boolean>;
   protectionError: string | null;
   protectionLoading: boolean;
   codexList: string[];
@@ -1302,6 +1592,7 @@ export function Settings({
   protectionStatus,
   onChangeProtectionPassword,
   onDisableProtection,
+  onUnlockProtection,
   protectionError,
   protectionLoading,
   codexList,
@@ -1353,6 +1644,10 @@ export function Settings({
   // Setup form shake
   const [setupShake, setSetupShake] = useState(false);
   const [setupErrField, setSetupErrField] = useState<"password" | "confirm" | null>(null);
+
+  // Bumped when the backend purges a PIN escrow out-of-band (vault re-key /
+  // disable) so a mounted PinControl re-checks its enrolled state.
+  const [pinRefresh, setPinRefresh] = useState(0);
 
   // Success toast
   const [successToast, setSuccessToast] = useState<string | null>(null);
@@ -1431,6 +1726,9 @@ export function Settings({
       setCurrentPassword("");
       setNewPassword("");
       setNewConfirm("");
+      // Backend purges the vault PIN escrow on re-key (it wrapped the old key),
+      // so re-check the PIN control. User can re-enroll a PIN with the new key.
+      setPinRefresh((n) => n + 1);
       showToast("Password changed");
     } else {
       setChangeError(vaultError || "Invalid current password.");
@@ -1447,6 +1745,8 @@ export function Settings({
     if (success) {
       setShowDisableForm(false);
       setDisablePassword("");
+      // Backend removed the vault PIN escrow with the vault; re-check the control.
+      setPinRefresh((n) => n + 1);
       await onReloadNotes();
       showToast("Vault encryption disabled");
     } else {
@@ -2076,6 +2376,10 @@ export function Settings({
                       This will encrypt all notes. If you forget this password,
                       your notes cannot be recovered.
                     </p>
+                    <p className="settings-hint">
+                      Pick a strong password
+                      <PasswordAdvice />
+                    </p>
                     <PasswordInput
                       placeholder="Password"
                       value={setupPassword}
@@ -2136,11 +2440,31 @@ export function Settings({
                       </button>
                     </div>
 
+                    <PinControl
+                      checkEnrolled={() => invoke<boolean>("pin_enrolled")}
+                      description="Unlock this vault with a 4-digit PIN instead of your full password."
+                      tooltip={
+                        <ul>
+                          <li>Your password always works and is required again after any password change</li>
+                          <li>If note protection is also unlocked, the same PIN guards your protected notes too</li>
+                          <li>The PIN-wrapped key is stored only on this device, never synced</li>
+                          <li>Erased after 10 wrong tries, then you fall back to your password</li>
+                          <li>Convenient but weaker than your password, so pick one you don't use elsewhere</li>
+                        </ul>
+                      }
+                      showToast={showToast}
+                      refreshToken={pinRefresh}
+                    />
+
                     {showChangeForm && (
                       <form
                         className={`settings-form ${vaultChangeShake ? "shake" : ""}`}
                         onSubmit={handleChangePassword}
                       >
+                        <p className="settings-hint">
+                          Pick a strong new password
+                          <PasswordAdvice />
+                        </p>
                         <PasswordInput
                           placeholder="Current password"
                           value={currentPassword}
@@ -2242,6 +2566,7 @@ export function Settings({
                     protectionStatus={protectionStatus}
                     onChangeProtectionPassword={onChangeProtectionPassword}
                     onDisableProtection={onDisableProtection}
+                    onUnlockProtection={onUnlockProtection}
                     protectionError={protectionError}
                     protectionLoading={protectionLoading}
                     onReloadNotes={onReloadNotes}

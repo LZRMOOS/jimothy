@@ -2270,6 +2270,98 @@ img.emoji {
   animation: fadeIn 0.2s ease;
 }
 
+/* PIN entry: wide letter spacing so masked digits read as a PIN, not a password. */
+.pin-input {
+  text-align: center;
+  letter-spacing: 0.4em;
+  font-size: 18px;
+}
+.pin-input::placeholder {
+  letter-spacing: normal;
+}
+
+/* Segmented PIN entry: one box per digit ( _ _ _ _ _ _ ). */
+.pin-slots {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+}
+
+.pin-slot {
+  width: 44px;
+  height: 52px;
+  padding: 0;
+  text-align: center;
+  font-size: 22px;
+  font-weight: 600;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--bg-secondary);
+  color: var(--text-primary);
+  outline: none;
+  transition: border-color var(--transition), box-shadow var(--transition);
+}
+
+.pin-slot:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-subtle);
+}
+
+.pin-slots.error .pin-slot {
+  border-color: var(--danger);
+}
+
+.pin-slots.error .pin-slot:focus {
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.15);
+}
+
+.pin-field-label {
+  font-size: 12px;
+  color: var(--text-hint);
+  text-align: center;
+}
+
+/* Zero-height marker scrolled into view after a form opens near the page
+   bottom. The scroll-margin leaves breathing room so the form's buttons aren't
+   flush against the viewport edge. */
+.scroll-sentinel {
+  height: 0;
+  scroll-margin-bottom: 24px;
+}
+
+/* Text-style link button for "Use PIN / password instead" toggles. */
+.btn-link {
+  background: none;
+  border: none;
+  padding: 4px;
+  margin-top: 10px;
+  color: var(--accent);
+  font-size: 13px;
+  cursor: pointer;
+}
+.btn-link:hover {
+  text-decoration: underline;
+}
+.btn-link:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.settings-pin {
+  margin-top: 14px;
+}
+
+/* The "unlock protection first" hint sits opposite the text column in a flex
+   row. Cap and align it so it never out-competes the description for width and
+   collapse it into one-word-per-line. */
+.settings-pin .settings-hint {
+  flex: 0 1 auto;
+  max-width: 45%;
+  min-width: 0;
+  margin: 0;
+  text-align: right;
+}
+
 @keyframes fadeIn {
   from { opacity: 0; transform: translateY(-4px); }
   to { opacity: 1; transform: translateY(0); }
@@ -2365,7 +2457,9 @@ img.emoji {
   flex-direction: column;
   max-width: 600px;
   margin: 0 auto;
-  padding: 28px 32px;
+  /* Generous bottom padding so any form opened near the end of a tab can
+     scroll clear of the fold instead of butting against the window edge. */
+  padding: 28px 32px 160px;
   width: 100%;
 }
 
@@ -3904,6 +3998,14 @@ img.emoji {
   font-size: 13px;
   color: var(--text-hint);
   max-width: 400px;
+}
+
+.sensitive-prompt-advice {
+  font-size: 12px;
+  opacity: 0.8;
+  border-top: 1px solid var(--border);
+  padding-top: 10px;
+  margin-top: 2px;
 }
 
 .sensitive-prompt-content form {
