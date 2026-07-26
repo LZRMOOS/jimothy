@@ -122,6 +122,7 @@ function App() {
   const [showConflictResolver, setShowConflictResolver] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [settingsTab, setSettingsTab] = useState<"general" | "organization" | "keyboard" | "macros" | "dictionary" | "emoji" | "colors" | "storage" | "security" | "markdown" | undefined>(undefined);
   const [showCommandPalette, setShowCommandPalette] = useState(false);
   const [showReferencePanel, setShowReferencePanel] = useState(false);
   const [showTour, setShowTour] = useState(false);
@@ -515,6 +516,12 @@ function App() {
   }, [vaultStatus, lockVault]);
 
   useEventListener("open-settings", () => {
+    setSettingsTab(undefined);
+    setShowSettings(true);
+  });
+
+  useEventListener("open-about", () => {
+    setSettingsTab("general");
     setShowSettings(true);
   });
 
@@ -1572,6 +1579,7 @@ function App() {
           codexCounts={codexCounts}
           emojis={emojis}
           onReloadEmojis={reloadEmojis}
+          initialTab={settingsTab}
         />
       ) : (
         <div className="main-content">

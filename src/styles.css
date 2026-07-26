@@ -2533,6 +2533,7 @@ img.emoji {
 .settings-content {
   flex: 1;
   min-width: 0;
+  padding-bottom: 4rem;
 }
 
 .settings-section h3 {
@@ -4457,4 +4458,34 @@ img.emoji {
     animation: none;
     transition: none;
   }
+}
+
+/* About Section */
+.about-info .settings-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 0;
+  border-bottom: 1px solid var(--border-color);
+}
+
+.about-info .settings-row:last-child {
+  border-bottom: none;
+}
+
+.about-info label {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--text-secondary);
+}
+
+.about-info a {
+  color: var(--accent);
+  text-decoration: none;
+  transition: color 0.2s;
+}
+
+.about-info a:hover {
+  color: var(--accent-hover);
+  text-decoration: underline;
 }

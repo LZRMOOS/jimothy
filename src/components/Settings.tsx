@@ -1573,6 +1573,7 @@ type Props = {
   codexCounts: Record<string, number>;
   emojis: EmojiEntry[];
   onReloadEmojis: () => Promise<void>;
+  initialTab?: SettingsTab;
 };
 
 export function Settings({
@@ -1603,6 +1604,7 @@ export function Settings({
   codexCounts,
   emojis,
   onReloadEmojis,
+  initialTab,
 }: Props) {
   useEffect(() => {
     const handleKey = (e: KeyboardEvent) => {
@@ -1612,7 +1614,7 @@ export function Settings({
     return () => window.removeEventListener("keydown", handleKey);
   }, [onClose]);
 
-  const [activeTab, setActiveTab] = useState<SettingsTab>("general");
+  const [activeTab, setActiveTab] = useState<SettingsTab>(initialTab || "general");
   const [autoStart, setAutoStart] = useState(false);
   const [appVersion, setAppVersion] = useState("");
 
@@ -1892,6 +1894,38 @@ export function Settings({
                       onSettingsChange({ ...settings, tocDefault: e.target.checked })
                     }
                   />
+                </div>
+
+                <h3>About</h3>
+                <div className="about-info">
+                  <div className="settings-row">
+                    <label>Version</label>
+                    <span>{appVersion || "..."}</span>
+                  </div>
+                  <div className="settings-row">
+                    <label>Developer</label>
+                    <span>Wei Dai</span>
+                  </div>
+                  <div className="settings-row">
+                    <label>Website</label>
+                    <a href="https://lzrmoos.com" target="_blank" rel="noopener noreferrer">
+                      lzrmoos.com
+                    </a>
+                  </div>
+                  <div className="settings-row">
+                    <label>Email</label>
+                    <a href="mailto:dev@lzrmoos.com">dev@lzrmoos.com</a>
+                  </div>
+                  <div className="settings-row">
+                    <label>GitHub</label>
+                    <a href="https://github.com/LZRMOOS/jimothy" target="_blank" rel="noopener noreferrer">
+                      github.com/LZRMOOS/jimothy
+                    </a>
+                  </div>
+                  <div className="settings-row">
+                    <label>Copyright</label>
+                    <span>© 2026 Wei Dai. All Rights Reserved.</span>
+                  </div>
                 </div>
               </div>
             )}
