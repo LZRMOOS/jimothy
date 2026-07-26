@@ -1896,9 +1896,11 @@ export function Settings({
             {activeTab === "about" && (
               <div className="settings-section">
                 <h3>Updates</h3>
-                <div className="settings-row">
-                  <label>Version</label>
-                  <span>{appVersion || "..."}</span>
+                <div className="about-info">
+                  <div className="settings-row">
+                    <label>Version</label>
+                    <span>{appVersion || "..."}</span>
+                  </div>
                 </div>
                 <p className="settings-hint">Auto-updates coming soon</p>
 
@@ -1924,11 +1926,9 @@ export function Settings({
                       github.com/LZRMOOS/jimothy
                     </a>
                   </div>
-                  <div className="settings-row">
-                    <label>Copyright</label>
-                    <span>© 2026 Wei Dai. All Rights Reserved.</span>
-                  </div>
                 </div>
+
+                <p className="about-copyright">© 2026 Wei Dai. All Rights Reserved.</p>
               </div>
             )}
 

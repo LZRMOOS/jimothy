@@ -4465,7 +4465,7 @@ img.emoji {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 0.75rem 0;
+  padding: 0.5rem 0;
   border-bottom: 1px solid var(--border-color);
 }
 
@@ -4474,12 +4474,18 @@ img.emoji {
 }
 
 .about-info label {
-  font-size: 0.875rem;
+  font-size: 0.75rem;
   font-weight: 500;
   color: var(--text-secondary);
 }
 
+.about-info span {
+  font-size: 0.875rem;
+  color: var(--text-primary);
+}
+
 .about-info a {
+  font-size: 0.875rem;
   color: var(--accent);
   text-decoration: none;
   transition: color 0.2s;
@@ -4488,4 +4494,13 @@ img.emoji {
 .about-info a:hover {
   color: var(--accent-hover);
   text-decoration: underline;
+}
+
+.about-copyright {
+  margin-top: 2rem;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border-color);
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  text-align: center;
 }
