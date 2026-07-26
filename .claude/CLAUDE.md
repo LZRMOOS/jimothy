@@ -58,6 +58,15 @@ Two independent layers of encryption:
 - All protected files share one password
 - Can coexist with vault encryption for "extra sensitive" notes
 
+**PIN Quick-Unlock** (opt-in convenience gate, module `src-tauri/src/pin/mod.rs`):
+- A 4-digit PIN is an alternative to a full password. NOT a replacement — the password stays the source of truth and always works. It works with EITHER encryption layer: vault, note protection, or both. Vault encryption is NOT required to set a PIN. Length is fixed at 4 (see `pin::PIN_LENGTH` / `PinInput length`) because it's a convenience gate, not a security boundary; the 10-attempt wipe, not the digit count, is what bounds guessing.
+- On enrollment a COPY of whichever in-memory key(s) are unlocked (vault and/or protection) is wrapped with an Argon2id key derived from the PIN and stored in the **app config dir** (`dirs::config_dir()/jimothy/pin-escrow.json`). This is DEVICE-LOCAL and NEVER placed in the notes folder / `.scratch/`, so it never syncs via Dropbox — someone who copies the synced notes gets only the full-strength password vault, no PIN escrow to attack.
+- **One PIN, up to two escrows.** The store is keyed by `"{kind}:{vault_path}"` where `kind` is `EscrowKind::Vault | Protection`. `enroll_pin` wraps every key that's in memory at that moment (at least one required, else it errors). If both the vault and note protection are unlocked, the SAME PIN wraps both (separate entries, independent salts). So one PIN both quick-unlocks the vault AND satisfies the sensitive-note re-auth gate — the user's mental model: "if you leave the vault unlocked, the PIN still guards what's sensitive." A layer that isn't unlocked at enroll time isn't covered until the PIN is re-set (enrollment only captures keys in memory at that moment).
+- `pin_enrolled` is VAULT-scoped on purpose (the vault UnlockScreen keys off it); `pin_protection_enrolled` reports the protection escrow. Settings combines both. Settings shows a PIN control in the vault-unlocked block AND in the note-protection section (plaintext mode) via the shared `PinControl` component.
+- Command layer maps each frontend path to the right escrow: `pin_unlock` (vault, installs key + loads notes), `pin_verify` (vault, re-auth only — verifies against `verification_record` WITHOUT reinstalling, for the vault-mode sensitive-note gate), `pin_unlock_protection` (installs the protection key so `.pnote` bodies decrypt, for the plaintext-mode gate). All three unwrap, then STILL validate against the relevant `verification_record` before use (rejects + deletes a stale escrow after an external re-key).
+- Wrong PINs increment a PER-ESCROW failure counter (each escrow tracks its own `fail_count` — this is a deliberate accepted trade-off, not a bug: with both layers enrolled an attacker gets up to `MAX_ATTEMPTS` guesses per escrow, ~19 before either wipes, vs 10 for a truly shared counter; acceptable because the escrow is device-local and the counter is app-enforced only). Reaching `MAX_ATTEMPTS` (10) on ANY escrow wipes BOTH (it's one PIN) and the user must use the password. `record_success` clears both counters after a validated unlock. `disable_pin` removes both (`disable_all`); layer-specific purges use `disable(kind, ...)`: vault escrow on `change_vault_password` / `disable_vault`, protection escrow on `change_protection_password` / `disable_protection`.
+- Honest limitation: an attacker with code execution on the unlocked account could read the escrow file and brute-force the PIN offline (the counter is app-enforced only). That attacker can already read the key from process memory, so the PIN isn't the weak link. It's a convenience feature, not a security upgrade. No entitlement / signing / Secure Enclave needed (unlike the parked Touch ID work on `feature/biometric-touch-id-unlock`).
+
 ### Editor
 - WYSIWYG Markdown editing via Tiptap with syntax highlighting, task lists, code blocks
 - **Internal note links**: Type `[[` to trigger autocomplete, links stored as `[Title](scratch://id)` markdown
@@ -250,6 +259,15 @@ All commands defined in `src-tauri/src/commands/mod.rs`:
 - `verify_password(password)` - Fast password check (SHA-256 or Argon2)
 - `change_vault_password(current, new_password)` - Re-encrypt with new password
 - `disable_vault(password)` - Decrypt all notes back to plaintext
+
+### PIN Quick-Unlock
+- `pin_enrolled()` - Whether a VAULT PIN is enrolled for the current vault (device-local check, no prompt). Vault-scoped so the vault UnlockScreen keys off it
+- `enroll_pin(pin)` - Wrap whichever keys are unlocked right now (vault and/or protection) under a PIN-derived key, stored device-locally. At least one must be unlocked; vault encryption is NOT required (a protection-only user can set a PIN)
+- `pin_unlock(pin)` - Attempt PIN unlock of the vault; returns `PinUnlockDto` `{ status: "ok" | "wrong" (with `remaining`) | "wiped" | "not-enrolled" }`. Validates the unwrapped key against the vault verification record before installing it
+- `pin_verify(pin)` - Verify a PIN against the vault WITHOUT reinstalling the key (sensitive-note re-auth gate while the vault is unlocked); same `PinUnlockDto`. All three unlock commands share the private `pin_unlock_with` helper (attempt → validate → zeroize-on-stale + `disable` → success closure → `record_success`)
+- `pin_protection_enrolled()` - Whether the PIN also covers note protection (separate escrow entry)
+- `pin_unlock_protection(pin)` - Unwrap + validate + install the protection key so `.pnote` notes decrypt (plaintext-mode sensitive-note gate); same `PinUnlockDto`
+- `disable_pin()` - Remove BOTH the vault and protection PIN escrows for the current vault
 
 ### Note Protection
 - `get_protection_status()` - Returns "none" | "locked" | "unlocked"

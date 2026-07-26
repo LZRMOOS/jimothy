@@ -1,6 +1,7 @@
 mod commands;
 mod crypto;
 mod notes;
+mod pin;
 mod platform;
 mod storage;
 mod watcher;
@@ -266,6 +267,13 @@ pub fn run() {
             commands::change_vault_password,
             commands::disable_vault,
             commands::verify_password,
+            commands::pin_enrolled,
+            commands::enroll_pin,
+            commands::pin_unlock,
+            commands::disable_pin,
+            commands::pin_verify,
+            commands::pin_protection_enrolled,
+            commands::pin_unlock_protection,
             commands::set_active_note,
             commands::restore_from_trash,
             commands::get_protection_status,

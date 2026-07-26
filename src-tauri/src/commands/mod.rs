@@ -697,6 +697,11 @@ pub fn change_vault_password(
     // Save new vault config
     save_vault_config(&folder, &new_config)?;
 
+    // The vault PIN escrow wraps the OLD key, which no longer opens the vault.
+    // Drop it so a stale wrapped key can't linger; the user re-enrolls the PIN if
+    // wanted. The protection escrow is untouched (it wraps a different key).
+    let _ = crate::pin::disable(crate::pin::EscrowKind::Vault, &folder.to_string_lossy());
+
     // Update state
     *state.vault_key.lock().unwrap() = Some(new_key);
     *state.vault_status.lock().unwrap() = VaultStatus::Unlocked;
@@ -738,12 +743,224 @@ pub fn disable_vault(password: String, state: State<'_, AppState>) -> Result<(),
         let _ = fs::remove_file(&config_path);
     }
 
+    // Notes are plaintext now — a PIN-wrapped vault key is useless and a needless
+    // secret at rest. Remove it. Any protection escrow stays (protection can
+    // still be active with the vault disabled).
+    let _ = crate::pin::disable(crate::pin::EscrowKind::Vault, &folder.to_string_lossy());
+
     // Update state
     *state.vault_key.lock().unwrap() = None;
     *state.vault_status.lock().unwrap() = VaultStatus::Plaintext;
     *state.notes.lock().unwrap() = plaintext_notes;
 
     Ok(())
+}
+
+// ---------------------------------------------------------------------------
+// PIN quick-unlock
+//
+// A 4-digit PIN is an opt-in convenience gate over a device-local, wrapped
+// copy of the vault key (see crate::pin). The password stays the source of
+// truth. The escrow lives in the app config dir (never synced), and is wiped
+// after `MAX_ATTEMPTS` wrong guesses and on any key change.
+// ---------------------------------------------------------------------------
+
+/// Whether a vault PIN is enrolled (device-local check). Vault-scoped on purpose:
+/// this is what the vault UnlockScreen keys off, so a protection-only PIN must
+/// NOT make it true (there'd be no vault escrow to unlock). Settings combines
+/// this with `pin_protection_enrolled` to decide "any PIN exists".
+#[tauri::command]
+pub fn pin_enrolled(state: State<'_, AppState>) -> Result<bool, String> {
+    let folder = state.folder()?;
+    Ok(crate::pin::is_enrolled(
+        crate::pin::EscrowKind::Vault,
+        &folder.to_string_lossy(),
+    ))
+}
+
+/// Enroll a PIN by wrapping whichever keys are unlocked right now: the vault key,
+/// the protection key, or both. At least one must be in memory (we escrow the
+/// exact in-memory key, never a re-derived one). This means a plaintext user who
+/// only uses note protection can still set a PIN.
+///
+/// This always REPLACES the PIN entirely (see `pin::enroll_keys`): re-setting the
+/// PIN drops any prior escrow for a layer that isn't unlocked right now, so a
+/// stale escrow can't keep answering to the OLD PIN. A layer not unlocked at
+/// enroll time is simply not covered until the PIN is re-set with it unlocked.
+#[tauri::command]
+pub fn enroll_pin(pin: String, state: State<'_, AppState>) -> Result<(), String> {
+    let folder = state.folder()?;
+    let vault_path = folder.to_string_lossy();
+
+    let vault_key = state.vault_key.lock().unwrap().clone();
+    let protection_key = state.protection_key.lock().unwrap().clone();
+
+    if vault_key.is_none() && protection_key.is_none() {
+        return Err("Unlock the vault or note protection to set a PIN".into());
+    }
+
+    crate::pin::enroll_keys(
+        &vault_path,
+        &pin,
+        vault_key.as_deref(),
+        protection_key.as_deref(),
+    )
+}
+
+/// Result of a PIN unlock, surfaced to the frontend so it can message the user
+/// (remaining attempts, escrow wiped, etc.).
+#[derive(Serialize)]
+#[serde(tag = "status", rename_all = "kebab-case")]
+pub enum PinUnlockDto {
+    Ok,
+    Wrong { remaining: u32 },
+    Wiped,
+    NotEnrolled,
+}
+
+/// Shared skeleton for the three PIN-unlock commands. Attempts to unwrap the
+/// `kind` escrow, validates the key against `verification_record`, and on success
+/// hands the validated key to `on_success` (which installs it, loads notes, or
+/// just verifies). A validation failure zeroizes the key and drops the stale
+/// escrow. The Wrong/Wiped/NotEnrolled arms map straight to the DTO, so all three
+/// commands share identical attempt-counter and error behavior by construction.
+///
+/// `on_success` takes ownership of the key: install-style callers move it into
+/// state (zeroized later on lock); verify-only callers must zeroize it themselves.
+fn pin_unlock_with<F>(
+    kind: crate::pin::EscrowKind,
+    vault_path: &str,
+    verification_record: &str,
+    pin: &str,
+    stale_msg: &str,
+    on_success: F,
+) -> Result<PinUnlockDto, String>
+where
+    F: FnOnce(Vec<u8>) -> Result<(), String>,
+{
+    match crate::pin::attempt_unlock(kind, vault_path, pin)? {
+        crate::pin::PinUnlockResult::Ok(mut key) => {
+            // Validate the unwrapped key still opens this layer (e.g. reject a
+            // stale escrow after an external re-key via sync).
+            if !crypto::verify_key(&key, verification_record)? {
+                key.zeroize();
+                let _ = crate::pin::disable(kind, vault_path);
+                return Err(stale_msg.into());
+            }
+            on_success(key)?;
+            let _ = crate::pin::record_success(vault_path);
+            Ok(PinUnlockDto::Ok)
+        }
+        crate::pin::PinUnlockResult::Wrong { remaining } => Ok(PinUnlockDto::Wrong { remaining }),
+        crate::pin::PinUnlockResult::Wiped => Ok(PinUnlockDto::Wiped),
+        crate::pin::PinUnlockResult::NotEnrolled => Ok(PinUnlockDto::NotEnrolled),
+    }
+}
+
+/// Try to unlock the vault with a PIN. On the correct PIN the unwrapped key is
+/// validated against the vault verification record before being installed, so a
+/// tampered escrow can't inject a bad key.
+#[tauri::command]
+pub fn pin_unlock(pin: String, state: State<'_, AppState>) -> Result<PinUnlockDto, String> {
+    let folder = state.folder()?;
+    let vault_path = folder.to_string_lossy().to_string();
+    let config = load_vault_config(&folder).ok_or("No vault configured")?;
+
+    pin_unlock_with(
+        crate::pin::EscrowKind::Vault,
+        &vault_path,
+        &config.verification_record,
+        &pin,
+        "Saved PIN no longer matches this vault. Use your password.",
+        |key| {
+            let notes = storage::load_encrypted_notes_from_folder(&folder, &key);
+            *state.vault_key.lock().unwrap() = Some(key);
+            *state.vault_status.lock().unwrap() = VaultStatus::Unlocked;
+            *state.notes.lock().unwrap() = notes;
+            Ok(())
+        },
+    )
+}
+
+/// Remove the PIN escrow(s) for the current vault (user turned the PIN off).
+/// Clears both the vault and protection escrows — it's one PIN.
+#[tauri::command]
+pub fn disable_pin(state: State<'_, AppState>) -> Result<(), String> {
+    let folder = state.folder()?;
+    crate::pin::disable_all(&folder.to_string_lossy())
+}
+
+/// Verify a PIN against the vault WITHOUT re-installing the key — used by the
+/// sensitive-note re-auth gate while the vault is already unlocked. This is the
+/// "you left the vault unlocked, but the PIN still guards sensitive notes" path:
+/// the note is vault-encrypted, so verifying the PIN against the vault is the
+/// right check. Shares the same escrow + attempt counter as `pin_unlock`, so
+/// brute-forcing at this gate also burns the PIN.
+#[tauri::command]
+pub fn pin_verify(pin: String, state: State<'_, AppState>) -> Result<PinUnlockDto, String> {
+    let folder = state.folder()?;
+    let vault_path = folder.to_string_lossy().to_string();
+    let config = load_vault_config(&folder).ok_or("No vault configured")?;
+
+    pin_unlock_with(
+        crate::pin::EscrowKind::Vault,
+        &vault_path,
+        &config.verification_record,
+        &pin,
+        "Saved PIN no longer matches this vault. Use your password.",
+        // Re-auth only: don't install, just drop the validated key.
+        |mut key| {
+            key.zeroize();
+            Ok(())
+        },
+    )
+}
+
+/// Whether a protection PIN escrow exists for the current vault. Distinct from
+/// `pin_enrolled` (which reports the vault escrow) — this tells the frontend the
+/// PIN can decrypt `.pnote` protected notes.
+#[tauri::command]
+pub fn pin_protection_enrolled(state: State<'_, AppState>) -> Result<bool, String> {
+    let folder = state.folder()?;
+    Ok(crate::pin::is_enrolled(
+        crate::pin::EscrowKind::Protection,
+        &folder.to_string_lossy(),
+    ))
+}
+
+/// Unlock note protection with a PIN: unwrap the protection key, validate it
+/// against the protection verification record, and install it into state so
+/// `.pnote` notes decrypt. Used by the plaintext-mode sensitive-note gate.
+#[tauri::command]
+pub fn pin_unlock_protection(
+    pin: String,
+    state: State<'_, AppState>,
+) -> Result<PinUnlockDto, String> {
+    let folder = state.folder()?;
+    let vault_path = folder.to_string_lossy().to_string();
+    let config = load_protection_config(&folder).ok_or("No protection configured")?;
+
+    pin_unlock_with(
+        crate::pin::EscrowKind::Protection,
+        &vault_path,
+        &config.verification_record,
+        &pin,
+        "Saved PIN no longer matches note protection. Use your password.",
+        |key| {
+            *state.protection_key.lock().unwrap() = Some(key);
+
+            // Merge protected note stubs into the cache, mirroring unlock_protection.
+            let protected_stubs = storage::load_protected_note_stubs(&folder);
+            let mut notes = state.notes.lock().unwrap();
+            for stub in protected_stubs {
+                if !notes.iter().any(|n| n.id == stub.id) {
+                    notes.push(stub);
+                }
+            }
+            notes.sort_by(|a, b| b.updated_at.cmp(&a.updated_at));
+            Ok(())
+        },
+    )
 }
 
 #[tauri::command]
@@ -944,6 +1161,10 @@ pub fn disable_protection(password: String, state: State<'_, AppState>) -> Resul
         let _ = fs::remove_file(&cp);
     }
 
+    // Protection is gone — its PIN escrow wraps a now-useless key. Drop it (the
+    // vault PIN escrow, if any, is untouched).
+    let _ = crate::pin::disable(crate::pin::EscrowKind::Protection, &folder.to_string_lossy());
+
     *state.protection_key.lock().unwrap() = None;
     *state.protection_hash.lock().unwrap() = None;
 
@@ -978,6 +1199,10 @@ pub fn change_protection_password(
     }
 
     save_protection_config(&folder, &new_config)?;
+
+    // The protection PIN escrow wraps the OLD protection key. Drop it so a stale
+    // wrapped key can't linger; the user re-enrolls the PIN if wanted.
+    let _ = crate::pin::disable(crate::pin::EscrowKind::Protection, &folder.to_string_lossy());
 
     *state.protection_key.lock().unwrap() = Some(new_key);
     store_hash(&state.protection_hash, &new_password);

@@ -31,6 +31,7 @@ Built with Tauri 2, React, TypeScript, and Rust.
 - **Local storage** — plain Markdown files with YAML frontmatter, compatible with any sync service
 - **Dropbox sync** — detects and handles Dropbox conflict files automatically
 - **Vault encryption** — XChaCha20-Poly1305 with Argon2id key derivation; encrypts all notes, locks on sleep/idle/manually
+- **PIN quick-unlock** — opt-in 4-digit PIN as a convenient alternative to your vault password (device-local, your password still works)
 - **Note protection** — encrypt individual notes as `.pnote` files with a separate password; can coexist with vault encryption
 - **Multi-vault profiles** — switch between multiple vault locations (work, personal, etc.) from the header dropdown
 - **Auto-updates** — built-in updater checks for new releases
@@ -48,6 +49,12 @@ Jimothy offers two layers of encryption that can be used independently or togeth
 ### Vault Encryption
 
 Encrypts **all** notes on disk with a single password. When locked, every note file is unreadable. The key is derived via Argon2id and held only in memory — never persisted to disk. The vault automatically locks on system sleep, screen lock, or after a configurable idle timeout.
+
+### PIN Quick-Unlock
+
+Optionally unlock the vault with a short 4-digit PIN instead of typing your full password (Settings > Security, while the vault is unlocked). When you enable it, a copy of the vault key is wrapped with a key derived from your PIN and stored **only on this device** — never in the notes folder, so it never syncs. Your password stays the source of truth: it always works, and it is required again after any password change. The PIN escrow is erased automatically after 10 wrong attempts. A PIN is a convenience gate, not a security upgrade — it is weaker than your password, so choose one you don't reuse elsewhere. Anyone who copies your synced notes still faces the full-strength password vault.
+
+**Works with either layer.** A PIN isn't tied to vault encryption. If you only use note protection (no vault), you can still set a PIN to unlock your protected notes (Settings > Security, in the Note Protection section, while protection is unlocked). And if both the vault and note protection are unlocked when you set the PIN, the same PIN wraps both keys (as separate device-local entries). That means the PIN also satisfies the sensitive-note re-auth prompt — so if you walk away with the vault left unlocked, protected notes still demand the PIN before they open. Reaching 10 wrong tries at any prompt wipes both escrows and forces the password. Turn a layer on *after* setting the PIN? Just re-set the PIN to fold it in.
 
 ### Note Protection
 
