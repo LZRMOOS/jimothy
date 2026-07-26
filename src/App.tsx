@@ -32,6 +32,15 @@ import { LOCAL_KEYS, isLocalKey, splitSettings } from "./utils/settings";
 import { FEATURE_TOUR_TITLE, FEATURE_TOUR_BODY } from "./utils/featureTour";
 import { TourOverlay } from "./components/TourOverlay";
 
+// App-wide defaults for portable preferences that should still have a value in
+// a vault whose preferences.json omits them. Everything else (codexes, tag
+// colors, pinned notes, custom theme colors...) is intentionally per-vault, so
+// it must NOT live here — otherwise it would leak across vaults on switch.
+const DEFAULT_SETTINGS: AppSettings = {
+  theme: "system",
+  confirmDelete: true,
+};
+
 function App() {
   const {
     notes,
@@ -119,10 +128,7 @@ function App() {
   const [expandedBacklinks, setExpandedBacklinks] = useState<Set<string>>(new Set());
   const [sensitivePromptId, setSensitivePromptId] = useState<string | null>(null);
   const sensitiveUnlockTime = useRef<Record<string, number>>({});
-  const [appSettings, setAppSettings] = useState<AppSettings>({
-    theme: "system",
-    confirmDelete: true,
-  });
+  const [appSettings, setAppSettings] = useState<AppSettings>(DEFAULT_SETTINGS);
   // Always-current mirror of appSettings, so handlers that fire in the same
   // tick as a setAppSettings (e.g. add-profile-then-switch-folder) can read the
   // latest settings without waiting for a re-render.
@@ -325,7 +331,7 @@ function App() {
           await invoke("save_app_settings", { settingsJson: JSON.stringify(local) });
         }
 
-        setAppSettings((prev) => ({ ...prev, ...local, ...prefs }));
+        setAppSettings({ ...DEFAULT_SETTINGS, ...local, ...prefs });
       } catch {
         // No settings yet
       }
@@ -656,14 +662,22 @@ function App() {
       const { local } = splitSettings({ ...appSettingsRef.current, notesFolder: path });
       await invoke("save_app_settings", { settingsJson: JSON.stringify(local) });
       await checkVaultStatus();
-      // Load the portable preferences that belong to the new folder.
+      // Load the portable preferences that belong to the new folder. Rebuild
+      // from defaults + the device-local keys, then layer the new vault's prefs
+      // on top — do NOT spread `prev`, or per-vault preferences the new vault
+      // omits (codex icons/colors, tag colors, pinned notes...) would leak in
+      // from the previous vault and then get written back into its prefs file.
+      let prefs: Preferences = {};
       try {
         const prefsJson = (await invoke("get_preferences")) as string;
-        const prefs: Preferences = JSON.parse(prefsJson);
-        setAppSettings((prev) => ({ ...prev, ...prefs, notesFolder: path }));
+        prefs = JSON.parse(prefsJson);
       } catch {
-        // New folder, no preferences yet
+        // New folder, no preferences yet — leave prefs empty.
       }
+      setAppSettings((prev) => {
+        const { local } = splitSettings({ ...prev, notesFolder: path });
+        return { ...DEFAULT_SETTINGS, ...local, ...prefs, notesFolder: path };
+      });
     },
     [initFolder, checkVaultStatus]
   );
