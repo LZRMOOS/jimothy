@@ -11,7 +11,7 @@ import type { EmojiEntry } from "../extensions/emoji";
 import { isMac, modName, altName, superName } from "../utils/platform";
 import { HIDEABLE_COMMANDS } from "../utils/commands";
 
-type SettingsTab = "general" | "organization" | "keyboard" | "macros" | "dictionary" | "emoji" | "colors" | "storage" | "security" | "markdown";
+type SettingsTab = "general" | "about" | "organization" | "keyboard" | "macros" | "dictionary" | "emoji" | "colors" | "storage" | "security" | "markdown";
 
 // Self-contained PIN quick-unlock control. Works for either escrow: the vault
 // (rendered while the vault is unlocked) or note protection (rendered in
@@ -1760,6 +1760,7 @@ export function Settings({
 
   const tabs: { id: SettingsTab; label: string }[] = [
     { id: "general", label: "General" },
+    { id: "about", label: "About" },
     { id: "organization", label: "Organization" },
     { id: "keyboard", label: "Controls" },
     { id: "macros", label: "Macros" },
@@ -1795,12 +1796,6 @@ export function Settings({
           <div className="settings-content">
             {activeTab === "general" && (
               <div className="settings-section">
-                <h3>Updates</h3>
-                <div className="settings-row">
-                  <label>Version {appVersion || "..."}</label>
-                  <span className="settings-hint">Auto-updates coming soon</span>
-                </div>
-
                 <h3>Behavior</h3>
                 <div className="settings-row">
                   <div className="settings-row-text">
@@ -1895,15 +1890,22 @@ export function Settings({
                     }
                   />
                 </div>
+              </div>
+            )}
 
-                <h3>About</h3>
+            {activeTab === "about" && (
+              <div className="settings-section">
+                <h3>Updates</h3>
+                <div className="settings-row">
+                  <label>Version</label>
+                  <span>{appVersion || "..."}</span>
+                </div>
+                <p className="settings-hint">Auto-updates coming soon</p>
+
+                <h3>Developer</h3>
                 <div className="about-info">
                   <div className="settings-row">
-                    <label>Version</label>
-                    <span>{appVersion || "..."}</span>
-                  </div>
-                  <div className="settings-row">
-                    <label>Developer</label>
+                    <label>Name</label>
                     <span>Wei Dai</span>
                   </div>
                   <div className="settings-row">
