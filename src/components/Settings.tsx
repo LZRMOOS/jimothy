@@ -2470,7 +2470,8 @@ export function Settings({
                   <div className="settings-actions">
                     <p className="settings-warning">
                       Vault encryption protects all notes with a single password.
-                      If you forget it, your notes cannot be recovered.
+                      If you forget it, your notes cannot be recovered. Tasks are
+                      not encrypted so they remain accessible on mobile.
                     </p>
                     <button
                       className="btn primary"
@@ -2488,7 +2489,8 @@ export function Settings({
                   >
                     <p className="settings-warning">
                       This will encrypt all notes. If you forget this password,
-                      your notes cannot be recovered.
+                      your notes cannot be recovered. Tasks are not encrypted
+                      so they remain accessible on mobile.
                     </p>
                     <p className="settings-hint">
                       Pick a strong password

@@ -1274,6 +1274,47 @@ pub fn delete_scratchpad_entry(id: String, state: State<'_, AppState>) -> Result
     save_scratchpad(&folder, &entries)
 }
 
+fn tasks_path(folder: &Path) -> PathBuf {
+    folder.join(".scratch").join("tasks.md")
+}
+
+#[tauri::command]
+pub fn get_tasks(state: State<'_, AppState>) -> Result<String, String> {
+    let folder = state.folder()?;
+    let path = tasks_path(&folder);
+    if path.exists() {
+        return Ok(std::fs::read_to_string(&path).unwrap_or_default());
+    }
+    // Migrate from legacy task note (codex: Tasks) if present
+    let notes = state.notes.lock().unwrap();
+    if let Some(note) = notes.iter().find(|n| n.codex.as_deref() == Some("Tasks") && !n.archived) {
+        let body = note.body.clone();
+        drop(notes);
+        if !body.is_empty() {
+            let scratch_dir = folder.join(".scratch");
+            let _ = std::fs::create_dir_all(&scratch_dir);
+            let _ = std::fs::write(&path, &body);
+        }
+        return Ok(body);
+    }
+    Ok(String::new())
+}
+
+#[tauri::command]
+pub fn save_tasks(content: String, state: State<'_, AppState>) -> Result<(), String> {
+    let folder = state.folder()?;
+    let scratch_dir = folder.join(".scratch");
+    std::fs::create_dir_all(&scratch_dir).map_err(|e| e.to_string())?;
+    let dest = tasks_path(&folder);
+    let temp = scratch_dir.join(".tmp-tasks.md");
+    std::fs::write(&temp, &content).map_err(|e| e.to_string())?;
+    std::fs::rename(&temp, &dest).map_err(|e| {
+        let _ = std::fs::remove_file(&temp);
+        e.to_string()
+    })?;
+    Ok(())
+}
+
 #[tauri::command]
 pub fn open_folder(path: String) -> Result<(), String> {
     std::process::Command::new("open")

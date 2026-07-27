@@ -1,4 +1,5 @@
 import { useState, useMemo, useCallback, useRef, useEffect } from "react";
+import { invoke } from "@tauri-apps/api/core";
 import type { Note } from "../types";
 import {
   parseTaskDoc,
@@ -15,12 +16,10 @@ import { recognize } from "../utils/naturalDate";
 type Props = {
   notes: Note[];
   dictionary?: string[];
-  onSave: (id: string, title: string, body: string, codex: string | null) => void;
-  onCreate: (title: string, codex: string) => Promise<Note | null>;
   onNavigateNote: (id: string) => void;
 };
 
-export function TasksPanel({ notes, dictionary = [], onSave, onCreate, onNavigateNote }: Props) {
+export function TasksPanel({ notes, dictionary = [], onNavigateNote }: Props) {
   const [tab, setTab] = useState<"active" | "done">("active");
   const [showAddModal, setShowAddModal] = useState(false);
   const [addInput, setAddInput] = useState("");
@@ -46,14 +45,15 @@ export function TasksPanel({ notes, dictionary = [], onSave, onCreate, onNavigat
   const listRef = useRef<HTMLDivElement>(null);
   const sectionRefs = useRef<Map<string, HTMLDivElement>>(new Map());
 
-  const taskNote = useMemo(
-    () => notes.find((n) => n.codex === TASK_CODEX && !n.archived) ?? null,
-    [notes]
-  );
+  const [taskBody, setTaskBody] = useState("");
+
+  useEffect(() => {
+    invoke<string>("get_tasks").then((body) => setTaskBody(body)).catch(() => {});
+  }, []);
 
   const doc = useMemo<TaskDoc>(
-    () => (taskNote ? parseTaskDoc(taskNote.body) : []),
-    [taskNote]
+    () => (taskBody ? parseTaskDoc(taskBody) : []),
+    [taskBody]
   );
 
   const allTasks = useMemo<IdTask[]>(() => {
@@ -243,11 +243,11 @@ export function TasksPanel({ notes, dictionary = [], onSave, onCreate, onNavigat
 
   const persistDoc = useCallback(
     (newDoc: TaskDoc) => {
-      if (!taskNote) return;
       const body = serializeTaskDoc(newDoc);
-      onSave(taskNote.id, taskNote.title, body, taskNote.codex);
+      setTaskBody(body);
+      invoke("save_tasks", { content: body }).catch(() => {});
     },
-    [taskNote, onSave]
+    []
   );
 
   const toggleDone = useCallback(
@@ -455,15 +455,9 @@ export function TasksPanel({ notes, dictionary = [], onSave, onCreate, onNavigat
     } else {
       const newTask: Task = { text, date, time, priority: addPriority, done: false };
       const line = serializeTask(newTask);
-      if (taskNote) {
-        const body = taskNote.body ? taskNote.body + "\n" + line : line;
-        onSave(taskNote.id, taskNote.title, body, taskNote.codex);
-      } else {
-        const created = await onCreate("Tasks", TASK_CODEX);
-        if (created) {
-          onSave(created.id, created.title, line, created.codex);
-        }
-      }
+      const body = taskBody ? taskBody + "\n" + line : line;
+      setTaskBody(body);
+      invoke("save_tasks", { content: body }).catch(() => {});
     }
 
     setAddInput("");
@@ -473,7 +467,7 @@ export function TasksPanel({ notes, dictionary = [], onSave, onCreate, onNavigat
     setAttachments([]);
     setEditingCid(null);
     setShowAddModal(false);
-  }, [addInput, addPriority, attachments, schedDate, schedTime, focusedDay, editingCid, editTask, taskNote, onSave, onCreate]);
+  }, [addInput, addPriority, attachments, schedDate, schedTime, focusedDay, editingCid, editTask, taskBody]);
 
   const closeModal = useCallback(() => {
     setShowAddModal(false);

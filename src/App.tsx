@@ -1632,12 +1632,6 @@ function App() {
           <TasksPanel
             notes={notes}
             dictionary={appSettings.dictionary}
-            onSave={(id, title, body, codex) => saveNote(id, title, body, codex ?? null)}
-            onCreate={async (title, codex) => {
-              const note = (await invoke("create_note", { title, codex: codex || null })) as typeof notes[0];
-              await loadNotes();
-              return note;
-            }}
             onNavigateNote={(id) => { setViewingTasks(false); setSelectedId(id); }}
           />
         </div>

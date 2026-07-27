@@ -296,6 +296,8 @@ pub fn run() {
             commands::get_scratchpad_entries,
             commands::append_scratchpad_entry,
             commands::delete_scratchpad_entry,
+            commands::get_tasks,
+            commands::save_tasks,
             commands::open_folder,
             commands::check_vault_exists,
             commands::list_conflicts,
