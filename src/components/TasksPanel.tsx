@@ -520,6 +520,14 @@ export function TasksPanel({ notes, dictionary = [], onSave, onCreate, onNavigat
     return () => window.removeEventListener("keydown", onKey);
   }, [showAddModal]);
 
+  useEffect(() => {
+    if (showAddModal && addInputRef.current) {
+      const el = addInputRef.current;
+      el.style.height = "auto";
+      el.style.height = el.scrollHeight + "px";
+    }
+  }, [showAddModal]);
+
   const focusLabel = useMemo(
     () => focusedDay ? dayTitle(focusedDay, today) : "",
     [focusedDay, today]
