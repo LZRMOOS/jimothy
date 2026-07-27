@@ -594,17 +594,19 @@ export function TasksPanel({ notes, dictionary = [], onNavigateNote }: Props) {
           >
             Done
           </button>
-          {tab === "active" && (
-            <button
-              className={`tasks-tab-toggle ${hideEmpty ? "active" : ""}`}
-              onClick={() => setHideEmpty((v) => !v)}
-              title="Hide empty days"
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
-              </svg>
-            </button>
-          )}
+          <button
+            className={`tasks-tab-toggle ${hideEmpty ? "active" : ""} ${tab === "done" ? "disabled" : ""}`}
+            onClick={() => { if (tab !== "done") setHideEmpty((v) => !v); }}
+            title="Hide empty days"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              {hideEmpty ? (
+                <polyline points="6 15 12 9 18 15" />
+              ) : (
+                <polyline points="6 9 12 15 18 9" />
+              )}
+            </svg>
+          </button>
         </div>
       </div>
 

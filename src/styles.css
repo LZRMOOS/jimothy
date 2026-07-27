@@ -4767,6 +4767,11 @@ img.emoji {
   color: var(--accent);
 }
 
+.tasks-tab-toggle.disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
 .tasks-fab {
   position: absolute;
   bottom: 24px;
