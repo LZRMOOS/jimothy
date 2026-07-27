@@ -4680,6 +4680,12 @@ img.emoji {
   box-shadow: 0 4px 12px rgba(0,0,0,0.25);
 }
 
+.tasks-fab-hint {
+  opacity: 0.5;
+  font-size: 10px;
+  margin-left: 4px;
+}
+
 .tasks-modal-overlay {
   position: fixed;
   inset: 0;
@@ -4740,6 +4746,13 @@ img.emoji {
   background: var(--bg-hover);
 }
 
+.tasks-modal-attachments {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
 .tasks-modal-input {
   width: 100%;
   padding: 8px 12px;
@@ -4748,8 +4761,12 @@ img.emoji {
   background: var(--bg-primary);
   color: var(--text-primary);
   font-size: 14px;
+  font-family: inherit;
   outline: none;
   transition: border-color var(--transition);
+  resize: none;
+  overflow: hidden;
+  min-height: 36px;
 }
 
 .tasks-modal-input:focus {

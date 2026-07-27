@@ -42,7 +42,7 @@ export function TasksPanel({ notes, dictionary = [], onSave, onCreate, onNavigat
   const [dragCid, setDragCid] = useState<string | null>(null);
   const [dropTarget, setDropTarget] = useState<{ cid: string; position: "before" | "after" } | null>(null);
   const [dropSectionDate, setDropSectionDate] = useState<string | null>(null);
-  const addInputRef = useRef<HTMLInputElement>(null);
+  const addInputRef = useRef<HTMLTextAreaElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const sectionRefs = useRef<Map<string, HTMLDivElement>>(new Map());
 
@@ -577,12 +577,6 @@ export function TasksPanel({ notes, dictionary = [], onSave, onCreate, onNavigat
                     {schedTime.label} <span className="tasks-chip-x">×</span>
                   </button>
                 )}
-                {attachments.map((a, i) => (
-                  <button key={i} className={`tasks-chip tasks-chip-dismiss tasks-chip-${a.kind}`} onClick={() => removeAttachment(i)}>
-                    {a.kind === "note" ? `@ ${a.label}` : a.label}
-                    <span className="tasks-chip-x">×</span>
-                  </button>
-                ))}
               </div>
               <button className="tasks-modal-close" onClick={closeModal}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -590,14 +584,28 @@ export function TasksPanel({ notes, dictionary = [], onSave, onCreate, onNavigat
                 </svg>
               </button>
             </div>
+            {attachments.length > 0 && (
+              <div className="tasks-modal-attachments">
+                {attachments.map((a, i) => (
+                  <button key={i} className={`tasks-chip tasks-chip-dismiss tasks-chip-${a.kind}`} onClick={() => removeAttachment(i)}>
+                    {a.kind === "note" ? `@ ${a.label}` : a.label}
+                    <span className="tasks-chip-x">×</span>
+                  </button>
+                ))}
+              </div>
+            )}
             <div className="tasks-modal-input-wrapper">
-              <input
+              <textarea
                 ref={addInputRef}
                 className="tasks-modal-input"
-                type="text"
                 placeholder="e.g. Call dentist tomorrow 9am"
                 value={addInput}
-                onChange={(e) => onDraftChange(e.target.value, e.target.selectionStart ?? undefined)}
+                rows={1}
+                onChange={(e) => {
+                  onDraftChange(e.target.value, e.target.selectionStart ?? undefined);
+                  e.target.style.height = "auto";
+                  e.target.style.height = e.target.scrollHeight + "px";
+                }}
                 onKeyDown={(e) => {
                   if (mentionSuggestions.length > 0) {
                     if (e.key === "ArrowDown") { e.preventDefault(); setSelectedMention((s) => Math.min(s + 1, mentionSuggestions.length - 1)); return; }
@@ -611,7 +619,7 @@ export function TasksPanel({ notes, dictionary = [], onSave, onCreate, onNavigat
                     if (e.key === "Enter" || e.key === "Tab") { e.preventDefault(); insertNoteLink(noteSuggestions[selectedSuggestion]); return; }
                     if (e.key === "Escape") { e.preventDefault(); setNoteSuggestions([]); setNoteQueryStart(null); return; }
                   }
-                  if (e.key === "Enter") { e.preventDefault(); handleSubmit(); }
+                  if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); handleSubmit(); }
                   if (e.key === "Escape") closeModal();
                 }}
                 autoFocus
@@ -756,7 +764,7 @@ export function TasksPanel({ notes, dictionary = [], onSave, onCreate, onNavigat
 
       {tab === "active" && (
         <button className="tasks-fab" onClick={() => { setAddInput(""); setAddPriority(null); setSchedDate(null); setSchedTime(null); setAttachments([]); setNoteSuggestions([]); setNoteQueryStart(null); setShowNotePicker(false); setShowAddModal(true); }}>
-          + New
+          + New <span className="tasks-fab-hint">Q</span>
         </button>
       )}
     </div>
