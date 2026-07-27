@@ -601,7 +601,7 @@ export function TasksPanel({ notes, dictionary = [], onSave, onCreate, onNavigat
               <div className="tasks-modal-attachments">
                 {attachments.map((a, i) => (
                   <button key={i} className={`tasks-chip tasks-chip-dismiss tasks-chip-${a.kind}`} onClick={() => removeAttachment(i)}>
-                    {a.kind === "note" ? `@ ${a.label}` : a.label}
+                    {a.kind === "note" ? `[[${a.label}]]` : a.label}
                     <span className="tasks-chip-x">×</span>
                   </button>
                 ))}
