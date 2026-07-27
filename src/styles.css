@@ -4609,6 +4609,7 @@ img.emoji {
 
 /* Tasks Panel */
 .tasks-panel {
+  position: relative;
   display: flex;
   flex-direction: column;
   flex: 1;
@@ -4655,78 +4656,192 @@ img.emoji {
   box-shadow: 0 1px 2px rgba(0,0,0,0.06);
 }
 
-.tasks-add {
+.tasks-fab {
+  position: absolute;
+  bottom: 24px;
+  right: 24px;
+  z-index: 10;
+  padding: 8px 16px;
+  border-radius: var(--radius-sm);
+  border: none;
+  background: var(--accent);
+  color: white;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+  transition: transform var(--transition), box-shadow var(--transition);
+}
+
+.tasks-fab:hover {
+  transform: scale(1.04);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+}
+
+.tasks-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.tasks-modal {
+  background: var(--bg-primary);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 20px;
+  width: 400px;
+  max-width: 90vw;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+}
+
+.tasks-modal-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.tasks-modal-title-row {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 12px 0;
-  border-bottom: 1px solid var(--border);
+  flex-wrap: wrap;
 }
 
-.tasks-add-field {
-  flex: 1;
+.tasks-modal-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+.tasks-modal-close {
+  border: none;
+  background: transparent;
+  color: var(--text-hint);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: var(--radius-sm);
   display: flex;
-  flex-direction: column;
-  gap: 4px;
+  align-items: center;
+  justify-content: center;
 }
 
-.tasks-add-input {
+.tasks-modal-close:hover {
+  color: var(--text-primary);
+  background: var(--bg-hover);
+}
+
+.tasks-modal-input {
   width: 100%;
-  padding: 6px 10px;
+  padding: 8px 12px;
   border: 1px solid var(--border);
   border-radius: var(--radius-sm);
   background: var(--bg-primary);
   color: var(--text-primary);
-  font-size: 13px;
+  font-size: 14px;
   outline: none;
   transition: border-color var(--transition);
 }
 
-.tasks-add-input:focus {
+.tasks-modal-input:focus {
   border-color: var(--accent);
 }
 
-.tasks-add-pills {
-  display: flex;
-  gap: 6px;
-  padding-left: 2px;
-}
-
-.tasks-add-pill {
-  font-size: 11px;
-  padding: 1px 7px;
-  border-radius: 3px;
+.tasks-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 12px;
   font-weight: 500;
+  padding: 3px 8px;
+  border-radius: 4px;
+  background: var(--accent-subtle, rgba(99, 102, 241, 0.12));
+  color: var(--accent);
+  border: none;
+  cursor: pointer;
+  transition: opacity var(--transition);
 }
 
-.tasks-add-pill-date {
-  background: rgba(99, 102, 241, 0.12);
-  color: #6366f1;
+.tasks-chip:hover {
+  opacity: 0.8;
 }
 
-.tasks-add-pill-time {
-  background: rgba(245, 158, 11, 0.12);
+.tasks-chip-x {
+  font-size: 14px;
+  opacity: 0.6;
+  margin-left: 2px;
+}
+
+.tasks-chip-dismiss:hover .tasks-chip-x {
+  opacity: 1;
+}
+
+.tasks-modal-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.tasks-modal-priority {
+  padding: 5px 10px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all var(--transition);
+}
+
+.tasks-modal-priority:hover {
+  border-color: var(--text-hint);
+}
+
+.tasks-modal-priority-high {
+  border-color: #ef4444;
+  color: #ef4444;
+  background: rgba(239, 68, 68, 0.08);
+}
+
+.tasks-modal-priority-med {
+  border-color: #f59e0b;
   color: #f59e0b;
+  background: rgba(245, 158, 11, 0.08);
 }
 
-.tasks-add-btn {
-  padding: 6px 12px;
+.tasks-modal-priority-low {
+  border-color: #22c55e;
+  color: #22c55e;
+  background: rgba(34, 197, 94, 0.08);
+}
+
+.tasks-modal-submit {
+  padding: 6px 14px;
   border: none;
   border-radius: var(--radius-sm);
   background: var(--accent);
   color: white;
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 500;
   cursor: pointer;
   transition: opacity var(--transition);
 }
 
-.tasks-add-btn:disabled {
+.tasks-modal-submit:disabled {
   opacity: 0.4;
   cursor: default;
 }
 
-.tasks-add-btn:not(:disabled):hover {
+.tasks-modal-submit:not(:disabled):hover {
   opacity: 0.85;
 }
 
@@ -4734,7 +4849,8 @@ img.emoji {
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 10px 0;
+  padding: 12px 0 14px;
+  margin-bottom: 4px;
   border-bottom: 1px solid var(--border);
 }
 
@@ -4791,18 +4907,25 @@ img.emoji {
 }
 
 .tasks-section {
-  margin-bottom: 4px;
+  margin-bottom: 0;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+}
+
+.tasks-section:last-child {
+  border-bottom: none;
 }
 
 .tasks-section-header {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 10px 0 4px;
+  padding: 14px 0 6px;
   position: sticky;
   top: 0;
   background: var(--bg-primary);
   z-index: 1;
+  border-bottom: 2px solid transparent;
 }
 
 .tasks-section-title {
@@ -4828,10 +4951,54 @@ img.emoji {
   padding: 6px 8px;
   border-radius: var(--radius-sm);
   transition: background var(--transition);
+  cursor: grab;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-user-drag: element;
+}
+
+.task-row:active {
+  cursor: grabbing;
+}
+
+.task-row button {
+  -webkit-user-drag: none;
+}
+
+.task-dragging {
+  opacity: 0.4;
+}
+
+.task-drop-before {
+  box-shadow: 0 -2px 0 0 var(--accent);
+}
+
+.task-drop-after {
+  box-shadow: 0 2px 0 0 var(--accent);
+}
+
+.tasks-section-header-drop {
+  border-bottom-color: var(--accent);
+}
+
+.tasks-section-header-drop .tasks-section-title {
+  color: var(--accent);
 }
 
 .task-row:hover {
   background: var(--bg-hover);
+}
+
+.task-dragging {
+  opacity: 0.4;
+}
+
+.task-drop-before {
+  box-shadow: 0 -2px 0 0 var(--accent) inset;
+}
+
+.task-drop-after {
+  box-shadow: 0 2px 0 0 var(--accent) inset;
 }
 
 .task-row:hover .task-delete {

@@ -155,6 +155,7 @@ type Kind = "none" | "date" | "time";
 function analyze(
   input: string,
   now: Date,
+  opts?: { allowBareTime?: boolean },
 ): { tokens: Token[]; kind: Kind[]; date: string | null; time: number | null } {
   const tokens = tokenize(input);
   const lower = tokens.map((t) => t.lower);
@@ -183,7 +184,7 @@ function analyze(
     }
   }
 
-  if (time !== null && date === null) {
+  if (time !== null && date === null && !opts?.allowBareTime) {
     time = null;
     if (timeIndex >= 0) kind[timeIndex] = "none";
   }
@@ -210,8 +211,8 @@ export type Recognition = {
   timeSpans: Array<[number, number]>;
 };
 
-export function recognize(input: string, now: Date = new Date()): Recognition {
-  const { tokens, kind, date, time } = analyze(input, now);
+export function recognize(input: string, now: Date = new Date(), opts?: { allowBareTime?: boolean }): Recognition {
+  const { tokens, kind, date, time } = analyze(input, now, opts);
   const dateSpans: Array<[number, number]> = [];
   const timeSpans: Array<[number, number]> = [];
 
