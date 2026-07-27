@@ -163,7 +163,8 @@ select:hover {
   position: absolute;
   top: calc(100% + 4px);
   left: 0;
-  right: 0;
+  min-width: 100%;
+  width: max-content;
   background: var(--bg-primary);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius);
