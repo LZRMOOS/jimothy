@@ -85,11 +85,46 @@ Two independent layers of encryption:
 - **Copy as plain text**: Copied text strips markdown formatting (transformCopiedText: false)
 - Word and character count display
 
+### Tasks Panel (Cross-Platform Feature)
+The Tasks panel (`src/components/TasksPanel.tsx`) is a dedicated agenda-style view for managing tasks, toggled with Cmd+T (also accessible from sidebar top icon or command palette "View Tasks").
+
+**On-disk format (shared with jimothy-mobile):**
+Tasks live in a single note with codex `"Tasks"` (constant: `TASK_CODEX`). The body is GFM checkbox lines with trailing tokens:
+```
+- [ ] Call the dentist !high !2026-07-27
+- [ ] Meeting with Alex !2026-07-28T09:00
+- [x] Buy milk !2026-07-25
+- [ ] Something undated
+```
+Tokens: `!high`/`!med`/`!low` (priority), `!YYYY-MM-DD` or `!YYYY-MM-DDTHH:MM` (date with optional time). Non-task lines (headings, blanks, prose) are preserved verbatim.
+
+**Cross-platform contract:**
+- `jimothy-mobile` (`/Users/weid/src/jimothy-mobile`) reads and writes the SAME note using the same format
+- Both apps parse/serialize via line-oriented string ops (no full markdown AST) to guarantee byte-identical round-trips for non-task lines
+- Attachments (note links, URLs) are stored inline as standard markdown links: `[label](scratch://id)` for notes, `[label](https://...)` for URLs
+- The time extension (`!YYYY-MM-DDTHH:MM`) is a forward-compatible superset; desktop already handles it
+- Changes to the task line format MUST be coordinated with the mobile codebase to avoid data loss or parse failures on sync
+
+**Key files:**
+- `src/utils/taskList.ts` - Parse/serialize task doc, `TASK_CODEX` constant
+- `src/utils/agenda.ts` - Build agenda sections (active/done) from tasks
+- `src/utils/naturalDate.ts` - Natural language date/time recognition for task input
+- `src/components/TasksPanel.tsx` - Full panel UI (agenda view, add/edit modal, drag-and-drop)
+
+**UI behavior:**
+- Task notes are hidden from the regular notes list, search bar, and command palette note search
+- The Tasks codex does not appear in the codex sidebar list
+- "View Tasks" command and Cmd+T are the entry points
+- Add modal supports natural date/time parsing ("tomorrow 9am"), `[[` note link autocomplete, `@` dictionary mentions, and URL auto-detection
+- Done tab uses compact table-like rows with undo button on hover
+- Infinite scroll (loads 30 days at a time)
+- Drag-and-drop reordering within and across date sections
+
 ### UI/UX
 - Keyboard-first: Cmd+Shift+Space toggles window, Cmd+N new note, Cmd+K command palette
 - **Scratchpad**: Floating quick-capture window (Cmd+Option+Space) for jotting notes without opening the main app
 - **Split view**: Cmd+\ to view two notes side by side
-- **Table of contents**: Cmd+T toggleable sidebar for notes with headings
+- **Index (table of contents)**: Cmd+I toggleable sidebar for notes with headings
 - **Backlinks**: Expandable backlink list under each note showing notes that link to it
 - **Daily note**: Cmd+J to create/open today's daily note (configurable codex and title format)
 - Codexes: group notes into collections with collapsible sidebar, custom emoji icons, and custom colors
@@ -346,7 +381,9 @@ All commands defined in `src-tauri/src/commands/mod.rs`:
 - `Cmd+Shift+]` / `Cmd+Shift+[` - Next/previous note
 
 ### View
-- `Cmd+T` - Toggle table of contents
+- `Cmd+T` - Toggle Tasks view
+- `Cmd+I` - Toggle Index (table of contents)
+- `Cmd+\`` - Toggle Tasks view (alternate)
 - `Cmd+\` - Toggle split view
 - `Cmd+=` / `Cmd+-` - Zoom in/out
 - `Cmd+0` - Reset zoom

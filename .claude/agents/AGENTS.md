@@ -354,6 +354,7 @@ function MyComponent() {
 - Change the `scratch://` URI scheme in note links (kept for backwards compatibility)
 - Change the `.scratch/` internal directory name (kept for backwards compatibility)
 - Store per-note state (pinned, frozen) in the note file itself (use preferences.json)
+- Change the task line format (`- [ ] text !priority !date`) without coordinating with jimothy-mobile
 
 ✅ **Do:**
 - Run `npm run typecheck` before committing
@@ -433,11 +434,20 @@ src-tauri/
 - Tags are filterable in the search bar (type `#tag` to filter notes)
 - Tag colors managed in Settings > Organization tab
 
-### Task Priority & Due Date
+### Task Priority & Due Date (Editor Extensions)
 - Extensions: `src/extensions/taskPriority.ts` and `src/extensions/taskDueDate.ts`
 - Render colored pills inside task list items
 - Priority: `!high` (red), `!med` (orange), `!low` (green)
 - Due date: `!YYYY-MM-DD` with color shift (green→orange→red as deadline approaches)
+
+### Tasks Panel (Cross-Platform — SHARED WITH jimothy-mobile)
+- Component: `src/components/TasksPanel.tsx`
+- A dedicated agenda view (Cmd+T) for managing tasks stored in a note with codex "Tasks"
+- **CRITICAL**: The on-disk format is shared with `jimothy-mobile` (`/Users/weid/src/jimothy-mobile`). Both apps parse and write the same GFM checkbox lines with `!priority !YYYY-MM-DD[THH:MM]` trailing tokens. Changes to the task line format, parsing logic, or serialization MUST be coordinated with the mobile codebase.
+- Key files: `src/utils/taskList.ts` (parse/serialize), `src/utils/agenda.ts` (section builder), `src/utils/naturalDate.ts` (NLP date), `src/components/TasksPanel.tsx` (UI)
+- Attachments (note links, URLs) are inline standard markdown links — same format both apps read
+- Task notes are excluded from regular note search, command palette, and notes list
+- Non-task lines in the body are preserved verbatim (never rewrite what you don't own)
 
 ### Scratchpad
 - Separate Tauri window (not the main app window)
