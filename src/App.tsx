@@ -189,7 +189,7 @@ function App() {
   }, [notes, splitNoteId]);
 
   const activeNotes = useMemo(() =>
-    viewingArchive ? notes.filter((n) => n.archived) : notes.filter((n) => !n.archived && n.codex !== TASK_CODEX),
+    viewingArchive ? notes.filter((n) => n.archived) : notes.filter((n) => !n.archived),
     [notes, viewingArchive]
   );
 
@@ -202,7 +202,7 @@ function App() {
   }, [viewingArchive, archivedCount]);
 
   const codexList = useMemo(() =>
-    Array.from(new Set(notes.filter((n) => !n.archived).map((n) => n.codex).filter((c): c is string => !!c && c !== TASK_CODEX))).sort(),
+    Array.from(new Set(notes.filter((n) => !n.archived).map((n) => n.codex).filter((c): c is string => !!c))).sort(),
     [notes]
   );
 
@@ -210,7 +210,7 @@ function App() {
   const codexCounts = useMemo(() => {
     const counts: Record<string, number> = {};
     for (const n of notes) {
-      if (n.archived || !n.codex || n.codex === TASK_CODEX) continue;
+      if (n.archived || !n.codex) continue;
       counts[n.codex] = (counts[n.codex] || 0) + 1;
     }
     return counts;
@@ -1476,15 +1476,8 @@ function App() {
           onClose={() => setShowCommandPalette(false)}
           notes={notes}
           onSelectNote={(id) => {
-            const note = notes.find((n) => n.id === id);
-            if (note?.codex === TASK_CODEX) {
-              setViewingTasks(true);
-              setActiveCodex(null);
-              setViewingArchive(false);
-            } else {
-              setViewingTasks(false);
-              setSelectedId(id);
-            }
+            setViewingTasks(false);
+            setSelectedId(id);
           }}
         />
       )}

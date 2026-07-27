@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import type { Note } from "../types";
-import { TASK_CODEX } from "../utils/taskList";
+
 
 export type Command = {
   id: string;
@@ -50,7 +50,7 @@ export function CommandPalette({ commands, pinnedIds = [], onTogglePin, onClose,
     const terms = trimmed.split(/\s+/);
     const matchingNotes = notes
       .filter((n) => {
-        if (n.archived || n.codex === TASK_CODEX) return false;
+        if (n.archived) return false;
         const title = n.title.toLowerCase();
         return terms.every((t) => title.includes(t));
       })

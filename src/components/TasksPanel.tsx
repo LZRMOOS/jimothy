@@ -5,7 +5,6 @@ import {
   parseTaskDoc,
   serializeTaskDoc,
   serializeTask,
-  TASK_CODEX,
   type Task,
   type TaskDoc,
   type Priority,
@@ -111,7 +110,7 @@ export function TasksPanel({ notes, dictionary = [], onNavigateNote }: Props) {
         setNoteQueryStart(queryStart);
         setSelectedSuggestion(0);
         const filtered = notes
-          .filter((n) => n.title.toLowerCase().includes(query) && n.codex !== TASK_CODEX)
+          .filter((n) => n.title.toLowerCase().includes(query) && !n.archived)
           .slice(0, 8);
         setNoteSuggestions(filtered);
         setAddInput(next);
@@ -223,7 +222,7 @@ export function TasksPanel({ notes, dictionary = [], onNavigateNote }: Props) {
 
   const notePickerResults = useMemo(
     () => notes
-      .filter((n) => n.title.toLowerCase().includes(notePickerQuery.toLowerCase()) && n.codex !== TASK_CODEX)
+      .filter((n) => n.title.toLowerCase().includes(notePickerQuery.toLowerCase()) && !n.archived)
       .slice(0, 8),
     [notes, notePickerQuery]
   );
