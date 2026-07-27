@@ -1,8 +1,11 @@
 import { useState, useRef, useEffect, useLayoutEffect } from "react";
+import type { ReactNode } from "react";
 
 type Option = {
   value: string;
   label: string;
+  icon?: ReactNode;
+  dividerAfter?: boolean;
 };
 
 type Props = {
@@ -88,18 +91,21 @@ export function Dropdown({ options, value, onChange, className = "" }: Props) {
       {open && (
         <div className={`dropdown-menu${dropUp ? " drop-up" : ""}`}>
           {options.map((opt, i) => (
-            <button
-              key={opt.value}
-              className={`dropdown-item${opt.value === value ? " selected" : ""}${i === highlightIndex ? " highlighted" : ""}`}
-              onClick={() => {
-                onChange(opt.value);
-                setOpen(false);
-              }}
-              onMouseEnter={() => setHighlightIndex(i)}
-              type="button"
-            >
-              {opt.label}
-            </button>
+            <div key={opt.value}>
+              <button
+                className={`dropdown-item${opt.value === value ? " selected" : ""}${i === highlightIndex ? " highlighted" : ""}`}
+                onClick={() => {
+                  onChange(opt.value);
+                  setOpen(false);
+                }}
+                onMouseEnter={() => setHighlightIndex(i)}
+                type="button"
+              >
+                {opt.icon && <span className="dropdown-item-icon">{opt.icon}</span>}
+                {opt.label}
+              </button>
+              {opt.dividerAfter && <div className="dropdown-divider" />}
+            </div>
           ))}
         </div>
       )}

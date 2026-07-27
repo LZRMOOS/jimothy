@@ -208,6 +208,20 @@ select:hover {
   color: var(--accent);
 }
 
+.dropdown-item-icon {
+  display: inline-flex;
+  align-items: center;
+  margin-right: 6px;
+  vertical-align: middle;
+  opacity: 0.7;
+}
+
+.dropdown-divider {
+  height: 1px;
+  background: var(--border);
+  margin: 4px 8px;
+}
+
 body {
   font-family: "JetBrains Mono", monospace;
   background: var(--bg-primary);
