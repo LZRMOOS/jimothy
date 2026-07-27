@@ -1200,9 +1200,11 @@ function App() {
         if (idx === 0) {
           setActiveCodex(null);
           setViewingArchive(false);
+          setViewingTasks(false);
         } else if (idx - 1 < codexList.length) {
           setActiveCodex(codexList[idx - 1]);
           setViewingArchive(false);
+          setViewingTasks(false);
         }
       } else if (mod && e.key === "`") {
         e.preventDefault();
