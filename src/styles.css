@@ -5198,23 +5198,29 @@ img.emoji {
   margin-top: 0;
 }
 
-.task-done-title {
-  flex: 1;
-  min-width: 0;
+.task-done-compact .task-content {
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+}
+
+.task-done-compact .task-title {
   font-size: 12px;
-  color: var(--text-hint);
-  text-decoration: line-through;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.task-done-compact .task-delete {
+.task-done-compact .task-meta {
+  flex-shrink: 0;
+}
+
+.task-done-compact .task-actions {
   opacity: 0;
   transition: opacity var(--transition);
 }
 
-.task-done-compact:hover .task-delete {
+.task-done-compact:hover .task-actions {
   opacity: 1;
 }
 

@@ -64,10 +64,11 @@ export function TasksPanel({ notes, dictionary = [], onSave, onCreate, onNavigat
   }, [doc]);
 
   const today = useMemo(() => ymd(new Date()), []);
+  const [daysAhead, setDaysAhead] = useState(30);
 
   const activeSections = useMemo(
-    () => buildAgenda(allTasks, { today, daysAhead: 30 }),
-    [allTasks, today]
+    () => buildAgenda(allTasks, { today, daysAhead }),
+    [allTasks, today, daysAhead]
   );
 
   const doneSections = useMemo(() => buildDoneList(allTasks), [allTasks]);
@@ -491,7 +492,11 @@ export function TasksPanel({ notes, dictionary = [], onSave, onCreate, onNavigat
       if (rect.top <= listTop) closest = date;
     }
     if (closest) setFocusedDay(closest);
-  }, []);
+
+    if (tab === "active" && list.scrollTop + list.clientHeight >= list.scrollHeight - 200) {
+      setDaysAhead((prev) => prev + 30);
+    }
+  }, [tab]);
 
   useEffect(() => {
     if (sections.length > 0 && !focusedDay) {
@@ -729,7 +734,7 @@ export function TasksPanel({ notes, dictionary = [], onSave, onCreate, onNavigat
 
       <div className="tasks-list" ref={listRef} onScroll={handleScroll}>
         {isEmpty && tab === "active" && (
-          <div className="tasks-empty">No tasks yet. Add one above.</div>
+          <div className="tasks-empty">No tasks yet. Press <strong>+ New</strong> or <strong>Q</strong> to add one.</div>
         )}
         {isEmpty && tab === "done" && (
           <div className="tasks-empty">No completed tasks.</div>
@@ -749,30 +754,22 @@ export function TasksPanel({ notes, dictionary = [], onSave, onCreate, onNavigat
                 )}
               </div>
               {section.tasks.map((task) => (
-                tab === "done" ? (
-                  <DoneTaskRow
-                    key={task.cid}
-                    task={task}
-                    onToggle={() => toggleDone(task.cid)}
-                    onDelete={() => deleteTask(task.cid)}
-                  />
-                ) : (
-                  <TaskRow
-                    key={task.cid}
-                    task={task}
-                    onToggle={() => toggleDone(task.cid)}
-                    onDelete={() => deleteTask(task.cid)}
-                    onEdit={() => openEditModal(task.cid)}
-                    onNavigateNote={onNavigateNote}
-                    isDragging={dragCid === task.cid}
-                    dropIndicator={dropTarget?.cid === task.cid ? dropTarget.position : null}
-                    onDragStart={(e) => handleDragStart(e, task.cid)}
-                    onDragOver={(e) => handleDragOver(e, task.cid)}
-                    onDragLeave={handleDragLeave}
-                    onDrop={(e) => handleDrop(e, task.cid, section.date)}
-                    onDragEnd={handleDragEnd}
-                  />
-                )
+                <TaskRow
+                  key={task.cid}
+                  task={task}
+                  compact={tab === "done"}
+                  onToggle={() => toggleDone(task.cid)}
+                  onDelete={() => deleteTask(task.cid)}
+                  onEdit={() => openEditModal(task.cid)}
+                  onNavigateNote={onNavigateNote}
+                  isDragging={dragCid === task.cid}
+                  dropIndicator={dropTarget?.cid === task.cid ? dropTarget.position : null}
+                  onDragStart={(e) => handleDragStart(e, task.cid)}
+                  onDragOver={(e) => handleDragOver(e, task.cid)}
+                  onDragLeave={handleDragLeave}
+                  onDrop={(e) => handleDrop(e, task.cid, section.date)}
+                  onDragEnd={handleDragEnd}
+                />
               ))}
             </div>
           )
@@ -790,6 +787,7 @@ export function TasksPanel({ notes, dictionary = [], onSave, onCreate, onNavigat
 
 function TaskRow({
   task,
+  compact,
   onToggle,
   onDelete,
   onEdit,
@@ -803,6 +801,7 @@ function TaskRow({
   onDragEnd,
 }: {
   task: IdTask;
+  compact?: boolean;
   onToggle: () => void;
   onDelete: () => void;
   onEdit: () => void;
@@ -819,7 +818,7 @@ function TaskRow({
 
   return (
     <div
-      className={`task-row ${task.done ? "task-done" : ""} ${isDragging ? "task-dragging" : ""} ${dropIndicator ? `task-drop-${dropIndicator}` : ""}`}
+      className={`task-row ${task.done ? "task-done" : ""} ${compact ? "task-done-compact" : ""} ${isDragging ? "task-dragging" : ""} ${dropIndicator ? `task-drop-${dropIndicator}` : ""}`}
       draggable
       onDragStart={onDragStart}
       onDragOver={onDragOver}
@@ -880,28 +879,6 @@ function TaskRow({
           </svg>
         </button>
       </div>
-    </div>
-  );
-}
-
-function DoneTaskRow({ task, onToggle, onDelete }: { task: IdTask; onToggle: () => void; onDelete: () => void }) {
-  const { title } = useMemo(() => extractChips(task.text), [task.text]);
-
-  return (
-    <div className="task-row task-done task-done-compact">
-      <button className="task-checkbox" onClick={onToggle} aria-label="Mark incomplete">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <rect x="3" y="3" width="18" height="18" rx="3" fill="var(--accent)" stroke="var(--accent)" />
-          <polyline points="9 11 12 14 16 9" stroke="var(--bg-primary)" strokeWidth="2.5" />
-        </svg>
-      </button>
-      <span className="task-done-title">{title}</span>
-      <button className="task-delete" onClick={onDelete} title="Delete task">
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <line x1="18" y1="6" x2="6" y2="18" />
-          <line x1="6" y1="6" x2="18" y2="18" />
-        </svg>
-      </button>
     </div>
   );
 }
