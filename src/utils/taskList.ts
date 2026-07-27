@@ -28,8 +28,18 @@ export function isValidDate(y: number, m: number, d: number): boolean {
   return dt.getFullYear() === y && dt.getMonth() + 1 === m && dt.getDate() === d;
 }
 
-function pad2(n: number): string {
+export function pad2(n: number): string {
   return n < 10 ? `0${n}` : String(n);
+}
+
+export function ymd(d: Date): string {
+  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
+}
+
+export function addDays(base: Date, days: number): Date {
+  const d = new Date(base.getFullYear(), base.getMonth(), base.getDate());
+  d.setDate(d.getDate() + days);
+  return d;
 }
 
 export function formatDateToken(date: string | null, time: number | null): string {
@@ -188,6 +198,43 @@ export function advanceDate(date: string, recurrence: Recurrence): string {
     }
   }
   return `${next.getFullYear()}-${pad2(next.getMonth() + 1)}-${pad2(next.getDate())}`;
+}
+
+const UNIT_LABELS: Record<string, [string, string]> = {
+  d: ["day", "days"],
+  w: ["week", "weeks"],
+  m: ["month", "months"],
+  y: ["year", "years"],
+};
+
+export function formatTime(minutes: number): string {
+  const h = Math.floor(minutes / 60);
+  const m = minutes % 60;
+  const period = h >= 12 ? "pm" : "am";
+  const h12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
+  return m === 0 ? `${h12}${period}` : `${h12}:${pad2(m)}${period}`;
+}
+
+export function formatRecurrence(r: Recurrence): string {
+  const [singular, plural] = UNIT_LABELS[r.unit];
+  return r.every === 1 ? `every ${singular}` : `every ${r.every} ${plural}`;
+}
+
+export function mapTask(
+  doc: TaskDoc,
+  cid: string,
+  fn: (task: Task) => Task | null,
+): TaskDoc {
+  let idx = 0;
+  const result: TaskDoc = [];
+  for (const item of doc) {
+    if (item.kind !== "task") { result.push(item); continue; }
+    const thisCid = `t${idx++}`;
+    if (thisCid !== cid) { result.push(item); continue; }
+    const updated = fn(item.task);
+    if (updated) result.push({ kind: "task", task: updated });
+  }
+  return result;
 }
 
 export const TASK_CODEX = "Tasks";

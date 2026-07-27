@@ -1,4 +1,5 @@
 import type { Recurrence, RecurrenceUnit } from "./taskList";
+import { pad2, ymd, addDays } from "./taskList";
 
 export type ParsedInput = {
   text: string;
@@ -31,20 +32,6 @@ const MONTHS: Record<string, number> = {
   nov: 11, november: 11,
   dec: 12, december: 12,
 };
-
-function pad2(n: number): string {
-  return n < 10 ? `0${n}` : String(n);
-}
-
-function ymd(d: Date): string {
-  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
-}
-
-function addDays(base: Date, days: number): Date {
-  const d = new Date(base.getFullYear(), base.getMonth(), base.getDate());
-  d.setDate(d.getDate() + days);
-  return d;
-}
 
 function parseTime(token: string): number | null {
   const t = token.toLowerCase();

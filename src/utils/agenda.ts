@@ -1,5 +1,7 @@
 import type { Task } from "./taskList";
-import { sortForAgenda } from "./taskList";
+import { sortForAgenda, ymd, addDays } from "./taskList";
+
+export { ymd } from "./taskList";
 
 export type IdTask = Task & { cid: string };
 
@@ -9,23 +11,9 @@ export type AgendaSection = {
   tasks: IdTask[];
 };
 
-function pad2(n: number): string {
-  return n < 10 ? `0${n}` : String(n);
-}
-
-export function ymd(d: Date): string {
-  return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`;
-}
-
 export function fromYmd(s: string): Date {
   const [y, m, d] = s.split("-").map(Number);
   return new Date(y, m - 1, d);
-}
-
-function addDays(base: Date, days: number): Date {
-  const d = new Date(base.getFullYear(), base.getMonth(), base.getDate());
-  d.setDate(d.getDate() + days);
-  return d;
 }
 
 const WEEKDAY = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
@@ -79,7 +67,7 @@ export function buildAgenda(
 
 export function buildDoneList(
   tasks: IdTask[],
-  opts?: { maxSections?: number },
+  opts: { today: string; maxSections?: number },
 ): AgendaSection[] {
   const done = tasks.filter((t) => t.done);
 
@@ -92,14 +80,13 @@ export function buildDoneList(
   }
 
   const dayKeys = [...byDate.keys()].sort().reverse();
-  const todayStr = ymd(new Date());
-  const limit = opts?.maxSections ?? dayKeys.length;
+  const limit = opts.maxSections ?? dayKeys.length;
 
   const sections: AgendaSection[] = [];
   for (const key of dayKeys.slice(0, limit)) {
     sections.push({
       date: key,
-      title: key === "undated" ? "Undated" : dayTitle(key, todayStr),
+      title: key === "undated" ? "Undated" : dayTitle(key, opts.today),
       tasks: byDate.get(key) ?? [],
     });
   }
