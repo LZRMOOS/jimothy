@@ -1,10 +1,14 @@
 export type Priority = "high" | "med" | "low";
 
+export type RecurrenceUnit = "d" | "w" | "m" | "y";
+export type Recurrence = { every: number; unit: RecurrenceUnit };
+
 export type Task = {
   text: string;
   date: string | null;
   time: number | null;
   priority: Priority | null;
+  recurrence: Recurrence | null;
   done: boolean;
 };
 
@@ -16,6 +20,7 @@ export type TaskDoc = Array<
 const TASK_LINE_RE = /^(\s*(?:[-*+]|\d+[.)])\s+\[)([ xX])(\]\s+)(.*)$/;
 const PRIORITY_TOKEN_RE = /(?:^|\s)(!(?:high|med|low))(?=\s|$)/g;
 const DATE_TOKEN_RE = /(?:^|\s)(!(\d{4})-(\d{2})-(\d{2})(?:T(\d{2}):(\d{2}))?)(?=\s|$)/g;
+const RECURRENCE_TOKEN_RE = /(?:^|\s)(!every:(\d+)([dwmy]))(?=\s|$)/g;
 
 export function isValidDate(y: number, m: number, d: number): boolean {
   if (m < 1 || m > 12 || d < 1 || d > 31) return false;
@@ -35,11 +40,18 @@ export function formatDateToken(date: string | null, time: number | null): strin
   return `!${date}T${hh}:${mm}`;
 }
 
+export function formatRecurrenceToken(r: Recurrence | null): string {
+  if (!r) return "";
+  return `!every:${r.every}${r.unit}`;
+}
+
 function tokenSuffix(task: Task): string {
   const parts: string[] = [];
   if (task.priority) parts.push(`!${task.priority}`);
   const date = formatDateToken(task.date, task.time);
   if (date) parts.push(date);
+  const rec = formatRecurrenceToken(task.recurrence);
+  if (rec) parts.push(rec);
   return parts.length ? " " + parts.join(" ") : "";
 }
 
@@ -52,6 +64,7 @@ function parseTaskLine(line: string): Task | null {
   let priority: Priority | null = null;
   let date: string | null = null;
   let time: number | null = null;
+  let recurrence: Recurrence | null = null;
 
   let pm: RegExpExecArray | null;
   PRIORITY_TOKEN_RE.lastIndex = 0;
@@ -84,16 +97,27 @@ function parseTaskLine(line: string): Task | null {
     time = t;
   }
 
+  RECURRENCE_TOKEN_RE.lastIndex = 0;
+  let rm: RegExpExecArray | null;
+  const recurrenceHits: Array<[number, number]> = [];
+  while ((rm = RECURRENCE_TOKEN_RE.exec(content)) !== null) {
+    const tok = rm[1];
+    const start = rm.index + rm[0].indexOf(tok);
+    recurrenceHits.push([start, start + tok.length]);
+    recurrence = { every: Number(rm[2]), unit: rm[3] as RecurrenceUnit };
+  }
+
   if (priorityHits.length) priority = priorityHits[priorityHits.length - 1][2];
 
   const spans = [
     ...priorityHits.map(([s, e]) => [s, e] as [number, number]),
     ...dateHits,
+    ...recurrenceHits,
   ].sort((a, b) => b[0] - a[0]);
   for (const [s, e] of spans) content = content.slice(0, s) + content.slice(e);
 
   const text = content.replace(/\s+/g, " ").trim();
-  return { text, date, time, priority, done };
+  return { text, date, time, priority, recurrence, done };
 }
 
 export function parseTaskDoc(body: string): TaskDoc {
@@ -135,6 +159,35 @@ export function sortForAgenda(tasks: Task[]): Task[] {
       return ai - bi;
     })
     .map(([t]) => t);
+}
+
+export function advanceDate(date: string, recurrence: Recurrence): string {
+  const [y, m, d] = date.split("-").map(Number);
+  let next: Date;
+  switch (recurrence.unit) {
+    case "d":
+      next = new Date(y, m - 1, d + recurrence.every);
+      break;
+    case "w":
+      next = new Date(y, m - 1, d + recurrence.every * 7);
+      break;
+    case "m": {
+      next = new Date(y, m - 1 + recurrence.every, d);
+      const expectedMonth = (m - 1 + recurrence.every) % 12;
+      if (next.getMonth() !== expectedMonth) {
+        next = new Date(next.getFullYear(), expectedMonth + 1, 0);
+      }
+      break;
+    }
+    case "y": {
+      next = new Date(y + recurrence.every, m - 1, d);
+      if (next.getMonth() !== m - 1) {
+        next = new Date(y + recurrence.every, m, 0);
+      }
+      break;
+    }
+  }
+  return `${next.getFullYear()}-${pad2(next.getMonth() + 1)}-${pad2(next.getDate())}`;
 }
 
 export const TASK_CODEX = "Tasks";

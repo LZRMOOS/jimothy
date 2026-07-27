@@ -4950,6 +4950,11 @@ img.emoji {
   color: #6366f1;
 }
 
+.tasks-chip-recurrence {
+  background: rgba(139, 92, 246, 0.12);
+  color: #8b5cf6;
+}
+
 .tasks-chip-dismiss:hover .tasks-chip-x {
   opacity: 1;
 }
@@ -5381,6 +5386,15 @@ img.emoji {
 .task-time {
   font-size: 11px;
   color: var(--text-hint);
+}
+
+.task-recurrence {
+  font-size: 10px;
+  font-weight: 500;
+  padding: 1px 5px;
+  border-radius: 3px;
+  background: rgba(139, 92, 246, 0.12);
+  color: #8b5cf6;
 }
 
 .task-chip {

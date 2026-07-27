@@ -1168,17 +1168,21 @@ function App() {
         // Enter create mode: focus search and wait for title input
         setIsCreateMode(true);
         setQuery("");
+        setShowSettings(false);
         searchInputRef.current?.focus();
       } else if (mod && e.shiftKey && key === "f") {
         e.preventDefault();
+        setShowSettings(false);
         searchInputRef.current?.focus();
         searchInputRef.current?.select();
       } else if (mod && !e.shiftKey && key === "l") {
         e.preventDefault();
+        setShowSettings(false);
         searchInputRef.current?.focus();
         searchInputRef.current?.select();
       } else if (mod && !e.shiftKey && key === "k") {
         e.preventDefault();
+        setShowSettings(false);
         setShowCommandPalette((s) => !s);
       } else if (mod && e.key === ",") {
         e.preventDefault();
@@ -1221,6 +1225,7 @@ function App() {
         searchInputRef.current?.blur();
       } else if (mod && key === "j" && !e.shiftKey) {
         e.preventDefault();
+        setShowSettings(false);
         handleDailyNote();
       } else if (mod && e.key === "\\") {
         e.preventDefault();

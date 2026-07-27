@@ -1,7 +1,10 @@
+import type { Recurrence, RecurrenceUnit } from "./taskList";
+
 export type ParsedInput = {
   text: string;
   date: string | null;
   time: number | null;
+  recurrence: Recurrence | null;
 };
 
 const WEEKDAYS: Record<string, number> = {
@@ -161,19 +164,48 @@ function tokenize(input: string): Token[] {
   return tokens;
 }
 
-type Kind = "none" | "date" | "time";
+const RECURRENCE_UNITS: Record<string, RecurrenceUnit> = {
+  day: "d", days: "d",
+  week: "w", weeks: "w",
+  month: "m", months: "m",
+  year: "y", years: "y",
+};
+
+function matchRecurrence(
+  words: string[],
+): { recurrence: Recurrence; consumed: number } | null {
+  if (words[0] !== "every") return null;
+
+  // "every day/week/month/year" = every 1 unit
+  if (words[1] && RECURRENCE_UNITS[words[1]]) {
+    return { recurrence: { every: 1, unit: RECURRENCE_UNITS[words[1]] }, consumed: 2 };
+  }
+
+  // "every N days/weeks/months/years"
+  if (words[1] && words[2]) {
+    const num = Number(words[1]);
+    if (Number.isInteger(num) && num > 0 && RECURRENCE_UNITS[words[2]]) {
+      return { recurrence: { every: num, unit: RECURRENCE_UNITS[words[2]] }, consumed: 3 };
+    }
+  }
+
+  return null;
+}
+
+type Kind = "none" | "date" | "time" | "recurrence";
 
 function analyze(
   input: string,
   now: Date,
   opts?: { allowBareTime?: boolean },
-): { tokens: Token[]; kind: Kind[]; date: string | null; time: number | null } {
+): { tokens: Token[]; kind: Kind[]; date: string | null; time: number | null; recurrence: Recurrence | null } {
   const tokens = tokenize(input);
   const lower = tokens.map((t) => t.lower);
   const kind: Kind[] = new Array(tokens.length).fill("none");
 
   let date: string | null = null;
   let time: number | null = null;
+  let recurrence: Recurrence | null = null;
 
   for (let i = 0; i < tokens.length && date === null; i++) {
     const hit = matchDatePhrase(lower.slice(i), now);
@@ -200,32 +232,44 @@ function analyze(
     if (timeIndex >= 0) kind[timeIndex] = "none";
   }
 
-  return { tokens, kind, date, time };
+  for (let i = 0; i < tokens.length && recurrence === null; i++) {
+    if (kind[i] !== "none") continue;
+    const hit = matchRecurrence(lower.slice(i));
+    if (hit) {
+      recurrence = hit.recurrence;
+      for (let k = 0; k < hit.consumed; k++) kind[i + k] = "recurrence";
+    }
+  }
+
+  return { tokens, kind, date, time, recurrence };
 }
 
 export function parseTaskInput(input: string, now: Date = new Date()): ParsedInput {
-  const { tokens, kind, date, time } = analyze(input, now);
-  if (tokens.length === 0) return { text: "", date: null, time: null };
+  const { tokens, kind, date, time, recurrence } = analyze(input, now);
+  if (tokens.length === 0) return { text: "", date: null, time: null, recurrence: null };
 
   const text = tokens
     .filter((_, i) => kind[i] === "none")
     .map((t) => t.text)
     .join(" ")
     .trim();
-  return { text: text || input.trim(), date, time: date ? time : null };
+  return { text: text || input.trim(), date, time: date ? time : null, recurrence };
 }
 
 export type Recognition = {
   date: string | null;
   time: number | null;
+  recurrence: Recurrence | null;
   dateSpans: Array<[number, number]>;
   timeSpans: Array<[number, number]>;
+  recurrenceSpans: Array<[number, number]>;
 };
 
 export function recognize(input: string, now: Date = new Date(), opts?: { allowBareTime?: boolean }): Recognition {
-  const { tokens, kind, date, time } = analyze(input, now, opts);
+  const { tokens, kind, date, time, recurrence } = analyze(input, now, opts);
   const dateSpans: Array<[number, number]> = [];
   const timeSpans: Array<[number, number]> = [];
+  const recurrenceSpans: Array<[number, number]> = [];
 
   let i = 0;
   while (i < tokens.length) {
@@ -236,11 +280,18 @@ export function recognize(input: string, now: Date = new Date(), opts?: { allowB
       while (j < tokens.length && kind[j] === "date") { end = tokens[j].end; j++; }
       dateSpans.push([start, end]);
       i = j;
+    } else if (kind[i] === "recurrence") {
+      const start = tokens[i].start;
+      let end = tokens[i].end;
+      let j = i + 1;
+      while (j < tokens.length && kind[j] === "recurrence") { end = tokens[j].end; j++; }
+      recurrenceSpans.push([start, end]);
+      i = j;
     } else { i++; }
   }
   for (let k = 0; k < tokens.length; k++) {
     if (kind[k] === "time") timeSpans.push([tokens[k].start, tokens[k].end]);
   }
 
-  return { date, time, dateSpans, timeSpans };
+  return { date, time, recurrence, dateSpans, timeSpans, recurrenceSpans };
 }

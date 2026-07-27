@@ -6,9 +6,11 @@ import {
   parseTaskDoc,
   serializeTaskDoc,
   serializeTask,
+  advanceDate,
   type Task,
   type TaskDoc,
   type Priority,
+  type Recurrence,
 } from "../utils/taskList";
 import { buildAgenda, buildDoneList, ymd, dayTitle, type IdTask } from "../utils/agenda";
 import { recognize } from "../utils/naturalDate";
@@ -26,6 +28,7 @@ export function TasksPanel({ notes, dictionary = [], onNavigateNote }: Props) {
   const [addPriority, setAddPriority] = useState<Priority | null>(null);
   const [schedDate, setSchedDate] = useState<{ value: string; label: string; phrase: string } | null>(null);
   const [schedTime, setSchedTime] = useState<{ value: number; label: string; phrase: string } | null>(null);
+  const [schedRecurrence, setSchedRecurrence] = useState<{ value: Recurrence; label: string; phrase: string } | null>(null);
   const [focusedDay, setFocusedDay] = useState<string | null>(null);
   const [editingCid, setEditingCid] = useState<string | null>(null);
   const [attachments, setAttachments] = useState<Array<{ kind: "url"; label: string; href: string } | { kind: "note"; label: string; id: string }>>([]);
@@ -178,6 +181,13 @@ export function TasksPanel({ notes, dictionary = [], onNavigateNote }: Props) {
         lifted = true;
       }
 
+      if (r.recurrence && r.recurrenceSpans.length > 0 && !schedRecurrence) {
+        const rPhrase = r.recurrenceSpans.map(([s, e]) => next.slice(s, e)).join(" ");
+        setSchedRecurrence({ value: r.recurrence, label: formatRecurrence(r.recurrence), phrase: rPhrase });
+        allSpans.push(...r.recurrenceSpans);
+        lifted = true;
+      }
+
       if (lifted) {
         let stripped = next;
         for (const [s, e] of allSpans.sort((a, b) => b[0] - a[0])) {
@@ -188,7 +198,7 @@ export function TasksPanel({ notes, dictionary = [], onNavigateNote }: Props) {
         setAddInput(next);
       }
     },
-    [addInput, schedDate, schedTime, today, notes, dictionary, noteQueryStart, mentionQueryStart]
+    [addInput, schedDate, schedTime, schedRecurrence, today, notes, dictionary, noteQueryStart, mentionQueryStart]
   );
 
   const insertMention = useCallback(
@@ -261,6 +271,12 @@ export function TasksPanel({ notes, dictionary = [], onNavigateNote }: Props) {
     setAddInput((d) => (w ? `${d}${w} ` : d));
   }, [schedTime]);
 
+  const dismissRecurrence = useCallback(() => {
+    const w = schedRecurrence?.phrase;
+    setSchedRecurrence(null);
+    setAddInput((d) => (w ? `${d}${w} ` : d));
+  }, [schedRecurrence]);
+
   const persistDoc = useCallback(
     (newDoc: TaskDoc) => {
       const body = serializeTaskDoc(newDoc);
@@ -278,7 +294,11 @@ export function TasksPanel({ notes, dictionary = [], onNavigateNote }: Props) {
         if (item.kind !== "task") return item;
         const thisCid = `t${idx++}`;
         if (thisCid !== cid) return item;
-        return { kind: "task" as const, task: { ...item.task, done: !item.task.done } };
+        const task = item.task;
+        if (task.recurrence && task.date && !task.done) {
+          return { kind: "task" as const, task: { ...task, date: advanceDate(task.date, task.recurrence) } };
+        }
+        return { kind: "task" as const, task: { ...task, done: !task.done } };
       });
       persistDoc(newDoc);
     },
@@ -323,6 +343,7 @@ export function TasksPanel({ notes, dictionary = [], onNavigateNote }: Props) {
       setAddPriority(task.priority);
       setSchedDate(task.date ? { value: task.date, label: dayTitle(task.date, today), phrase: task.date } : null);
       setSchedTime(task.time !== null ? { value: task.time, label: formatTime(task.time), phrase: formatTime(task.time) } : null);
+      setSchedRecurrence(task.recurrence ? { value: task.recurrence, label: formatRecurrence(task.recurrence), phrase: formatRecurrence(task.recurrence) } : null);
       setAttachments(chips.map((c) =>
         c.kind === "note" ? { kind: "note" as const, label: c.label, id: c.id } : { kind: "url" as const, label: c.label, href: c.href }
       ));
@@ -470,11 +491,12 @@ export function TasksPanel({ notes, dictionary = [], onNavigateNote }: Props) {
 
     const date = schedDate?.value ?? focusedDay ?? null;
     const time = schedTime?.value ?? null;
+    const recurrence = schedRecurrence?.value ?? null;
 
     if (editingCid) {
-      editTask(editingCid, { text, date, time, priority: addPriority });
+      editTask(editingCid, { text, date, time, priority: addPriority, recurrence });
     } else {
-      const newTask: Task = { text, date, time, priority: addPriority, done: false };
+      const newTask: Task = { text, date, time, priority: addPriority, recurrence, done: false };
       const line = serializeTask(newTask);
       const body = taskBody ? taskBody + "\n" + line : line;
       setTaskBody(body);
@@ -486,10 +508,11 @@ export function TasksPanel({ notes, dictionary = [], onNavigateNote }: Props) {
     setAddPriority(null);
     setSchedDate(null);
     setSchedTime(null);
+    setSchedRecurrence(null);
     setAttachments([]);
     setEditingCid(null);
     setShowAddModal(false);
-  }, [addInput, addPriority, attachments, schedDate, schedTime, focusedDay, editingCid, editTask, taskBody]);
+  }, [addInput, addPriority, attachments, schedDate, schedTime, schedRecurrence, focusedDay, editingCid, editTask, taskBody]);
 
   const closeModal = useCallback(() => {
     setShowAddModal(false);
@@ -532,6 +555,7 @@ export function TasksPanel({ notes, dictionary = [], onNavigateNote }: Props) {
         setAddPriority(null);
         setSchedDate(null);
         setSchedTime(null);
+        setSchedRecurrence(null);
         setAttachments([]);
         setNoteSuggestions([]);
         setNoteQueryStart(null);
@@ -606,6 +630,11 @@ export function TasksPanel({ notes, dictionary = [], onNavigateNote }: Props) {
                 {schedTime && (
                   <button className="tasks-chip tasks-chip-dismiss" onClick={dismissTime}>
                     {schedTime.label} <span className="tasks-chip-x">×</span>
+                  </button>
+                )}
+                {schedRecurrence && (
+                  <button className="tasks-chip tasks-chip-dismiss tasks-chip-recurrence" onClick={dismissRecurrence}>
+                    {schedRecurrence.label} <span className="tasks-chip-x">×</span>
                   </button>
                 )}
               </div>
@@ -876,6 +905,11 @@ function TaskRow({
               {formatTime(task.time)}
             </span>
           )}
+          {task.recurrence && (
+            <span className="task-recurrence">
+              {formatRecurrence(task.recurrence)}
+            </span>
+          )}
           {chips.map((chip, i) =>
             chip.kind === "note" ? (
               <button key={i} className="task-chip task-chip-note" onClick={() => onNavigateNote(chip.id)}>
@@ -921,6 +955,18 @@ function formatTime(minutes: number): string {
   const period = h >= 12 ? "pm" : "am";
   const h12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
   return m === 0 ? `${h12}${period}` : `${h12}:${m.toString().padStart(2, "0")}${period}`;
+}
+
+const UNIT_LABELS: Record<string, [string, string]> = {
+  d: ["day", "days"],
+  w: ["week", "weeks"],
+  m: ["month", "months"],
+  y: ["year", "years"],
+};
+
+function formatRecurrence(r: Recurrence): string {
+  const [singular, plural] = UNIT_LABELS[r.unit];
+  return r.every === 1 ? `every ${singular}` : `every ${r.every} ${plural}`;
 }
 
 type Chip =
