@@ -5,8 +5,10 @@ import type { Note } from "../types";
 import {
   parseTaskDoc,
   serializeTaskDoc,
-  serializeTask,
   advanceDate,
+  mapTask,
+  formatTime,
+  formatRecurrence,
   type Task,
   type TaskDoc,
   type Priority,
@@ -82,7 +84,7 @@ export function TasksPanel({ notes, dictionary = [], onNavigateNote }: Props) {
   );
 
   const [doneSectionsLimit, setDoneSectionsLimit] = useState(30);
-  const doneSections = useMemo(() => buildDoneList(allTasks, { maxSections: doneSectionsLimit }), [allTasks, doneSectionsLimit]);
+  const doneSections = useMemo(() => buildDoneList(allTasks, { today, maxSections: doneSectionsLimit }), [allTasks, today, doneSectionsLimit]);
 
   const onDraftChange = useCallback(
     (next: string, cursorPos?: number) => {
@@ -292,16 +294,11 @@ export function TasksPanel({ notes, dictionary = [], onNavigateNote }: Props) {
 
   const toggleDone = useCallback(
     (cid: string) => {
-      let idx = 0;
-      const newDoc = doc.map((item) => {
-        if (item.kind !== "task") return item;
-        const thisCid = `t${idx++}`;
-        if (thisCid !== cid) return item;
-        const task = item.task;
+      const newDoc = mapTask(doc, cid, (task) => {
         if (task.recurrence && task.date && !task.done) {
-          return { kind: "task" as const, task: { ...task, date: advanceDate(task.date, task.recurrence) } };
+          return { ...task, date: advanceDate(task.date, task.recurrence) };
         }
-        return { kind: "task" as const, task: { ...task, done: !task.done } };
+        return { ...task, done: !task.done };
       });
       persistDoc(newDoc);
     },
@@ -309,28 +306,13 @@ export function TasksPanel({ notes, dictionary = [], onNavigateNote }: Props) {
   );
 
   const deleteTask = useCallback(
-    (cid: string) => {
-      let idx = 0;
-      const newDoc = doc.filter((item) => {
-        if (item.kind !== "task") return true;
-        const thisCid = `t${idx++}`;
-        return thisCid !== cid;
-      });
-      persistDoc(newDoc);
-    },
+    (cid: string) => persistDoc(mapTask(doc, cid, () => null)),
     [doc, persistDoc]
   );
 
   const editTask = useCallback(
     (cid: string, updates: Partial<Task>) => {
-      let idx = 0;
-      const newDoc = doc.map((item) => {
-        if (item.kind !== "task") return item;
-        const thisCid = `t${idx++}`;
-        if (thisCid !== cid) return item;
-        return { kind: "task" as const, task: { ...item.task, ...updates } };
-      });
-      persistDoc(newDoc);
+      persistDoc(mapTask(doc, cid, (task) => ({ ...task, ...updates })));
     },
     [doc, persistDoc]
   );
@@ -500,11 +482,7 @@ export function TasksPanel({ notes, dictionary = [], onNavigateNote }: Props) {
       editTask(editingCid, { text, date, time, priority: addPriority, recurrence });
     } else {
       const newTask: Task = { text, date, time, priority: addPriority, recurrence, done: false };
-      const line = serializeTask(newTask);
-      const body = taskBody ? taskBody + "\n" + line : line;
-      setTaskBody(body);
-      lastSaveRef.current = Date.now();
-      invoke("save_tasks", { content: body }).catch(() => {});
+      persistDoc([...doc, { kind: "task", task: newTask }]);
     }
 
     setAddInput("");
@@ -515,7 +493,7 @@ export function TasksPanel({ notes, dictionary = [], onNavigateNote }: Props) {
     setAttachments([]);
     setEditingCid(null);
     setShowAddModal(false);
-  }, [addInput, addPriority, attachments, schedDate, schedTime, schedRecurrence, focusedDay, editingCid, editTask, taskBody]);
+  }, [addInput, addPriority, attachments, schedDate, schedTime, schedRecurrence, focusedDay, editingCid, editTask, doc, persistDoc]);
 
   const closeModal = useCallback(() => {
     setShowAddModal(false);
@@ -950,26 +928,6 @@ function TaskRow({
       </div>
     </div>
   );
-}
-
-function formatTime(minutes: number): string {
-  const h = Math.floor(minutes / 60);
-  const m = minutes % 60;
-  const period = h >= 12 ? "pm" : "am";
-  const h12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
-  return m === 0 ? `${h12}${period}` : `${h12}:${m.toString().padStart(2, "0")}${period}`;
-}
-
-const UNIT_LABELS: Record<string, [string, string]> = {
-  d: ["day", "days"],
-  w: ["week", "weeks"],
-  m: ["month", "months"],
-  y: ["year", "years"],
-};
-
-function formatRecurrence(r: Recurrence): string {
-  const [singular, plural] = UNIT_LABELS[r.unit];
-  return r.every === 1 ? `every ${singular}` : `every ${r.every} ${plural}`;
 }
 
 type Chip =
