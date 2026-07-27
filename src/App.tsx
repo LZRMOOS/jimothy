@@ -94,7 +94,11 @@ function App() {
     disableProtection,
   } = useProtection();
 
-  const [query, setQuery] = useState("");
+  const [query, setQueryRaw] = useState("");
+  const setQuery = useCallback((q: string) => {
+    setQueryRaw(q);
+    if (q) setViewingTasks(false);
+  }, []);
   const [activeCodex, setActiveCodex] = useState<string | null>(null);
   const [viewingArchive, setViewingArchive] = useState(false);
   const [viewingTasks, setViewingTasks] = useState(false);
@@ -1495,6 +1499,17 @@ function App() {
       {!sidebarCollapsed && (
         <div className="codex-sidebar" data-tour="sidebar">
           <button
+            className={`codex-sidebar-item ${viewingTasks ? "active" : ""}`}
+            onClick={() => { setViewingTasks((s) => !s); setActiveCodex(null); setViewingArchive(false); }}
+            title="Tasks"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="3" y="3" width="18" height="18" rx="3" />
+              <polyline points="9 11 12 14 16 9" />
+            </svg>
+          </button>
+          <div className="codex-sidebar-divider" />
+          <button
             className={`codex-sidebar-item ${activeCodex === null && !viewingArchive && !viewingTasks ? "active" : ""}`}
             onClick={() => { setActiveCodex(null); setViewingArchive(false); setViewingTasks(false); }}
             title="All Notes"
@@ -1504,16 +1519,6 @@ function App() {
               <rect x="14" y="3" width="7" height="7" rx="1" />
               <rect x="3" y="14" width="7" height="7" rx="1" />
               <rect x="14" y="14" width="7" height="7" rx="1" />
-            </svg>
-          </button>
-          <button
-            className={`codex-sidebar-item ${viewingTasks ? "active" : ""}`}
-            onClick={() => { setViewingTasks((s) => !s); setActiveCodex(null); setViewingArchive(false); }}
-            title="Tasks"
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <rect x="3" y="3" width="18" height="18" rx="3" />
-              <polyline points="9 11 12 14 16 9" />
             </svg>
           </button>
           {codexList.map((codex) => (
