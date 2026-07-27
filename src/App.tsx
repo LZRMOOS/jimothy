@@ -1205,16 +1205,19 @@ function App() {
           setActiveCodex(null);
           setViewingArchive(false);
           setViewingTasks(false);
+          setShowSettings(false);
         } else if (idx - 1 < codexList.length) {
           setActiveCodex(codexList[idx - 1]);
           setViewingArchive(false);
           setViewingTasks(false);
+          setShowSettings(false);
         }
       } else if (mod && e.key === "`") {
         e.preventDefault();
         setViewingTasks((s) => !s);
         setActiveCodex(null);
         setViewingArchive(false);
+        setShowSettings(false);
         searchInputRef.current?.blur();
       } else if (mod && key === "j" && !e.shiftKey) {
         e.preventDefault();
@@ -1227,6 +1230,7 @@ function App() {
         setViewingTasks((s) => !s);
         setActiveCodex(null);
         setViewingArchive(false);
+        setShowSettings(false);
         searchInputRef.current?.blur();
       } else if (mod && key === "i" && !e.shiftKey) {
         e.preventDefault();
@@ -1377,14 +1381,14 @@ function App() {
       action: () => handleToggleSensitive(selectedId),
     }] : []),
     ...(splitNoteId ? [{ id: "close-split", label: "Close Split View", shortcut: `${mod}\\`, action: () => setSplitNoteId(null) }] : []),
-    { id: "all-notes", label: "All Notes", shortcut: `${mod}1`, action: () => { setActiveCodex(null); setViewingArchive(false); setViewingTasks(false); } },
-    { id: "view-tasks", label: "View Tasks", shortcut: `${mod}T`, action: () => { setViewingTasks(true); setActiveCodex(null); setViewingArchive(false); } },
-    { id: "view-archive", label: viewingArchive ? "Exit Archive" : "View Archive", action: () => { setViewingArchive((s) => !s); setActiveCodex(null); setViewingTasks(false); } },
+    { id: "all-notes", label: "All Notes", shortcut: `${mod}1`, action: () => { setActiveCodex(null); setViewingArchive(false); setViewingTasks(false); setShowSettings(false); } },
+    { id: "view-tasks", label: "View Tasks", shortcut: `${mod}T`, action: () => { setViewingTasks(true); setActiveCodex(null); setViewingArchive(false); setShowSettings(false); } },
+    { id: "view-archive", label: viewingArchive ? "Exit Archive" : "View Archive", action: () => { setViewingArchive((s) => !s); setActiveCodex(null); setViewingTasks(false); setShowSettings(false); } },
     ...codexList.map((c, i) => ({
       id: `codex-${c}`,
       label: `Codex: ${c}`,
       shortcut: i < 8 ? `${mod}${i + 2}` : undefined,
-      action: () => { setActiveCodex(c); setViewingArchive(false); setViewingTasks(false); },
+      action: () => { setActiveCodex(c); setViewingArchive(false); setViewingTasks(false); setShowSettings(false); },
     })),
   ], [handleDelete, handleLock, handleDailyNote, handleFeatureTour, handleTogglePin, handleToggleFreeze, handleToggleArchive, handleZoom, handleSettingsChange, handleToggleSensitive, navigateNote, appSettings, selectedId, selectedNote, splitNoteId, codexList, notes, vaultStatus, showReferencePanel, viewingArchive]);
 
@@ -1506,7 +1510,7 @@ function App() {
         <div className="codex-sidebar" data-tour="sidebar">
           <button
             className={`codex-sidebar-item ${viewingTasks ? "active" : ""}`}
-            onClick={() => { setViewingTasks((s) => !s); setActiveCodex(null); setViewingArchive(false); }}
+            onClick={() => { setViewingTasks((s) => !s); setActiveCodex(null); setViewingArchive(false); setShowSettings(false); }}
             title="Tasks"
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -1517,7 +1521,7 @@ function App() {
           <div className="codex-sidebar-divider" />
           <button
             className={`codex-sidebar-item ${activeCodex === null && !viewingArchive && !viewingTasks ? "active" : ""}`}
-            onClick={() => { setActiveCodex(null); setViewingArchive(false); setViewingTasks(false); }}
+            onClick={() => { setActiveCodex(null); setViewingArchive(false); setViewingTasks(false); setShowSettings(false); }}
             title="All Notes"
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -1532,7 +1536,7 @@ function App() {
               <button
                 className={`codex-sidebar-item ${activeCodex === codex && !viewingArchive ? "active" : ""}`}
                 style={appSettings.codexColors?.[codex] ? { color: appSettings.codexColors[codex] } : undefined}
-                onClick={() => { setActiveCodex(activeCodex === codex ? null : codex); setViewingArchive(false); setViewingTasks(false); }}
+                onClick={() => { setActiveCodex(activeCodex === codex ? null : codex); setViewingArchive(false); setViewingTasks(false); setShowSettings(false); }}
                 onDoubleClick={(e) => { setEditingCodexIcon(codex); setCodexIconAnchor(e.currentTarget); }}
                 title={`${codex} (double-click to set icon)`}
               >
@@ -1557,7 +1561,7 @@ function App() {
             {archivedCount > 0 && (
               <button
                 className={`codex-sidebar-item codex-sidebar-archive ${viewingArchive ? "active" : ""}`}
-                onClick={() => { setViewingArchive((s) => !s); setActiveCodex(null); setViewingTasks(false); }}
+                onClick={() => { setViewingArchive((s) => !s); setActiveCodex(null); setViewingTasks(false); setShowSettings(false); }}
                 title={`Archive (${archivedCount})`}
               >
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
