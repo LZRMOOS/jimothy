@@ -5331,6 +5331,7 @@ img.emoji {
   transition: opacity var(--transition);
 }
 
+.task-undo,
 .task-edit,
 .task-delete {
   display: flex;
@@ -5347,6 +5348,7 @@ img.emoji {
   transition: all var(--transition);
 }
 
+.task-undo:hover,
 .task-edit:hover {
   color: var(--accent);
   background: var(--bg-hover);
