@@ -1,5 +1,6 @@
 import { useState, useMemo, useCallback, useRef, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 import type { Note } from "../types";
 import {
   parseTaskDoc,
@@ -46,8 +47,15 @@ export function TasksPanel({ notes, dictionary = [], onNavigateNote }: Props) {
 
   const [taskBody, setTaskBody] = useState("");
 
+  const lastSaveRef = useRef(0);
+
   useEffect(() => {
     invoke<string>("get_tasks").then((body) => setTaskBody(body)).catch(() => {});
+    const unlisten = listen("tasks-changed", () => {
+      if (Date.now() - lastSaveRef.current < 2000) return;
+      invoke<string>("get_tasks").then((body) => setTaskBody((prev) => body === prev ? prev : body)).catch(() => {});
+    });
+    return () => { unlisten.then((fn) => fn()); };
   }, []);
 
   const doc = useMemo<TaskDoc>(
@@ -244,6 +252,7 @@ export function TasksPanel({ notes, dictionary = [], onNavigateNote }: Props) {
     (newDoc: TaskDoc) => {
       const body = serializeTaskDoc(newDoc);
       setTaskBody(body);
+      lastSaveRef.current = Date.now();
       invoke("save_tasks", { content: body }).catch(() => {});
     },
     []
@@ -456,6 +465,7 @@ export function TasksPanel({ notes, dictionary = [], onNavigateNote }: Props) {
       const line = serializeTask(newTask);
       const body = taskBody ? taskBody + "\n" + line : line;
       setTaskBody(body);
+      lastSaveRef.current = Date.now();
       invoke("save_tasks", { content: body }).catch(() => {});
     }
 
@@ -899,29 +909,48 @@ type Chip =
   | { kind: "url"; label: string; href: string };
 
 const MD_LINK_RE = /\[([^\]]*)\]\(([^)\s]+)\)/g;
+const BARE_URL_RE = /https?:\/\/[^\s]+/g;
 
 function extractChips(text: string): { title: string; chips: Chip[] } {
   const chips: Chip[] = [];
-  let title = "";
-  let lastEnd = 0;
+  type Hit = { start: number; end: number; chip?: Chip; raw?: string };
+  const hits: Hit[] = [];
 
   MD_LINK_RE.lastIndex = 0;
   let m: RegExpExecArray | null;
   while ((m = MD_LINK_RE.exec(text)) !== null) {
-    title += text.slice(lastEnd, m.index);
-    const [, label, target] = m;
+    const [whole, label, target] = m;
     const noteMatch = target.match(/^scratch:\/\/(.+)$/);
     if (noteMatch) {
-      chips.push({ kind: "note", label: label || "note", id: noteMatch[1] });
+      hits.push({ start: m.index, end: m.index + whole.length, chip: { kind: "note", label: label || "note", id: noteMatch[1] } });
     } else if (/^https?:\/\//i.test(target)) {
       const host = target.match(/^https?:\/\/([^/?#]+)/i)?.[1]?.replace(/^www\./i, "") ?? target;
-      chips.push({ kind: "url", label: host, href: target });
+      hits.push({ start: m.index, end: m.index + whole.length, chip: { kind: "url", label: host, href: target } });
     } else {
-      title += m[0];
+      hits.push({ start: m.index, end: m.index + whole.length, raw: whole });
     }
-    lastEnd = m.index + m[0].length;
   }
-  title += text.slice(lastEnd);
+
+  const claimed = (i: number) => hits.some((h) => i >= h.start && i < h.end);
+  BARE_URL_RE.lastIndex = 0;
+  while ((m = BARE_URL_RE.exec(text)) !== null) {
+    if (claimed(m.index)) continue;
+    const href = m[0].replace(/[).,;:!?]+$/, "");
+    const host = href.match(/^https?:\/\/([^/?#]+)/i)?.[1]?.replace(/^www\./i, "") ?? href;
+    hits.push({ start: m.index, end: m.index + href.length, chip: { kind: "url", label: host, href } });
+  }
+
+  hits.sort((a, b) => a.start - b.start);
+  let title = "";
+  let cursor = 0;
+  for (const h of hits) {
+    if (h.start < cursor) continue;
+    title += text.slice(cursor, h.start);
+    if (h.chip) chips.push(h.chip);
+    else if (h.raw) title += h.raw;
+    cursor = h.end;
+  }
+  title += text.slice(cursor);
   title = title.replace(/\s+/g, " ").trim().replace(/[\s]*[-–—:·•]+$/, "").trim();
 
   return { title, chips };
