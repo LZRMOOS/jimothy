@@ -95,14 +95,24 @@ Tasks live in a single note with codex `"Tasks"` (constant: `TASK_CODEX`). The b
 - [ ] Meeting with Alex !2026-07-28T09:00
 - [x] Buy milk !2026-07-25
 - [ ] Something undated
+- [ ] Call mom !2026-07-30 !every:1y
+- [ ] Team sync !2026-07-28 !every:2w
 ```
-Tokens: `!high`/`!med`/`!low` (priority), `!YYYY-MM-DD` or `!YYYY-MM-DDTHH:MM` (date with optional time). Non-task lines (headings, blanks, prose) are preserved verbatim.
+Tokens: `!high`/`!med`/`!low` (priority), `!YYYY-MM-DD` or `!YYYY-MM-DDTHH:MM` (date with optional time), `!every:N[dwmy]` (recurrence). Non-task lines (headings, blanks, prose) are preserved verbatim.
+
+**Recurrence (`!every:Nd/w/m/y`):**
+- Units: `d` (day), `w` (week), `m` (month), `y` (year). Always appears after the date token.
+- Check-off behavior: do NOT mark done. Advance the date by the interval from the current date value (not from today). The task stays unchecked with its new future date. Recurring tasks never appear in the done list.
+- Date advancement: `d` adds N days, `w` adds N*7 days, `m` adds N months (clamp to end-of-month if day overflows, e.g. Jan 31 + 1m = Feb 28), `y` adds N years (clamp for leap day).
+- Natural language recognition: "every day/week/month/year", "every N days/weeks/months/years", "every other week", "every monday/weds/fri" (= every 1w, implies next occurrence as start date), "every jul 30/december 25th" (= every 1y, implies next occurrence as start date), plus single-word forms: "daily", "weekly", "monthly", "yearly", "annually", "biweekly", "bimonthly".
+- Regex: `/(?:^|\s)(!every:(\d+)([dwmy]))(?=\s|$)/g`
 
 **Cross-platform contract:**
 - `jimothy-mobile` (`/Users/weid/src/jimothy-mobile`) reads and writes the SAME note using the same format
 - Both apps parse/serialize via line-oriented string ops (no full markdown AST) to guarantee byte-identical round-trips for non-task lines
 - Attachments (note links, URLs) are stored inline as standard markdown links: `[label](scratch://id)` for notes, `[label](https://...)` for URLs
 - The time extension (`!YYYY-MM-DDTHH:MM`) is a forward-compatible superset; desktop already handles it
+- The recurrence extension (`!every:Nd/w/m/y`) follows the same forward-compatible pattern
 - Changes to the task line format MUST be coordinated with the mobile codebase to avoid data loss or parse failures on sync
 
 **Key files:**
@@ -115,7 +125,7 @@ Tokens: `!high`/`!med`/`!low` (priority), `!YYYY-MM-DD` or `!YYYY-MM-DDTHH:MM` (
 - Task notes are hidden from the regular notes list, search bar, and command palette note search
 - The Tasks codex does not appear in the codex sidebar list
 - "View Tasks" command and Cmd+T are the entry points
-- Add modal supports natural date/time parsing ("tomorrow 9am"), `[[` note link autocomplete, `@` dictionary mentions, and URL auto-detection
+- Add modal supports natural date/time/recurrence parsing ("tomorrow 9am", "every 2 weeks"), `[[` note link autocomplete, `@` dictionary mentions, and URL auto-detection
 - Done tab uses compact table-like rows with undo button on hover
 - Infinite scroll (loads 30 days at a time)
 - Drag-and-drop reordering within and across date sections
