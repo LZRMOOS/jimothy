@@ -12,7 +12,9 @@ export const LOCAL_KEYS: (keyof LocalSettings)[] = [
   "launchMinimized",
   "zoomLevel",
   "globalShortcut",
+  "globalShortcut2",
   "captureShortcut",
+  "captureShortcut2",
   "vaultProfiles",
 ];
 

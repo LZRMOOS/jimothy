@@ -674,10 +674,11 @@ function shortcutToDisplay(shortcut: string): string {
   return displayParts.join(" + ");
 }
 
-function ShortcutRecorder({ value, onChange, command = "update_global_shortcut", placeholder }: {
+function ShortcutRecorder({ value, onChange, command = "update_global_shortcut", commandArgs, placeholder }: {
   value: string;
   onChange: (shortcut: string) => void;
   command?: string;
+  commandArgs?: Record<string, string>;
   placeholder?: string;
 }) {
   const [recording, setRecording] = useState(false);
@@ -706,7 +707,8 @@ function ShortcutRecorder({ value, onChange, command = "update_global_shortcut",
     if (e.shiftKey) parts.push("Shift");
     parts.push(keyToken);
 
-    if (parts.length < 2) return;
+    const isFKey = /^F\d{1,2}$/.test(keyToken);
+    if (parts.length < 2 && !isFKey) return;
 
     const shortcutStr = parts.join("+");
     setRecording(false);
@@ -714,13 +716,13 @@ function ShortcutRecorder({ value, onChange, command = "update_global_shortcut",
     setShowUndo(true);
     if (undoTimer.current) clearTimeout(undoTimer.current);
     undoTimer.current = setTimeout(() => setShowUndo(false), 4000);
-    invoke(command, { shortcut: shortcutStr }).then(() => {
+    invoke(command, { shortcut: shortcutStr, ...commandArgs }).then(() => {
       onChange(shortcutStr);
     }).catch(() => {
       setPrevious(null);
       setShowUndo(false);
     });
-  }, [value, onChange, command]);
+  }, [value, onChange, command, commandArgs]);
 
   useEffect(() => {
     if (!recording) return;
@@ -731,7 +733,7 @@ function ShortcutRecorder({ value, onChange, command = "update_global_shortcut",
   const handleUndo = async () => {
     if (!previous) return;
     try {
-      await invoke(command, { shortcut: previous });
+      await invoke(command, { shortcut: previous, ...commandArgs });
       onChange(previous);
     } catch { /* ignore */ }
     setPrevious(null);
@@ -741,6 +743,18 @@ function ShortcutRecorder({ value, onChange, command = "update_global_shortcut",
 
   const displayText = value ? shortcutToDisplay(value) : (placeholder || "");
 
+  const handleClear = async () => {
+    if (!value) return;
+    setPrevious(value);
+    setShowUndo(true);
+    if (undoTimer.current) clearTimeout(undoTimer.current);
+    undoTimer.current = setTimeout(() => setShowUndo(false), 4000);
+    try {
+      await invoke(command, { shortcut: "", ...commandArgs });
+      onChange("");
+    } catch { /* ignore */ }
+  };
+
   return (
     <div className="shortcut-recorder">
       <button
@@ -749,6 +763,9 @@ function ShortcutRecorder({ value, onChange, command = "update_global_shortcut",
       >
         {recording ? "Press shortcut..." : displayText}
       </button>
+      {value && placeholder !== undefined && !recording && !showUndo && (
+        <button className="shortcut-clear" onClick={handleClear} title="Clear shortcut">&times;</button>
+      )}
       {showUndo && (
         <button className="shortcut-undo" onClick={handleUndo}>Undo</button>
       )}
@@ -2083,22 +2100,35 @@ export function Settings({
                 {keyboardTab === "shortcuts" && (
                   <>
                     <h3>Global</h3>
-                    <div className="settings-row">
-                      <label>Toggle window</label>
-                      <ShortcutRecorder
-                        value={settings.globalShortcut || (isMac ? "Command+Shift+Space" : "Control+Shift+Space")}
-                        onChange={(shortcut) => onSettingsChange({ ...settings, globalShortcut: shortcut })}
-                      />
-                    </div>
-                    <div className="settings-row">
-                      <label>Scratchpad</label>
-                      <ShortcutRecorder
-                        value={settings.captureShortcut || (isMac ? "Command+Alt+Space" : "Control+Alt+Space")}
-                        onChange={(shortcut) => onSettingsChange({ ...settings, captureShortcut: shortcut })}
-                        command="update_capture_shortcut"
-                      />
-                    </div>
-                    <p className="settings-hint">Click a shortcut to change it. Scratchpad opens a floating notepad from any app.</p>
+                    {([
+                      { label: "Toggle window", primaryKey: "globalShortcut" as const, altKey: "globalShortcut2" as const, default: isMac ? "Command+Shift+Space" : "Control+Shift+Space", command: "update_global_shortcut" },
+                      { label: "Scratchpad", primaryKey: "captureShortcut" as const, altKey: "captureShortcut2" as const, default: isMac ? "Command+Alt+Space" : "Control+Alt+Space", command: "update_capture_shortcut" },
+                    ]).map(({ label, primaryKey, altKey, default: defaultVal, command }) => (
+                      <div className="shortcut-group" key={primaryKey}>
+                        <label className="shortcut-group-label">{label}</label>
+                        <div className="shortcut-group-rows">
+                          <div className="shortcut-group-row">
+                            <span className="shortcut-group-tag">primary</span>
+                            <ShortcutRecorder
+                              value={settings[primaryKey] || defaultVal}
+                              onChange={(shortcut) => onSettingsChange({ ...settings, [primaryKey]: shortcut })}
+                              command={command}
+                            />
+                          </div>
+                          <div className="shortcut-group-row">
+                            <span className="shortcut-group-tag">alt</span>
+                            <ShortcutRecorder
+                              value={settings[altKey] || ""}
+                              onChange={(shortcut) => onSettingsChange({ ...settings, [altKey]: shortcut })}
+                              command="update_shortcut"
+                              commandArgs={{ key: altKey }}
+                              placeholder="None"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                    <p className="settings-hint">Click a shortcut to change it. Scratchpad opens a floating notepad from any app. F-keys work as single-key shortcuts.</p>
                     <h3>Search</h3>
                 <div className="settings-row">
                   <label>Find in note</label>
@@ -2110,7 +2140,7 @@ export function Settings({
                 </div>
                 <div className="settings-row">
                   <label>Next / previous match</label>
-                  <span>
+                  <span style={{ whiteSpace: "nowrap" }}>
                     <kbd className="shortcut-display">{mod}+]</kbd>{" "}
                     <kbd className="shortcut-display">{mod}+[</kbd>
                   </span>
@@ -2152,7 +2182,7 @@ export function Settings({
                 </div>
                 <div className="settings-row">
                   <label>Next / previous note</label>
-                  <span>
+                  <span style={{ whiteSpace: "nowrap" }}>
                     <kbd className="shortcut-display">{mod}+Shift+]</kbd>{" "}
                     <kbd className="shortcut-display">{mod}+Shift+[</kbd>
                   </span>

@@ -66,79 +66,90 @@ fn open_scratchpad(app: tauri::AppHandle) -> Result<(), String> {
 }
 
 #[tauri::command]
-fn update_global_shortcut(app: tauri::AppHandle, shortcut: String) -> Result<(), String> {
+fn read_shortcut_settings() -> serde_json::Value {
+    let config_dir = dirs::config_dir().unwrap_or_default();
+    let settings_path = config_dir.join("jimothy").join("settings.json");
+    settings_path
+        .exists()
+        .then(|| std::fs::read_to_string(&settings_path).ok())
+        .flatten()
+        .and_then(|json| serde_json::from_str::<serde_json::Value>(&json).ok())
+        .unwrap_or(serde_json::Value::Null)
+}
+
+fn register_shortcuts_with(app: &tauri::AppHandle, settings: &serde_json::Value) -> Result<(), String> {
     let gs = app.global_shortcut();
     gs.unregister_all().map_err(|e| e.to_string())?;
 
-    let parsed: Shortcut = shortcut.parse().map_err(|e| format!("{e:?}"))?;
-    let h = app.clone();
-    gs.on_shortcut(parsed, move |_app, _shortcut, event| {
-        if event.state == ShortcutState::Pressed {
-            toggle_window(&h, "main");
-        }
-    }).map_err(|e| e.to_string())?;
-
-    // Re-register capture shortcut
-    let capture_str = {
-        let config_dir = dirs::config_dir().unwrap_or_default();
-        let settings_path = config_dir.join("jimothy").join("settings.json");
-        settings_path
-            .exists()
-            .then(|| std::fs::read_to_string(&settings_path).ok())
-            .flatten()
-            .and_then(|json| serde_json::from_str::<serde_json::Value>(&json).ok())
-            .and_then(|v| v.get("captureShortcut")?.as_str().map(String::from))
-            .unwrap_or_else(|| platform::default_capture_shortcut().to_string())
+    let get_str = |key: &str, default: &str| -> String {
+        settings
+            .get(key)
+            .and_then(|v| v.as_str().map(String::from))
+            .unwrap_or_else(|| default.to_string())
     };
-    if let Ok(capture_shortcut) = capture_str.parse::<Shortcut>() {
-        let h2 = app.clone();
-        let _ = gs.on_shortcut(capture_shortcut, move |_app, _shortcut, event| {
-            if event.state == ShortcutState::Pressed {
-                toggle_scratchpad(&h2);
+
+    let main1 = get_str("globalShortcut", platform::default_shortcut());
+    let main2 = settings.get("globalShortcut2").and_then(|v| v.as_str().map(String::from));
+    let cap1 = get_str("captureShortcut", platform::default_capture_shortcut());
+    let cap2 = settings.get("captureShortcut2").and_then(|v| v.as_str().map(String::from));
+
+    for s in [Some(main1), main2] {
+        if let Some(s) = s {
+            if let Ok(parsed) = s.parse::<Shortcut>() {
+                let h = app.clone();
+                let _ = gs.on_shortcut(parsed, move |_app, _shortcut, event| {
+                    if event.state == ShortcutState::Pressed {
+                        toggle_window(&h, "main");
+                    }
+                });
             }
-        });
+        }
+    }
+
+    for s in [Some(cap1), cap2] {
+        if let Some(s) = s {
+            if let Ok(parsed) = s.parse::<Shortcut>() {
+                let h = app.clone();
+                let _ = gs.on_shortcut(parsed, move |_app, _shortcut, event| {
+                    if event.state == ShortcutState::Pressed {
+                        toggle_scratchpad(&h);
+                    }
+                });
+            }
+        }
     }
 
     Ok(())
 }
 
 #[tauri::command]
+fn update_global_shortcut(app: tauri::AppHandle, shortcut: String) -> Result<(), String> {
+    update_shortcut_inner(&app, "globalShortcut", &shortcut)
+}
+
+#[tauri::command]
 fn update_capture_shortcut(app: tauri::AppHandle, shortcut: String) -> Result<(), String> {
-    let gs = app.global_shortcut();
-    // We need to unregister all and re-register both shortcuts
-    gs.unregister_all().map_err(|e| e.to_string())?;
+    update_shortcut_inner(&app, "captureShortcut", &shortcut)
+}
 
-    // Re-register main shortcut
-    let main_str = {
-        let config_dir = dirs::config_dir().unwrap_or_default();
-        let settings_path = config_dir.join("jimothy").join("settings.json");
-        settings_path
-            .exists()
-            .then(|| std::fs::read_to_string(&settings_path).ok())
-            .flatten()
-            .and_then(|json| serde_json::from_str::<serde_json::Value>(&json).ok())
-            .and_then(|v| v.get("globalShortcut")?.as_str().map(String::from))
-            .unwrap_or_else(|| platform::default_shortcut().to_string())
-    };
-    if let Ok(main_shortcut) = main_str.parse::<Shortcut>() {
-        let h = app.clone();
-        let _ = gs.on_shortcut(main_shortcut, move |_app, _shortcut, event| {
-            if event.state == ShortcutState::Pressed {
-                toggle_window(&h, "main");
-            }
-        });
+#[tauri::command]
+fn update_shortcut(app: tauri::AppHandle, key: String, shortcut: String) -> Result<(), String> {
+    let allowed = ["globalShortcut2", "captureShortcut2"];
+    if !allowed.contains(&key.as_str()) {
+        return Err("Invalid shortcut key".into());
     }
+    update_shortcut_inner(&app, &key, &shortcut)
+}
 
-    // Register capture shortcut
-    let parsed: Shortcut = shortcut.parse().map_err(|e| format!("{e:?}"))?;
-    let h2 = app.clone();
-    gs.on_shortcut(parsed, move |_app, _shortcut, event| {
-        if event.state == ShortcutState::Pressed {
-            toggle_scratchpad(&h2);
-        }
-    }).map_err(|e| e.to_string())?;
-
-    Ok(())
+fn update_shortcut_inner(app: &tauri::AppHandle, key: &str, shortcut: &str) -> Result<(), String> {
+    let mut settings = read_shortcut_settings();
+    if shortcut.is_empty() {
+        settings.as_object_mut().map(|o| o.remove(key));
+    } else {
+        shortcut.parse::<Shortcut>().map_err(|e| format!("{e:?}"))?;
+        settings.as_object_mut().map(|o| o.insert(key.to_string(), shortcut.into()));
+    }
+    register_shortcuts_with(&app, &settings)
 }
 
 #[cfg(target_os = "macos")]
@@ -311,6 +322,7 @@ pub fn run() {
             open_scratchpad,
             update_global_shortcut,
             update_capture_shortcut,
+            update_shortcut,
         ])
         .setup(|app| {
             let handle = app.handle().clone();
@@ -378,40 +390,8 @@ pub fn run() {
             }
 
             // Register global shortcuts (load from settings or use defaults)
-            let (shortcut_str, capture_str) = {
-                let config_dir = dirs::config_dir().unwrap_or_default();
-                let settings_path = config_dir.join("jimothy").join("settings.json");
-                let json_val = settings_path
-                    .exists()
-                    .then(|| std::fs::read_to_string(&settings_path).ok())
-                    .flatten()
-                    .and_then(|json| serde_json::from_str::<serde_json::Value>(&json).ok());
-                let main = json_val
-                    .as_ref()
-                    .and_then(|v| v.get("globalShortcut")?.as_str().map(String::from))
-                    .unwrap_or_else(|| platform::default_shortcut().to_string());
-                let capture = json_val
-                    .as_ref()
-                    .and_then(|v| v.get("captureShortcut")?.as_str().map(String::from))
-                    .unwrap_or_else(|| platform::default_capture_shortcut().to_string());
-                (main, capture)
-            };
-            if let Ok(shortcut) = shortcut_str.parse::<Shortcut>() {
-                let h = handle.clone();
-                app.global_shortcut().on_shortcut(shortcut, move |_app, _shortcut, event| {
-                    if event.state == ShortcutState::Pressed {
-                        toggle_window(&h, "main");
-                    }
-                })?;
-            }
-            if let Ok(capture_shortcut) = capture_str.parse::<Shortcut>() {
-                let h = handle.clone();
-                app.global_shortcut().on_shortcut(capture_shortcut, move |_app, _shortcut, event| {
-                    if event.state == ShortcutState::Pressed {
-                        toggle_scratchpad(&h);
-                    }
-                })?;
-            }
+            let settings = read_shortcut_settings();
+            let _ = register_shortcuts_with(&handle, &settings);
 
             // Decide startup visibility. The window is created hidden
             // (visible:false in tauri.conf.json) and the window-state plugin no

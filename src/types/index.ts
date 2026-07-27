@@ -50,7 +50,9 @@ export type LocalSettings = {
   launchMinimized?: boolean;
   zoomLevel?: number;
   globalShortcut?: string;
+  globalShortcut2?: string;
   captureShortcut?: string;
+  captureShortcut2?: string;
   vaultProfiles?: VaultProfile[];
 };
 
