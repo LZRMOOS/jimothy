@@ -1014,7 +1014,7 @@ export function Editor({ note, saveStatus, onTitleChange, onBodyChange, onCodexC
         <button
           className={`editor-toc-toggle${showToc ? " active" : ""}`}
           onClick={() => setShowToc((s) => !s)}
-          title="Table of Contents"
+          title="Index"
         >
           <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
             <line x1="3" y1="3" x2="13" y2="3" />

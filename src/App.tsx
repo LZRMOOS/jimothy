@@ -1223,6 +1223,11 @@ function App() {
         setSplitNoteId((s) => s ? null : selectedId);
       } else if (mod && key === "t" && !e.shiftKey) {
         e.preventDefault();
+        setViewingTasks((s) => !s);
+        setActiveCodex(null);
+        setViewingArchive(false);
+      } else if (mod && key === "i" && !e.shiftKey) {
+        e.preventDefault();
         window.dispatchEvent(new Event("toggle-toc"));
       } else if (mod && e.shiftKey && e.key === "]") {
         e.preventDefault();
@@ -1371,7 +1376,7 @@ function App() {
     }] : []),
     ...(splitNoteId ? [{ id: "close-split", label: "Close Split View", shortcut: `${mod}\\`, action: () => setSplitNoteId(null) }] : []),
     { id: "all-notes", label: "All Notes", shortcut: `${mod}1`, action: () => { setActiveCodex(null); setViewingArchive(false); setViewingTasks(false); } },
-    { id: "view-tasks", label: "View Tasks", shortcut: `${mod}\``, action: () => { setViewingTasks(true); setActiveCodex(null); setViewingArchive(false); } },
+    { id: "view-tasks", label: "View Tasks", shortcut: `${mod}T`, action: () => { setViewingTasks(true); setActiveCodex(null); setViewingArchive(false); } },
     { id: "view-archive", label: viewingArchive ? "Exit Archive" : "View Archive", action: () => { setViewingArchive((s) => !s); setActiveCodex(null); setViewingTasks(false); } },
     ...codexList.map((c, i) => ({
       id: `codex-${c}`,

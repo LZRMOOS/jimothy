@@ -1912,8 +1912,8 @@ export function Settings({
                 </div>
                 <div className="settings-row">
                   <div className="settings-row-text">
-                    <label htmlFor="toc-default">Show table of contents by default</label>
-                    <p className="settings-row-desc">Open the heading outline automatically for notes with headings. Toggle any time with {mod}+T.</p>
+                    <label htmlFor="toc-default">Show index by default</label>
+                    <p className="settings-row-desc">Open the heading outline automatically for notes with headings. Toggle any time with {mod}+I.</p>
                   </div>
                   <input
                     id="toc-default"
@@ -2176,8 +2176,12 @@ export function Settings({
                   <kbd className="shortcut-display">{mod}+/</kbd>
                 </div>
                 <div className="settings-row">
-                  <label>Table of contents</label>
+                  <label>Tasks</label>
                   <kbd className="shortcut-display">{mod}+T</kbd>
+                </div>
+                <div className="settings-row">
+                  <label>Index</label>
+                  <kbd className="shortcut-display">{mod}+I</kbd>
                 </div>
                 <div className="settings-row">
                   <label>Split view</label>
