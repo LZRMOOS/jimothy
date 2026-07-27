@@ -270,7 +270,10 @@ function analyze(
     const hit = matchRecurrence(lower.slice(i));
     if (hit) {
       recurrence = hit.recurrence;
-      for (let k = 0; k < hit.consumed; k++) kind[i + k] = "recurrence";
+      for (let k = 0; k < hit.consumed; k++) {
+        if (kind[i + k] === "date") date = null;
+        kind[i + k] = "recurrence";
+      }
     }
   }
 

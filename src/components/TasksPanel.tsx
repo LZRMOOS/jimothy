@@ -183,7 +183,7 @@ export function TasksPanel({ notes, dictionary = [], onNavigateNote }: Props) {
 
       if (r.recurrence && r.recurrenceSpans.length > 0 && !schedRecurrence) {
         const rPhrase = r.recurrenceSpans.map(([s, e]) => next.slice(s, e)).join(" ");
-        setSchedRecurrence({ value: r.recurrence, label: formatRecurrence(r.recurrence), phrase: rPhrase });
+        setSchedRecurrence({ value: r.recurrence, label: rPhrase, phrase: rPhrase });
         allSpans.push(...r.recurrenceSpans);
         lifted = true;
       }
