@@ -2192,6 +2192,10 @@ export function Settings({
                   <kbd className="shortcut-display">{mod}+1–9</kbd>
                 </div>
                 <div className="settings-row">
+                  <label>Tasks view</label>
+                  <kbd className="shortcut-display">{mod}+`</kbd>
+                </div>
+                <div className="settings-row">
                   <label>Zoom in / out</label>
                   <span>
                     <kbd className="shortcut-display">{mod}+=</kbd>{" "}
