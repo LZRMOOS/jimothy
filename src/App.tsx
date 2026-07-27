@@ -1531,7 +1531,7 @@ function App() {
               <rect x="14" y="14" width="7" height="7" rx="1" />
             </svg>
           </button>
-          {codexList.map((codex) => (
+          {codexList.map((codex, i) => (
             <div key={codex} className="codex-sidebar-item-wrap">
               <button
                 className={`codex-sidebar-item ${activeCodex === codex && !viewingArchive ? "active" : ""}`}
@@ -1542,6 +1542,7 @@ function App() {
               >
                 {renderCodexIcon(appSettings.codexIcons?.[codex], emojis, codex[0].toUpperCase())}
               </button>
+              {i < 8 && <span className="codex-sidebar-shortcut">{i + 2}</span>}
               {editingCodexIcon === codex && (
                 <CodexIconPicker
                   value={appSettings.codexIcons?.[codex] || ""}
