@@ -171,14 +171,47 @@ const RECURRENCE_UNITS: Record<string, RecurrenceUnit> = {
   year: "y", years: "y",
 };
 
+const SINGLE_WORD_RECURRENCE: Record<string, Recurrence> = {
+  daily: { every: 1, unit: "d" },
+  weekly: { every: 1, unit: "w" },
+  monthly: { every: 1, unit: "m" },
+  yearly: { every: 1, unit: "y" },
+  annually: { every: 1, unit: "y" },
+  biweekly: { every: 2, unit: "w" },
+  bimonthly: { every: 2, unit: "m" },
+};
+
 function matchRecurrence(
   words: string[],
 ): { recurrence: Recurrence; consumed: number } | null {
+  // Single-word: "daily", "weekly", "biweekly", etc.
+  if (SINGLE_WORD_RECURRENCE[words[0]]) {
+    return { recurrence: SINGLE_WORD_RECURRENCE[words[0]], consumed: 1 };
+  }
+
   if (words[0] !== "every") return null;
+
+  // "every other day/week/month/year" = every 2 units
+  if (words[1] === "other" && words[2] && RECURRENCE_UNITS[words[2]]) {
+    return { recurrence: { every: 2, unit: RECURRENCE_UNITS[words[2]] }, consumed: 3 };
+  }
 
   // "every day/week/month/year" = every 1 unit
   if (words[1] && RECURRENCE_UNITS[words[1]]) {
     return { recurrence: { every: 1, unit: RECURRENCE_UNITS[words[1]] }, consumed: 2 };
+  }
+
+  // "every monday/weds/friday/..." = every 1 week
+  if (words[1] && WEEKDAYS[words[1]] !== undefined) {
+    return { recurrence: { every: 1, unit: "w" }, consumed: 2 };
+  }
+
+  // "every jul 30" / "every december 25th" = every 1 year
+  if (words[1] && MONTHS[words[1]] !== undefined && words[2]) {
+    const day = Number(words[2].replace(/(st|nd|rd|th)$/, ""));
+    if (Number.isInteger(day) && day >= 1 && day <= 31) {
+      return { recurrence: { every: 1, unit: "y" }, consumed: 3 };
+    }
   }
 
   // "every N days/weeks/months/years"
