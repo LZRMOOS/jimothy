@@ -1355,13 +1355,14 @@ function App() {
       action: () => handleToggleSensitive(selectedId),
     }] : []),
     ...(splitNoteId ? [{ id: "close-split", label: "Close Split View", shortcut: `${mod}\\`, action: () => setSplitNoteId(null) }] : []),
-    { id: "all-notes", label: "All Notes", shortcut: `${mod}1`, action: () => { setActiveCodex(null); setViewingArchive(false); } },
-    { id: "view-archive", label: viewingArchive ? "Exit Archive" : "View Archive", action: () => { setViewingArchive((s) => !s); setActiveCodex(null); } },
+    { id: "all-notes", label: "All Notes", shortcut: `${mod}1`, action: () => { setActiveCodex(null); setViewingArchive(false); setViewingTasks(false); } },
+    { id: "view-tasks", label: "View Tasks", action: () => { setViewingTasks(true); setActiveCodex(null); setViewingArchive(false); } },
+    { id: "view-archive", label: viewingArchive ? "Exit Archive" : "View Archive", action: () => { setViewingArchive((s) => !s); setActiveCodex(null); setViewingTasks(false); } },
     ...codexList.map((c, i) => ({
       id: `codex-${c}`,
       label: `Codex: ${c}`,
       shortcut: i < 8 ? `${mod}${i + 2}` : undefined,
-      action: () => { setActiveCodex(c); setViewingArchive(false); },
+      action: () => { setActiveCodex(c); setViewingArchive(false); setViewingTasks(false); },
     })),
   ], [handleDelete, handleLock, handleDailyNote, handleFeatureTour, handleTogglePin, handleToggleFreeze, handleToggleArchive, handleZoom, handleSettingsChange, handleToggleSensitive, navigateNote, appSettings, selectedId, selectedNote, splitNoteId, codexList, notes, vaultStatus, showReferencePanel, viewingArchive]);
 
@@ -1454,7 +1455,17 @@ function App() {
           }}
           onClose={() => setShowCommandPalette(false)}
           notes={notes}
-          onSelectNote={(id) => setSelectedId(id)}
+          onSelectNote={(id) => {
+            const note = notes.find((n) => n.id === id);
+            if (note?.codex === TASK_CODEX) {
+              setViewingTasks(true);
+              setActiveCodex(null);
+              setViewingArchive(false);
+            } else {
+              setViewingTasks(false);
+              setSelectedId(id);
+            }
+          }}
         />
       )}
       <SearchBar
@@ -1599,6 +1610,7 @@ function App() {
         <div className="main-content">
           <TasksPanel
             notes={notes}
+            dictionary={appSettings.dictionary}
             onSave={(id, title, body, codex) => saveNote(id, title, body, codex ?? null)}
             onCreate={async (title, codex) => {
               const note = (await invoke("create_note", { title, codex: codex || null })) as typeof notes[0];
