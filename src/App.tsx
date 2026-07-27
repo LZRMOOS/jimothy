@@ -355,8 +355,12 @@ function App() {
   }, [initFolder, checkExistingFolder, checkVaultStatus, checkProtectionStatus]);
 
   useEffect(() => {
-    if (initialized && appSettings.defaultCodex && codexList.includes(appSettings.defaultCodex)) {
-      setActiveCodex(appSettings.defaultCodex);
+    if (initialized && appSettings.defaultCodex) {
+      if (appSettings.defaultCodex === TASK_CODEX) {
+        setViewingTasks(true);
+      } else if (codexList.includes(appSettings.defaultCodex)) {
+        setActiveCodex(appSettings.defaultCodex);
+      }
     }
   }, [initialized]);
 

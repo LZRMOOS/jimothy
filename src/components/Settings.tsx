@@ -1977,6 +1977,7 @@ export function Settings({
                       <Dropdown
                         options={[
                           { value: "", label: "None" },
+                          { value: "Tasks", label: "Tasks" },
                           ...codexList.map((c) => ({ value: c, label: c })),
                         ]}
                         value={settings.defaultCodex || ""}
