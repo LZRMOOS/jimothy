@@ -76,7 +76,10 @@ export function buildAgenda(
   return sections;
 }
 
-export function buildDoneList(tasks: IdTask[]): AgendaSection[] {
+export function buildDoneList(
+  tasks: IdTask[],
+  opts?: { maxSections?: number },
+): AgendaSection[] {
   const done = tasks.filter((t) => t.done);
 
   const byDate = new Map<string, IdTask[]>();
@@ -89,9 +92,10 @@ export function buildDoneList(tasks: IdTask[]): AgendaSection[] {
 
   const dayKeys = [...byDate.keys()].sort().reverse();
   const todayStr = ymd(new Date());
+  const limit = opts?.maxSections ?? dayKeys.length;
 
   const sections: AgendaSection[] = [];
-  for (const key of dayKeys) {
+  for (const key of dayKeys.slice(0, limit)) {
     sections.push({
       date: key,
       title: key === "undated" ? "Undated" : dayTitle(key, todayStr),

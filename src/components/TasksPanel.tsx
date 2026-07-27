@@ -71,7 +71,8 @@ export function TasksPanel({ notes, dictionary = [], onSave, onCreate, onNavigat
     [allTasks, today, daysAhead]
   );
 
-  const doneSections = useMemo(() => buildDoneList(allTasks), [allTasks]);
+  const [doneSectionsLimit, setDoneSectionsLimit] = useState(30);
+  const doneSections = useMemo(() => buildDoneList(allTasks, { maxSections: doneSectionsLimit }), [allTasks, doneSectionsLimit]);
 
   const onDraftChange = useCallback(
     (next: string, cursorPos?: number) => {
@@ -493,8 +494,9 @@ export function TasksPanel({ notes, dictionary = [], onSave, onCreate, onNavigat
     }
     if (closest) setFocusedDay(closest);
 
-    if (tab === "active" && list.scrollTop + list.clientHeight >= list.scrollHeight - 200) {
-      setDaysAhead((prev) => prev + 30);
+    if (list.scrollTop + list.clientHeight >= list.scrollHeight - 200) {
+      if (tab === "active") setDaysAhead((prev) => prev + 30);
+      else setDoneSectionsLimit((prev) => prev + 30);
     }
   }, [tab]);
 
