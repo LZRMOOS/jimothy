@@ -147,6 +147,19 @@ export function TasksPanel({ notes, dictionary = [], onNavigateNote }: Props) {
         return;
       }
 
+      // Bare year (20XX) upgrades an existing date chip
+      const bareYear = next.trim().match(/(?:^|\s)(20\d{2})\s*$/);
+      if (bareYear && schedDate) {
+        const year = Number(bareYear[1]);
+        const parts = schedDate.value.split("-");
+        const refined = `${year}-${parts[1]}-${parts[2]}`;
+        setSchedDate({ value: refined, label: dayTitle(refined, today), phrase: `${schedDate.phrase} ${year}` });
+        const start = next.lastIndexOf(bareYear[1]);
+        const stripped = (next.slice(0, start) + next.slice(start + bareYear[1].length)).replace(/\s+/g, " ").trim();
+        setAddInput(stripped ? stripped + " " : "");
+        return;
+      }
+
       const r = recognize(next, undefined, { allowBareTime: true });
       let lifted = false;
       const allSpans: Array<[number, number]> = [];

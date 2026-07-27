@@ -41,7 +41,8 @@ export function dayTitle(date: string, todayYmd: string): string {
   const diff = Math.round((d.getTime() - today.getTime()) / 86400000);
   if (diff === 1) return "Tomorrow";
   if (diff === -1) return "Yesterday";
-  return `${WEEKDAY[d.getDay()]}, ${MONTH[d.getMonth()]} ${d.getDate()}`;
+  const base = `${WEEKDAY[d.getDay()]}, ${MONTH[d.getMonth()]} ${d.getDate()}`;
+  return d.getFullYear() !== today.getFullYear() ? `${base}, ${d.getFullYear()}` : base;
 }
 
 export function buildAgenda(

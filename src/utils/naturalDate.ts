@@ -119,14 +119,25 @@ function matchDatePhrase(
     }
   }
 
-  const iso = w.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  const iso = w.match(/^(\d{4})[-/](\d{1,2})[-/](\d{1,2})$/);
   if (iso) {
     const y = Number(iso[1]);
     const mo = Number(iso[2]);
     const da = Number(iso[3]);
     const d = new Date(y, mo - 1, da);
     if (d.getFullYear() === y && d.getMonth() + 1 === mo && d.getDate() === da) {
-      return { date: `${iso[1]}-${iso[2]}-${iso[3]}`, consumed: 1 };
+      return { date: `${y}-${pad2(mo)}-${pad2(da)}`, consumed: 1 };
+    }
+  }
+
+  const mdy = w.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{4})$/);
+  if (mdy) {
+    const mo = Number(mdy[1]);
+    const da = Number(mdy[2]);
+    const y = Number(mdy[3]);
+    const d = new Date(y, mo - 1, da);
+    if (d.getFullYear() === y && d.getMonth() + 1 === mo && d.getDate() === da) {
+      return { date: `${y}-${pad2(mo)}-${pad2(da)}`, consumed: 1 };
     }
   }
 
