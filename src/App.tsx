@@ -1215,6 +1215,7 @@ function App() {
         setViewingTasks((s) => !s);
         setActiveCodex(null);
         setViewingArchive(false);
+        searchInputRef.current?.blur();
       } else if (mod && key === "j" && !e.shiftKey) {
         e.preventDefault();
         handleDailyNote();
@@ -1226,6 +1227,7 @@ function App() {
         setViewingTasks((s) => !s);
         setActiveCodex(null);
         setViewingArchive(false);
+        searchInputRef.current?.blur();
       } else if (mod && key === "i" && !e.shiftKey) {
         e.preventDefault();
         window.dispatchEvent(new Event("toggle-toc"));
