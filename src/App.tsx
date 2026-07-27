@@ -1519,18 +1519,21 @@ function App() {
             </svg>
           </button>
           <div className="codex-sidebar-divider" />
-          <button
-            className={`codex-sidebar-item ${activeCodex === null && !viewingArchive && !viewingTasks ? "active" : ""}`}
-            onClick={() => { setActiveCodex(null); setViewingArchive(false); setViewingTasks(false); setShowSettings(false); }}
-            title="All Notes"
-          >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <rect x="3" y="3" width="7" height="7" rx="1" />
-              <rect x="14" y="3" width="7" height="7" rx="1" />
-              <rect x="3" y="14" width="7" height="7" rx="1" />
-              <rect x="14" y="14" width="7" height="7" rx="1" />
-            </svg>
-          </button>
+          <div className="codex-sidebar-item-wrap">
+            <button
+              className={`codex-sidebar-item ${activeCodex === null && !viewingArchive && !viewingTasks ? "active" : ""}`}
+              onClick={() => { setActiveCodex(null); setViewingArchive(false); setViewingTasks(false); setShowSettings(false); }}
+              title="All Notes"
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <rect x="3" y="3" width="7" height="7" rx="1" />
+                <rect x="14" y="3" width="7" height="7" rx="1" />
+                <rect x="3" y="14" width="7" height="7" rx="1" />
+                <rect x="14" y="14" width="7" height="7" rx="1" />
+              </svg>
+            </button>
+            <span className="codex-sidebar-shortcut">1</span>
+          </div>
           {codexList.map((codex, i) => (
             <div key={codex} className="codex-sidebar-item-wrap">
               <button

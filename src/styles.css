@@ -569,16 +569,17 @@ body {
 .codex-sidebar-item-wrap {
   position: relative;
   display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 1px;
+  justify-content: center;
 }
 
 .codex-sidebar-shortcut {
-  font-size: 9px;
+  position: absolute;
+  bottom: 0px;
+  right: -2px;
+  font-size: 8px;
   line-height: 1;
   color: var(--text-hint);
-  opacity: 0.5;
+  opacity: 0.45;
   pointer-events: none;
   user-select: none;
 }
