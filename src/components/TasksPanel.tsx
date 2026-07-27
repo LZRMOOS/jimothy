@@ -186,6 +186,9 @@ export function TasksPanel({ notes, dictionary = [], onNavigateNote }: Props) {
         setSchedRecurrence({ value: r.recurrence, label: rPhrase, phrase: rPhrase });
         allSpans.push(...r.recurrenceSpans);
         lifted = true;
+        if (r.date && !schedDate && r.dateSpans.length === 0) {
+          setSchedDate({ value: r.date, label: dayTitle(r.date, today), phrase: "" });
+        }
       }
 
       if (lifted) {

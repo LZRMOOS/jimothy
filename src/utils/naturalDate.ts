@@ -183,7 +183,8 @@ const SINGLE_WORD_RECURRENCE: Record<string, Recurrence> = {
 
 function matchRecurrence(
   words: string[],
-): { recurrence: Recurrence; consumed: number } | null {
+  now: Date,
+): { recurrence: Recurrence; consumed: number; impliedDate?: string } | null {
   // Single-word: "daily", "weekly", "biweekly", etc.
   if (SINGLE_WORD_RECURRENCE[words[0]]) {
     return { recurrence: SINGLE_WORD_RECURRENCE[words[0]], consumed: 1 };
@@ -201,15 +202,27 @@ function matchRecurrence(
     return { recurrence: { every: 1, unit: RECURRENCE_UNITS[words[1]] }, consumed: 2 };
   }
 
-  // "every monday/weds/friday/..." = every 1 week
+  // "every monday/weds/friday/..." = every 1 week, start on next occurrence
   if (words[1] && WEEKDAYS[words[1]] !== undefined) {
-    return { recurrence: { every: 1, unit: "w" }, consumed: 2 };
+    const wd = WEEKDAYS[words[1]];
+    let delta = (wd - now.getDay() + 7) % 7;
+    if (delta === 0) delta = 7;
+    return { recurrence: { every: 1, unit: "w" }, consumed: 2, impliedDate: ymd(addDays(now, delta)) };
   }
 
-  // "every jul 30" / "every december 25th" = every 1 year
+  // "every jul 30" / "every december 25th" = every 1 year, start on next occurrence
   if (words[1] && MONTHS[words[1]] !== undefined && words[2]) {
     const day = Number(words[2].replace(/(st|nd|rd|th)$/, ""));
     if (Number.isInteger(day) && day >= 1 && day <= 31) {
+      const month = MONTHS[words[1]];
+      let year = now.getFullYear();
+      const candidate = new Date(year, month - 1, day);
+      const todayMid = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      if (candidate <= todayMid) year += 1;
+      const d = new Date(year, month - 1, day);
+      if (d.getMonth() + 1 === month && d.getDate() === day) {
+        return { recurrence: { every: 1, unit: "y" }, consumed: 3, impliedDate: ymd(d) };
+      }
       return { recurrence: { every: 1, unit: "y" }, consumed: 3 };
     }
   }
@@ -267,13 +280,14 @@ function analyze(
 
   for (let i = 0; i < tokens.length && recurrence === null; i++) {
     if (kind[i] !== "none") continue;
-    const hit = matchRecurrence(lower.slice(i));
+    const hit = matchRecurrence(lower.slice(i), now);
     if (hit) {
       recurrence = hit.recurrence;
       for (let k = 0; k < hit.consumed; k++) {
         if (kind[i + k] === "date") date = null;
         kind[i + k] = "recurrence";
       }
+      if (hit.impliedDate && date === null) date = hit.impliedDate;
     }
   }
 
