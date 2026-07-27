@@ -216,22 +216,20 @@ export function recognize(input: string, now: Date = new Date(), opts?: { allowB
   const dateSpans: Array<[number, number]> = [];
   const timeSpans: Array<[number, number]> = [];
 
-  if (date) {
-    let i = 0;
-    while (i < tokens.length) {
-      if (kind[i] === "date") {
-        const start = tokens[i].start;
-        let end = tokens[i].end;
-        let j = i + 1;
-        while (j < tokens.length && kind[j] === "date") { end = tokens[j].end; j++; }
-        dateSpans.push([start, end]);
-        i = j;
-      } else { i++; }
-    }
-    for (let k = 0; k < tokens.length; k++) {
-      if (kind[k] === "time") timeSpans.push([tokens[k].start, tokens[k].end]);
-    }
+  let i = 0;
+  while (i < tokens.length) {
+    if (kind[i] === "date") {
+      const start = tokens[i].start;
+      let end = tokens[i].end;
+      let j = i + 1;
+      while (j < tokens.length && kind[j] === "date") { end = tokens[j].end; j++; }
+      dateSpans.push([start, end]);
+      i = j;
+    } else { i++; }
+  }
+  for (let k = 0; k < tokens.length; k++) {
+    if (kind[k] === "time") timeSpans.push([tokens[k].start, tokens[k].end]);
   }
 
-  return { date, time: date ? time : null, dateSpans, timeSpans };
+  return { date, time, dateSpans, timeSpans };
 }

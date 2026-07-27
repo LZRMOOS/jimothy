@@ -14,12 +14,13 @@ import { recognize } from "../utils/naturalDate";
 
 type Props = {
   notes: Note[];
+  dictionary?: string[];
   onSave: (id: string, title: string, body: string, codex: string | null) => void;
   onCreate: (title: string, codex: string) => Promise<Note | null>;
   onNavigateNote: (id: string) => void;
 };
 
-export function TasksPanel({ notes, onSave, onCreate, onNavigateNote }: Props) {
+export function TasksPanel({ notes, dictionary = [], onSave, onCreate, onNavigateNote }: Props) {
   const [tab, setTab] = useState<"active" | "done">("active");
   const [showAddModal, setShowAddModal] = useState(false);
   const [addInput, setAddInput] = useState("");
@@ -27,6 +28,17 @@ export function TasksPanel({ notes, onSave, onCreate, onNavigateNote }: Props) {
   const [schedDate, setSchedDate] = useState<{ value: string; label: string; phrase: string } | null>(null);
   const [schedTime, setSchedTime] = useState<{ value: number; label: string; phrase: string } | null>(null);
   const [focusedDay, setFocusedDay] = useState<string | null>(null);
+  const [editingCid, setEditingCid] = useState<string | null>(null);
+  const [attachments, setAttachments] = useState<Array<{ kind: "url"; label: string; href: string } | { kind: "note"; label: string; id: string }>>([]);
+  const [noteSuggestions, setNoteSuggestions] = useState<Note[]>([]);
+  const [noteQueryStart, setNoteQueryStart] = useState<number | null>(null);
+  const [selectedSuggestion, setSelectedSuggestion] = useState(0);
+  const [showNotePicker, setShowNotePicker] = useState(false);
+  const [notePickerQuery, setNotePickerQuery] = useState("");
+  const [mentionSuggestions, setMentionSuggestions] = useState<string[]>([]);
+  const [mentionQueryStart, setMentionQueryStart] = useState<number | null>(null);
+  const [selectedMention, setSelectedMention] = useState(0);
+  const notePickerRef = useRef<HTMLInputElement>(null);
   const [dragCid, setDragCid] = useState<string | null>(null);
   const [dropTarget, setDropTarget] = useState<{ cid: string; position: "before" | "after" } | null>(null);
   const [dropSectionDate, setDropSectionDate] = useState<string | null>(null);
@@ -61,12 +73,71 @@ export function TasksPanel({ notes, onSave, onCreate, onNavigateNote }: Props) {
   const doneSections = useMemo(() => buildDoneList(allTasks), [allTasks]);
 
   const onDraftChange = useCallback(
-    (next: string) => {
+    (next: string, cursorPos?: number) => {
       const justCompletedWord = next.length > addInput.length && /\s$/.test(next);
+
+      const cursor = cursorPos ?? next.length;
+      const beforeCursor = next.slice(0, cursor);
+
+      // Check for @ trigger (dictionary mentions)
+      const mentionMatch = beforeCursor.match(/(^|\s)@([^\s]*)$/);
+      if (mentionMatch && dictionary.length > 0) {
+        const query = mentionMatch[2].toLowerCase();
+        const atStart = beforeCursor.length - mentionMatch[2].length - 1; // position of @
+        setMentionQueryStart(atStart);
+        setSelectedMention(0);
+        const filtered = dictionary
+          .filter((d) => d.toLowerCase().includes(query))
+          .slice(0, 8);
+        setMentionSuggestions(filtered);
+        setAddInput(next);
+        // Clear note suggestions if active
+        if (noteQueryStart !== null) { setNoteSuggestions([]); setNoteQueryStart(null); }
+        return;
+      } else {
+        if (mentionQueryStart !== null) {
+          setMentionSuggestions([]);
+          setMentionQueryStart(null);
+        }
+      }
+
+      // Check for [[ trigger (note links)
+      const bracketMatch = beforeCursor.match(/\[\[([^\]]*)$/);
+      if (bracketMatch) {
+        const query = bracketMatch[1].toLowerCase();
+        const queryStart = beforeCursor.length - bracketMatch[0].length;
+        setNoteQueryStart(queryStart);
+        setSelectedSuggestion(0);
+        const filtered = notes
+          .filter((n) => n.title.toLowerCase().includes(query) && n.codex !== TASK_CODEX)
+          .slice(0, 8);
+        setNoteSuggestions(filtered);
+        setAddInput(next);
+        return;
+      } else {
+        if (noteQueryStart !== null) {
+          setNoteSuggestions([]);
+          setNoteQueryStart(null);
+        }
+      }
+
       if (!justCompletedWord) {
         setAddInput(next);
         return;
       }
+
+      // Detect pasted/typed URLs and lift into attachment chips
+      const urlMatch = next.match(/(^|\s)((?:https?:\/\/|www\.)\S+)\s$/);
+      if (urlMatch) {
+        const raw = urlMatch[2];
+        const href = raw.startsWith("http") ? raw : `https://${raw}`;
+        const host = href.match(/^https?:\/\/([^/?#]+)/i)?.[1]?.replace(/^www\./i, "") ?? raw;
+        const stripped = next.slice(0, urlMatch.index! + urlMatch[1].length).trimEnd();
+        setAddInput(stripped ? stripped + " " : "");
+        setAttachments((prev) => [...prev, { kind: "url", label: host, href }]);
+        return;
+      }
+
       const r = recognize(next, undefined, { allowBareTime: true });
       let lifted = false;
       const allSpans: Array<[number, number]> = [];
@@ -95,7 +166,64 @@ export function TasksPanel({ notes, onSave, onCreate, onNavigateNote }: Props) {
         setAddInput(next);
       }
     },
-    [addInput, schedDate, schedTime, today]
+    [addInput, schedDate, schedTime, today, notes, dictionary, noteQueryStart, mentionQueryStart]
+  );
+
+  const insertMention = useCallback(
+    (mention: string) => {
+      if (mentionQueryStart === null) return;
+      const before = addInput.slice(0, mentionQueryStart);
+      const afterMatch = addInput.slice(mentionQueryStart).match(/^@[^\s]*/);
+      const after = afterMatch ? addInput.slice(mentionQueryStart + afterMatch[0].length) : addInput.slice(mentionQueryStart);
+      setAddInput(before + `@${mention}` + " " + after.trimStart());
+      setMentionSuggestions([]);
+      setMentionQueryStart(null);
+      addInputRef.current?.focus();
+    },
+    [addInput, mentionQueryStart]
+  );
+
+  const insertNoteLink = useCallback(
+    (note: Note) => {
+      if (noteQueryStart !== null) {
+        const before = addInput.slice(0, noteQueryStart);
+        const afterBracket = addInput.slice(noteQueryStart);
+        const queryMatch = afterBracket.match(/\[\[([^\]]*)$/);
+        const after = queryMatch
+          ? addInput.slice(noteQueryStart + queryMatch[0].length)
+          : "";
+        setAddInput((before + after).replace(/\s+/g, " ").trimEnd() + (before + after ? " " : ""));
+      }
+      setAttachments((prev) => [...prev, { kind: "note", label: note.title, id: note.id }]);
+      setNoteSuggestions([]);
+      setNoteQueryStart(null);
+      addInputRef.current?.focus();
+    },
+    [addInput, noteQueryStart]
+  );
+
+  const insertNoteLinkFromPicker = useCallback(
+    (note: Note) => {
+      setAttachments((prev) => [...prev, { kind: "note", label: note.title, id: note.id }]);
+      setShowNotePicker(false);
+      setNotePickerQuery("");
+      addInputRef.current?.focus();
+    },
+    []
+  );
+
+  const removeAttachment = useCallback(
+    (index: number) => {
+      setAttachments((prev) => prev.filter((_, i) => i !== index));
+    },
+    []
+  );
+
+  const notePickerResults = useMemo(
+    () => notes
+      .filter((n) => n.title.toLowerCase().includes(notePickerQuery.toLowerCase()) && n.codex !== TASK_CODEX)
+      .slice(0, 8),
+    [notes, notePickerQuery]
   );
 
   const dismissDate = useCallback(() => {
@@ -145,6 +273,44 @@ export function TasksPanel({ notes, onSave, onCreate, onNavigateNote }: Props) {
       persistDoc(newDoc);
     },
     [doc, persistDoc]
+  );
+
+  const editTask = useCallback(
+    (cid: string, updates: Partial<Task>) => {
+      let idx = 0;
+      const newDoc = doc.map((item) => {
+        if (item.kind !== "task") return item;
+        const thisCid = `t${idx++}`;
+        if (thisCid !== cid) return item;
+        return { kind: "task" as const, task: { ...item.task, ...updates } };
+      });
+      persistDoc(newDoc);
+    },
+    [doc, persistDoc]
+  );
+
+  const openEditModal = useCallback(
+    (cid: string) => {
+      const task = allTasks.find((t) => t.cid === cid);
+      if (!task) return;
+      // Parse existing attachments out of text
+      const { title, chips } = extractChips(task.text);
+      setEditingCid(cid);
+      setAddInput(title);
+      setAddPriority(task.priority);
+      setSchedDate(task.date ? { value: task.date, label: dayTitle(task.date, today), phrase: task.date } : null);
+      setSchedTime(task.time !== null ? { value: task.time, label: formatTime(task.time), phrase: formatTime(task.time) } : null);
+      setAttachments(chips.map((c) =>
+        c.kind === "note" ? { kind: "note" as const, label: c.label, id: c.id } : { kind: "url" as const, label: c.label, href: c.href }
+      ));
+      setNoteSuggestions([]);
+      setNoteQueryStart(null);
+      setMentionSuggestions([]);
+      setMentionQueryStart(null);
+      setShowNotePicker(false);
+      setShowAddModal(true);
+    },
+    [allTasks, today]
   );
 
   const reorderTask = useCallback(
@@ -270,28 +436,31 @@ export function TasksPanel({ notes, onSave, onCreate, onNavigateNote }: Props) {
     [moveToSection]
   );
 
-  const handleAdd = useCallback(async () => {
-    const text = addInput.trim();
-    if (!text) return;
+  const handleSubmit = useCallback(async () => {
+    const rawText = addInput.trim();
+    if (!rawText && attachments.length === 0) return;
+
+    const linkParts = attachments.map((a) =>
+      a.kind === "url" ? `[${a.label}](${a.href})` : `[${a.label}](scratch://${a.id})`
+    );
+    const text = [rawText, ...linkParts].filter(Boolean).join(" ");
 
     const date = schedDate?.value ?? focusedDay ?? null;
     const time = schedTime?.value ?? null;
-    const newTask: Task = {
-      text,
-      date,
-      time,
-      priority: addPriority,
-      done: false,
-    };
-    const line = serializeTask(newTask);
 
-    if (taskNote) {
-      const body = taskNote.body ? taskNote.body + "\n" + line : line;
-      onSave(taskNote.id, taskNote.title, body, taskNote.codex);
+    if (editingCid) {
+      editTask(editingCid, { text, date, time, priority: addPriority });
     } else {
-      const created = await onCreate("Tasks", TASK_CODEX);
-      if (created) {
-        onSave(created.id, created.title, line, created.codex);
+      const newTask: Task = { text, date, time, priority: addPriority, done: false };
+      const line = serializeTask(newTask);
+      if (taskNote) {
+        const body = taskNote.body ? taskNote.body + "\n" + line : line;
+        onSave(taskNote.id, taskNote.title, body, taskNote.codex);
+      } else {
+        const created = await onCreate("Tasks", TASK_CODEX);
+        if (created) {
+          onSave(created.id, created.title, line, created.codex);
+        }
       }
     }
 
@@ -299,8 +468,15 @@ export function TasksPanel({ notes, onSave, onCreate, onNavigateNote }: Props) {
     setAddPriority(null);
     setSchedDate(null);
     setSchedTime(null);
+    setAttachments([]);
+    setEditingCid(null);
     setShowAddModal(false);
-  }, [addInput, addPriority, schedDate, schedTime, focusedDay, taskNote, onSave, onCreate]);
+  }, [addInput, addPriority, attachments, schedDate, schedTime, focusedDay, editingCid, editTask, taskNote, onSave, onCreate]);
+
+  const closeModal = useCallback(() => {
+    setShowAddModal(false);
+    setEditingCid(null);
+  }, []);
 
   const sections = tab === "active" ? activeSections : doneSections;
   const isEmpty = sections.every((s) => s.tasks.length === 0);
@@ -323,6 +499,27 @@ export function TasksPanel({ notes, onSave, onCreate, onNavigateNote }: Props) {
     }
   }, [sections, focusedDay]);
 
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "q" && !e.metaKey && !e.ctrlKey && !e.altKey && !showAddModal) {
+        const target = e.target as HTMLElement;
+        if (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable) return;
+        e.preventDefault();
+        setAddInput("");
+        setAddPriority(null);
+        setSchedDate(null);
+        setSchedTime(null);
+        setAttachments([]);
+        setNoteSuggestions([]);
+        setNoteQueryStart(null);
+        setShowNotePicker(false);
+        setShowAddModal(true);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [showAddModal]);
+
   const focusLabel = useMemo(
     () => focusedDay ? dayTitle(focusedDay, today) : "",
     [focusedDay, today]
@@ -335,7 +532,17 @@ export function TasksPanel({ notes, onSave, onCreate, onNavigateNote }: Props) {
 
   return (
     <div className="tasks-panel">
-      <div className="tasks-header">
+      <div className="tasks-focus-bar">
+        <div className="tasks-focus-left">
+          <div className="tasks-focus-accent" />
+          <div className="tasks-focus-text">
+            <span className="tasks-focus-eyebrow">IN FOCUS</span>
+            <span className="tasks-focus-day">
+              {focusLabel || "Today"}
+              {focusCount > 0 && <span className="tasks-focus-count">{focusCount}</span>}
+            </span>
+          </div>
+        </div>
         <div className="tasks-tabs">
           <button
             className={`tasks-tab ${tab === "active" ? "active" : ""}`}
@@ -353,12 +560,12 @@ export function TasksPanel({ notes, onSave, onCreate, onNavigateNote }: Props) {
       </div>
 
       {showAddModal && (
-        <div className="tasks-modal-overlay" onClick={() => setShowAddModal(false)}>
+        <div className="tasks-modal-overlay" onClick={closeModal}>
           <div className="tasks-modal" onClick={(e) => e.stopPropagation()}>
             <div className="tasks-modal-header">
               <div className="tasks-modal-title-row">
                 <span className="tasks-modal-title">
-                  {schedDate ? "Add to" : `Add to ${focusLabel || "Today"}`}
+                  {editingCid ? "Edit" : schedDate ? "Add to" : `Add to ${focusLabel || "Today"}`}
                 </span>
                 {schedDate && (
                   <button className="tasks-chip tasks-chip-dismiss" onClick={dismissDate}>
@@ -370,54 +577,139 @@ export function TasksPanel({ notes, onSave, onCreate, onNavigateNote }: Props) {
                     {schedTime.label} <span className="tasks-chip-x">×</span>
                   </button>
                 )}
+                {attachments.map((a, i) => (
+                  <button key={i} className={`tasks-chip tasks-chip-dismiss tasks-chip-${a.kind}`} onClick={() => removeAttachment(i)}>
+                    {a.kind === "note" ? `@ ${a.label}` : a.label}
+                    <span className="tasks-chip-x">×</span>
+                  </button>
+                ))}
               </div>
-              <button className="tasks-modal-close" onClick={() => setShowAddModal(false)}>
+              <button className="tasks-modal-close" onClick={closeModal}>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
                 </svg>
               </button>
             </div>
-            <input
-              ref={addInputRef}
-              className="tasks-modal-input"
-              type="text"
-              placeholder="e.g. Call dentist tomorrow 9am"
-              value={addInput}
-              onChange={(e) => onDraftChange(e.target.value)}
-              onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); handleAdd(); } if (e.key === "Escape") setShowAddModal(false); }}
-              autoFocus
-            />
-            <div className="tasks-modal-actions">
-              <button
-                className={`tasks-modal-priority ${addPriority ? `tasks-modal-priority-${addPriority}` : ""}`}
-                onClick={() => {
-                  const cycle: Array<Priority | null> = ["high", "med", "low", null];
-                  const idx = cycle.indexOf(addPriority);
-                  setAddPriority(cycle[(idx + 1) % cycle.length]);
+            <div className="tasks-modal-input-wrapper">
+              <input
+                ref={addInputRef}
+                className="tasks-modal-input"
+                type="text"
+                placeholder="e.g. Call dentist tomorrow 9am"
+                value={addInput}
+                onChange={(e) => onDraftChange(e.target.value, e.target.selectionStart ?? undefined)}
+                onKeyDown={(e) => {
+                  if (mentionSuggestions.length > 0) {
+                    if (e.key === "ArrowDown") { e.preventDefault(); setSelectedMention((s) => Math.min(s + 1, mentionSuggestions.length - 1)); return; }
+                    if (e.key === "ArrowUp") { e.preventDefault(); setSelectedMention((s) => Math.max(s - 1, 0)); return; }
+                    if (e.key === "Enter" || e.key === "Tab") { e.preventDefault(); insertMention(mentionSuggestions[selectedMention]); return; }
+                    if (e.key === "Escape") { e.preventDefault(); setMentionSuggestions([]); setMentionQueryStart(null); return; }
+                  }
+                  if (noteSuggestions.length > 0) {
+                    if (e.key === "ArrowDown") { e.preventDefault(); setSelectedSuggestion((s) => Math.min(s + 1, noteSuggestions.length - 1)); return; }
+                    if (e.key === "ArrowUp") { e.preventDefault(); setSelectedSuggestion((s) => Math.max(s - 1, 0)); return; }
+                    if (e.key === "Enter" || e.key === "Tab") { e.preventDefault(); insertNoteLink(noteSuggestions[selectedSuggestion]); return; }
+                    if (e.key === "Escape") { e.preventDefault(); setNoteSuggestions([]); setNoteQueryStart(null); return; }
+                  }
+                  if (e.key === "Enter") { e.preventDefault(); handleSubmit(); }
+                  if (e.key === "Escape") closeModal();
                 }}
-              >
-                {addPriority ? `Priority: ${addPriority}` : "Priority"}
-              </button>
-              <button className="tasks-modal-submit" onClick={handleAdd} disabled={!addInput.trim()}>
-                Add
+                autoFocus
+              />
+              {mentionSuggestions.length > 0 && (
+                <div className="tasks-note-suggestions">
+                  {mentionSuggestions.map((mention, i) => (
+                    <button
+                      key={mention}
+                      className={`tasks-note-suggestion ${i === selectedMention ? "selected" : ""}`}
+                      onMouseDown={(e) => { e.preventDefault(); insertMention(mention); }}
+                    >
+                      <span className="tasks-note-suggestion-title">@{mention}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
+              {noteSuggestions.length > 0 && (
+                <div className="tasks-note-suggestions">
+                  {noteSuggestions.map((note, i) => (
+                    <button
+                      key={note.id}
+                      className={`tasks-note-suggestion ${i === selectedSuggestion ? "selected" : ""}`}
+                      onMouseDown={(e) => { e.preventDefault(); insertNoteLink(note); }}
+                    >
+                      <span className="tasks-note-suggestion-title">{note.title}</span>
+                      {note.codex && <span className="tasks-note-suggestion-codex">{note.codex}</span>}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+            <div className="tasks-modal-actions">
+              <div className="tasks-modal-actions-left">
+                <button
+                  className={`tasks-modal-priority ${addPriority ? `tasks-modal-priority-${addPriority}` : ""}`}
+                  onClick={() => {
+                    const cycle: Array<Priority | null> = ["high", "med", "low", null];
+                    const idx = cycle.indexOf(addPriority);
+                    setAddPriority(cycle[(idx + 1) % cycle.length]);
+                  }}
+                >
+                  {addPriority ? `Priority: ${addPriority}` : "Priority"}
+                </button>
+                <div className="tasks-note-picker-wrapper">
+                  <button
+                    className="tasks-modal-link-btn"
+                    onClick={() => { setShowNotePicker((v) => !v); setNotePickerQuery(""); }}
+                    title="Link a note"
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+                      <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+                    </svg>
+                    Note
+                  </button>
+                  {showNotePicker && (
+                    <div className="tasks-note-picker">
+                      <input
+                        ref={notePickerRef}
+                        className="tasks-note-picker-input"
+                        type="text"
+                        placeholder="Search notes..."
+                        value={notePickerQuery}
+                        onChange={(e) => setNotePickerQuery(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Escape") { setShowNotePicker(false); addInputRef.current?.focus(); }
+                          if (e.key === "Enter" && notePickerResults.length > 0) { e.preventDefault(); insertNoteLinkFromPicker(notePickerResults[0]); }
+                        }}
+                        autoFocus
+                      />
+                      <div className="tasks-note-picker-results">
+                        {notePickerResults.map((note) => (
+                          <button
+                            key={note.id}
+                            className="tasks-note-suggestion"
+                            onMouseDown={(e) => { e.preventDefault(); insertNoteLinkFromPicker(note); }}
+                          >
+                            <span className="tasks-note-suggestion-title">{note.title}</span>
+                            {note.codex && <span className="tasks-note-suggestion-codex">{note.codex}</span>}
+                          </button>
+                        ))}
+                        {notePickerResults.length === 0 && (
+                          <div className="tasks-note-picker-empty">No notes found</div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+              <button className="tasks-modal-submit" onClick={handleSubmit} disabled={!addInput.trim() && attachments.length === 0}>
+                {editingCid ? "Save" : "Add"}
               </button>
             </div>
           </div>
         </div>
       )}
 
-      {focusLabel && tab === "active" && !isEmpty && (
-        <div className="tasks-focus-bar">
-          <div className="tasks-focus-accent" />
-          <div className="tasks-focus-text">
-            <span className="tasks-focus-eyebrow">IN FOCUS</span>
-            <span className="tasks-focus-day">
-              {focusLabel}
-              {focusCount > 0 && <span className="tasks-focus-count">{focusCount}</span>}
-            </span>
-          </div>
-        </div>
-      )}
 
       <div className="tasks-list" ref={listRef} onScroll={handleScroll}>
         {isEmpty && tab === "active" && (
@@ -446,6 +738,7 @@ export function TasksPanel({ notes, onSave, onCreate, onNavigateNote }: Props) {
                   task={task}
                   onToggle={() => toggleDone(task.cid)}
                   onDelete={() => deleteTask(task.cid)}
+                  onEdit={() => openEditModal(task.cid)}
                   onNavigateNote={onNavigateNote}
                   isDragging={dragCid === task.cid}
                   dropIndicator={dropTarget?.cid === task.cid ? dropTarget.position : null}
@@ -462,7 +755,7 @@ export function TasksPanel({ notes, onSave, onCreate, onNavigateNote }: Props) {
       </div>
 
       {tab === "active" && (
-        <button className="tasks-fab" onClick={() => { setAddInput(""); setAddPriority(null); setSchedDate(null); setSchedTime(null); setShowAddModal(true); }}>
+        <button className="tasks-fab" onClick={() => { setAddInput(""); setAddPriority(null); setSchedDate(null); setSchedTime(null); setAttachments([]); setNoteSuggestions([]); setNoteQueryStart(null); setShowNotePicker(false); setShowAddModal(true); }}>
           + New
         </button>
       )}
@@ -474,6 +767,7 @@ function TaskRow({
   task,
   onToggle,
   onDelete,
+  onEdit,
   onNavigateNote,
   isDragging,
   dropIndicator,
@@ -486,6 +780,7 @@ function TaskRow({
   task: IdTask;
   onToggle: () => void;
   onDelete: () => void;
+  onEdit: () => void;
   onNavigateNote: (id: string) => void;
   isDragging: boolean;
   dropIndicator: "before" | "after" | null;
@@ -506,6 +801,7 @@ function TaskRow({
       onDragLeave={onDragLeave}
       onDrop={onDrop}
       onDragEnd={onDragEnd}
+      onDoubleClick={onEdit}
     >
       <button className="task-checkbox" onClick={onToggle} aria-label={task.done ? "Mark incomplete" : "Mark complete"}>
         {task.done ? (
@@ -545,12 +841,20 @@ function TaskRow({
           )}
         </div>
       </div>
-      <button className="task-delete" onClick={onDelete} title="Delete task">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <line x1="18" y1="6" x2="6" y2="18" />
-          <line x1="6" y1="6" x2="18" y2="18" />
-        </svg>
-      </button>
+      <div className="task-actions">
+        <button className="task-edit" onClick={onEdit} title="Edit task">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
+            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+          </svg>
+        </button>
+        <button className="task-delete" onClick={onDelete} title="Delete task">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18" />
+            <line x1="6" y1="6" x2="18" y2="18" />
+          </svg>
+        </button>
+      </div>
     </div>
   );
 }
