@@ -1200,6 +1200,11 @@ function App() {
           setActiveCodex(codexList[idx - 1]);
           setViewingArchive(false);
         }
+      } else if (mod && e.key === "`") {
+        e.preventDefault();
+        setViewingTasks((s) => !s);
+        setActiveCodex(null);
+        setViewingArchive(false);
       } else if (mod && key === "j" && !e.shiftKey) {
         e.preventDefault();
         handleDailyNote();
@@ -1356,7 +1361,7 @@ function App() {
     }] : []),
     ...(splitNoteId ? [{ id: "close-split", label: "Close Split View", shortcut: `${mod}\\`, action: () => setSplitNoteId(null) }] : []),
     { id: "all-notes", label: "All Notes", shortcut: `${mod}1`, action: () => { setActiveCodex(null); setViewingArchive(false); setViewingTasks(false); } },
-    { id: "view-tasks", label: "View Tasks", action: () => { setViewingTasks(true); setActiveCodex(null); setViewingArchive(false); } },
+    { id: "view-tasks", label: "View Tasks", shortcut: `${mod}\``, action: () => { setViewingTasks(true); setActiveCodex(null); setViewingArchive(false); } },
     { id: "view-archive", label: viewingArchive ? "Exit Archive" : "View Archive", action: () => { setViewingArchive((s) => !s); setActiveCodex(null); setViewingTasks(false); } },
     ...codexList.map((c, i) => ({
       id: `codex-${c}`,
@@ -1501,6 +1506,16 @@ function App() {
               <rect x="14" y="14" width="7" height="7" rx="1" />
             </svg>
           </button>
+          <button
+            className={`codex-sidebar-item ${viewingTasks ? "active" : ""}`}
+            onClick={() => { setViewingTasks((s) => !s); setActiveCodex(null); setViewingArchive(false); }}
+            title="Tasks"
+          >
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <rect x="3" y="3" width="18" height="18" rx="3" />
+              <polyline points="9 11 12 14 16 9" />
+            </svg>
+          </button>
           {codexList.map((codex) => (
             <div key={codex} className="codex-sidebar-item-wrap">
               <button
@@ -1528,16 +1543,6 @@ function App() {
             </div>
           ))}
           <div className="codex-sidebar-bottom">
-            <button
-              className={`codex-sidebar-item ${viewingTasks ? "active" : ""}`}
-              onClick={() => { setViewingTasks((s) => !s); setActiveCodex(null); setViewingArchive(false); }}
-              title="Tasks"
-            >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <rect x="3" y="3" width="18" height="18" rx="3" />
-                <polyline points="9 11 12 14 16 9" />
-              </svg>
-            </button>
             {archivedCount > 0 && (
               <button
                 className={`codex-sidebar-item codex-sidebar-archive ${viewingArchive ? "active" : ""}`}
