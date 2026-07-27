@@ -5183,6 +5183,41 @@ img.emoji {
   color: var(--text-hint);
 }
 
+.task-done-compact {
+  padding: 4px 12px;
+  gap: 8px;
+  border-bottom: 1px solid var(--border);
+  border-radius: 0;
+}
+
+.task-done-compact:last-child {
+  border-bottom: none;
+}
+
+.task-done-compact .task-checkbox {
+  margin-top: 0;
+}
+
+.task-done-title {
+  flex: 1;
+  min-width: 0;
+  font-size: 12px;
+  color: var(--text-hint);
+  text-decoration: line-through;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.task-done-compact .task-delete {
+  opacity: 0;
+  transition: opacity var(--transition);
+}
+
+.task-done-compact:hover .task-delete {
+  opacity: 1;
+}
+
 .task-checkbox {
   flex-shrink: 0;
   display: flex;

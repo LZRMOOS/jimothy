@@ -749,21 +749,30 @@ export function TasksPanel({ notes, dictionary = [], onSave, onCreate, onNavigat
                 )}
               </div>
               {section.tasks.map((task) => (
-                <TaskRow
-                  key={task.cid}
-                  task={task}
-                  onToggle={() => toggleDone(task.cid)}
-                  onDelete={() => deleteTask(task.cid)}
-                  onEdit={() => openEditModal(task.cid)}
-                  onNavigateNote={onNavigateNote}
-                  isDragging={dragCid === task.cid}
-                  dropIndicator={dropTarget?.cid === task.cid ? dropTarget.position : null}
-                  onDragStart={(e) => handleDragStart(e, task.cid)}
-                  onDragOver={(e) => handleDragOver(e, task.cid)}
-                  onDragLeave={handleDragLeave}
-                  onDrop={(e) => handleDrop(e, task.cid, section.date)}
-                  onDragEnd={handleDragEnd}
-                />
+                tab === "done" ? (
+                  <DoneTaskRow
+                    key={task.cid}
+                    task={task}
+                    onToggle={() => toggleDone(task.cid)}
+                    onDelete={() => deleteTask(task.cid)}
+                  />
+                ) : (
+                  <TaskRow
+                    key={task.cid}
+                    task={task}
+                    onToggle={() => toggleDone(task.cid)}
+                    onDelete={() => deleteTask(task.cid)}
+                    onEdit={() => openEditModal(task.cid)}
+                    onNavigateNote={onNavigateNote}
+                    isDragging={dragCid === task.cid}
+                    dropIndicator={dropTarget?.cid === task.cid ? dropTarget.position : null}
+                    onDragStart={(e) => handleDragStart(e, task.cid)}
+                    onDragOver={(e) => handleDragOver(e, task.cid)}
+                    onDragLeave={handleDragLeave}
+                    onDrop={(e) => handleDrop(e, task.cid, section.date)}
+                    onDragEnd={handleDragEnd}
+                  />
+                )
               ))}
             </div>
           )
@@ -871,6 +880,28 @@ function TaskRow({
           </svg>
         </button>
       </div>
+    </div>
+  );
+}
+
+function DoneTaskRow({ task, onToggle, onDelete }: { task: IdTask; onToggle: () => void; onDelete: () => void }) {
+  const { title } = useMemo(() => extractChips(task.text), [task.text]);
+
+  return (
+    <div className="task-row task-done task-done-compact">
+      <button className="task-checkbox" onClick={onToggle} aria-label="Mark incomplete">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <rect x="3" y="3" width="18" height="18" rx="3" fill="var(--accent)" stroke="var(--accent)" />
+          <polyline points="9 11 12 14 16 9" stroke="var(--bg-primary)" strokeWidth="2.5" />
+        </svg>
+      </button>
+      <span className="task-done-title">{title}</span>
+      <button className="task-delete" onClick={onDelete} title="Delete task">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <line x1="18" y1="6" x2="6" y2="18" />
+          <line x1="6" y1="6" x2="18" y2="18" />
+        </svg>
+      </button>
     </div>
   );
 }
