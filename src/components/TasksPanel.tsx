@@ -775,6 +775,7 @@ export function TasksPanel({ notes, dictionary = [], onNavigateNote }: Props) {
                 <TaskRow
                   key={task.cid}
                   task={task}
+                  today={today}
                   compact={tab === "done"}
                   onToggle={() => toggleDone(task.cid)}
                   onDelete={() => deleteTask(task.cid)}
@@ -805,6 +806,7 @@ export function TasksPanel({ notes, dictionary = [], onNavigateNote }: Props) {
 
 function TaskRow({
   task,
+  today,
   compact,
   onToggle,
   onDelete,
@@ -819,6 +821,7 @@ function TaskRow({
   onDragEnd,
 }: {
   task: IdTask;
+  today: string;
   compact?: boolean;
   onToggle: () => void;
   onDelete: () => void;
@@ -860,6 +863,9 @@ function TaskRow({
       <div className="task-content">
         <span className="task-title">{title}</span>
         <div className="task-meta">
+          {!task.done && task.date !== null && task.date < today && (
+            <span className="task-overdue">overdue</span>
+          )}
           {task.priority && (
             <span className={`task-priority task-priority-${task.priority}`}>
               {task.priority}

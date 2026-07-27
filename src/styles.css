@@ -5306,6 +5306,17 @@ img.emoji {
   color: #22c55e;
 }
 
+.task-overdue {
+  font-size: 10px;
+  font-weight: 600;
+  padding: 1px 5px;
+  border-radius: 3px;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  background: rgba(239, 68, 68, 0.12);
+  color: #ef4444;
+}
+
 .task-time {
   font-size: 11px;
   color: var(--text-hint);
