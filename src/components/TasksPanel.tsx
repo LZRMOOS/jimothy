@@ -7,6 +7,7 @@ import {
   serializeTaskDoc,
   advanceDate,
   mapTask,
+  sortForAgenda,
   formatTime,
   formatRecurrence,
   type Task,
@@ -24,7 +25,7 @@ type Props = {
 };
 
 export function TasksPanel({ notes, dictionary = [], onNavigateNote }: Props) {
-  const [tab, setTab] = useState<"active" | "done">("active");
+  const [tab, setTab] = useState<"active" | "done" | "all">("active");
   const [showAddModal, setShowAddModal] = useState(false);
   const [addInput, setAddInput] = useState("");
   const [addPriority, setAddPriority] = useState<Priority | null>(null);
@@ -85,6 +86,11 @@ export function TasksPanel({ notes, dictionary = [], onNavigateNote }: Props) {
 
   const [doneSectionsLimit, setDoneSectionsLimit] = useState(30);
   const doneSections = useMemo(() => buildDoneList(allTasks, { today, maxSections: doneSectionsLimit }), [allTasks, today, doneSectionsLimit]);
+
+  const allActiveTasks = useMemo(
+    () => sortForAgenda(allTasks.filter((t) => !t.done)) as IdTask[],
+    [allTasks]
+  );
 
   const onDraftChange = useCallback(
     (next: string, cursorPos?: number) => {
@@ -500,8 +506,8 @@ export function TasksPanel({ notes, dictionary = [], onNavigateNote }: Props) {
     setEditingCid(null);
   }, []);
 
-  const sections = tab === "active" ? activeSections : doneSections;
-  const isEmpty = sections.every((s) => s.tasks.length === 0);
+  const sections = tab === "active" ? activeSections : tab === "done" ? doneSections : null;
+  const isEmpty = tab === "all" ? allActiveTasks.length === 0 : sections!.every((s) => s.tasks.length === 0);
 
   const handleScroll = useCallback(() => {
     const list = listRef.current;
@@ -516,12 +522,12 @@ export function TasksPanel({ notes, dictionary = [], onNavigateNote }: Props) {
 
     if (list.scrollTop + list.clientHeight >= list.scrollHeight - 200) {
       if (tab === "active") setDaysAhead((prev) => prev + 30);
-      else setDoneSectionsLimit((prev) => prev + 30);
+      else if (tab === "done") setDoneSectionsLimit((prev) => prev + 30);
     }
   }, [tab]);
 
   useEffect(() => {
-    if (sections.length > 0 && !focusedDay) {
+    if (sections && sections.length > 0 && !focusedDay) {
       setFocusedDay(sections[0].date);
     }
   }, [sections, focusedDay]);
@@ -562,7 +568,7 @@ export function TasksPanel({ notes, dictionary = [], onNavigateNote }: Props) {
   );
 
   const focusCount = useMemo(
-    () => focusedDay ? (sections.find((s) => s.date === focusedDay)?.tasks.length ?? 0) : 0,
+    () => focusedDay && sections ? (sections.find((s) => s.date === focusedDay)?.tasks.length ?? 0) : 0,
     [focusedDay, sections]
   );
 
@@ -585,6 +591,12 @@ export function TasksPanel({ notes, dictionary = [], onNavigateNote }: Props) {
             onClick={() => setTab("active")}
           >
             Active
+          </button>
+          <button
+            className={`tasks-tab ${tab === "all" ? "active" : ""}`}
+            onClick={() => setTab("all")}
+          >
+            Backlog
           </button>
           <button
             className={`tasks-tab ${tab === "done" ? "active" : ""}`}
@@ -764,10 +776,32 @@ export function TasksPanel({ notes, dictionary = [], onNavigateNote }: Props) {
         {isEmpty && tab === "active" && (
           <div className="tasks-empty">No tasks yet. Press <strong>+ New</strong> or <strong>Q</strong> to add one.</div>
         )}
+        {isEmpty && tab === "all" && (
+          <div className="tasks-empty">No tasks yet. Press <strong>+ New</strong> or <strong>Q</strong> to add one.</div>
+        )}
         {isEmpty && tab === "done" && (
           <div className="tasks-empty">No completed tasks.</div>
         )}
-        {sections.map((section) =>
+        {tab === "all" && allActiveTasks.map((task) => (
+          <TaskRow
+            key={task.cid}
+            task={task}
+            today={today}
+            showDate
+            onToggle={() => toggleDone(task.cid)}
+            onDelete={() => deleteTask(task.cid)}
+            onEdit={() => openEditModal(task.cid)}
+            onNavigateNote={onNavigateNote}
+            isDragging={dragCid === task.cid}
+            dropIndicator={dropTarget?.cid === task.cid ? dropTarget.position : null}
+            onDragStart={(e) => handleDragStart(e, task.cid)}
+            onDragOver={(e) => handleDragOver(e, task.cid)}
+            onDragLeave={handleDragLeave}
+            onDrop={(e) => handleDrop(e, task.cid, "")}
+            onDragEnd={handleDragEnd}
+          />
+        ))}
+        {sections && sections.map((section) =>
           section.tasks.length === 0 && tab === "done" ? null : (
             <div key={section.date} className="tasks-section" ref={(el) => { if (el) sectionRefs.current.set(section.date, el); }}>
               <div
@@ -805,7 +839,7 @@ export function TasksPanel({ notes, dictionary = [], onNavigateNote }: Props) {
         )}
       </div>
 
-      {tab === "active" && (
+      {tab !== "done" && (
         <button className="tasks-fab" onClick={() => { setAddInput(""); setAddPriority(null); setSchedDate(null); setSchedTime(null); setAttachments([]); setNoteSuggestions([]); setNoteQueryStart(null); setShowNotePicker(false); setShowAddModal(true); }}>
           + New <span className="tasks-fab-hint">Q</span>
         </button>
@@ -818,6 +852,7 @@ function TaskRow({
   task,
   today,
   compact,
+  showDate,
   onToggle,
   onDelete,
   onEdit,
@@ -833,6 +868,7 @@ function TaskRow({
   task: IdTask;
   today: string;
   compact?: boolean;
+  showDate?: boolean;
   onToggle: () => void;
   onDelete: () => void;
   onEdit: () => void;
@@ -873,7 +909,12 @@ function TaskRow({
       <div className="task-content">
         <span className="task-title">{title}</span>
         <div className="task-meta">
-          {!task.done && task.date !== null && task.date < today && (
+          {showDate && task.date && (
+            <span className={`task-date ${task.date < today ? "task-overdue" : ""}`}>
+              {dayTitle(task.date, today)}
+            </span>
+          )}
+          {!showDate && !task.done && task.date !== null && task.date < today && (
             <span className="task-overdue">overdue</span>
           )}
           {task.priority && (
