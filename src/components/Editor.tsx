@@ -393,6 +393,7 @@ export function Editor({ note, saveStatus, onTitleChange, onBodyChange, onCodexC
       }),
       Markdown.configure({
         html: false,
+        breaks: true,
         transformPastedText: true,
         transformCopiedText: false,
       }),
