@@ -1638,6 +1638,7 @@ function App() {
       ) : viewingTasks ? (
         <div className="main-content">
           <TasksPanel
+            key={notesFolder}
             notes={notes}
             dictionary={appSettings.dictionary}
             onNavigateNote={(id) => { setViewingTasks(false); setSelectedId(id); }}
