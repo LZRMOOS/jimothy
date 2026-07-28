@@ -10,6 +10,8 @@ import type { AppSettings, VaultStatus, ThemeColors, ColorPreset, VaultProfile }
 import type { EmojiEntry } from "../extensions/emoji";
 import { isMac, modName, altName, superName } from "../utils/platform";
 import { HIDEABLE_COMMANDS } from "../utils/commands";
+import raccoonCircle from "../assets/raccoon-circle.png";
+import artRaccoon from "../assets/art-raccoon.png";
 
 type SettingsTab = "general" | "organization" | "keyboard" | "editor" | "storage" | "security" | "markdown";
 type GeneralTab = "behavior" | "about";
@@ -520,7 +522,7 @@ function VaultProfilesSection({ profiles, activeFolder, onSwitch, onAdd, onRenam
       {effectiveProfiles.length === 0 && (
         <p className="settings-hint">No vault profiles yet. Add one to get started.</p>
       )}
-      {effectiveProfiles.map((profile, index) => {
+      {effectiveProfiles.map((profile) => {
         const isActive = profile.path === activeFolder;
         const isEditing = editingPath === profile.path;
         const isLast = effectiveProfiles.length === 1;
@@ -1954,6 +1956,17 @@ export function Settings({
                       </div>
                     </div>
                     <p className="settings-hint">Auto-updates coming soon</p>
+
+                    <div className="about-branding">
+                      <div className="about-logo-row">
+                        <span>jim</span>
+                        <img src={raccoonCircle} alt="" />
+                        <span>thy</span>
+                      </div>
+                      <div className="about-art">
+                        <img src={artRaccoon} alt="Jimothy the raccoon" />
+                      </div>
+                    </div>
 
                     <h3>Developer</h3>
                     <div className="about-info">

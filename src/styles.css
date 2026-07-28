@@ -14,6 +14,13 @@
  * - Keep dark theme support with [data-theme="dark"]
  */
 
+@font-face {
+  font-family: "BubblegumSans";
+  src: url("./assets/BubblegumSans-Regular.ttf") format("truetype");
+  font-weight: 400;
+  font-style: normal;
+}
+
 :root {
   --bg-primary: #f5f4f1;
   --bg-secondary: #efeee9;
@@ -4652,6 +4659,38 @@ img.emoji {
 }
 
 /* About Section */
+.about-branding {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 1.5rem 0 1rem;
+}
+
+.about-logo-row {
+  display: flex;
+  align-items: center;
+  gap: 0;
+}
+
+.about-logo-row span {
+  font-family: "BubblegumSans", cursive;
+  font-size: 2.5rem;
+  color: #312e81;
+  line-height: 1;
+}
+
+[data-theme="dark"] .about-logo-row span {
+  color: #a5b4fc;
+}
+
+.about-logo-row img {
+  width: 30px;
+  height: 30px;
+  margin: 0 -2px;
+  position: relative;
+  top: 2px;
+}
+
 .about-info {
   background: var(--bg-secondary);
   border: 1px solid var(--border-color);
@@ -4695,12 +4734,27 @@ img.emoji {
 }
 
 .about-copyright {
-  margin-top: 2rem;
-  padding-top: 1rem;
+  margin-top: 0.75rem;
+  padding-top: 0.5rem;
+  padding-bottom: 1.5rem;
   border-top: 1px solid var(--border-color);
   font-size: 0.75rem;
   color: var(--text-secondary);
   text-align: center;
+}
+
+.about-art {
+  margin-top: 1.5rem;
+  margin-bottom: 0.5rem;
+  display: flex;
+  justify-content: center;
+}
+
+.about-art img {
+  width: 280px;
+  border-radius: 10px;
+  border: 3px solid var(--border-color);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
 }
 
 /* Tasks Panel */
