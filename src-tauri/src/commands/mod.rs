@@ -230,6 +230,18 @@ pub fn set_notes_folder(
     // Clean up orphaned temp files from previous sessions
     storage::cleanup_temp_files(&folder);
 
+    // Clear stale encryption state from the previous vault
+    if let Some(ref mut key) = *state.protection_key.lock().unwrap() {
+        key.zeroize();
+    }
+    *state.protection_key.lock().unwrap() = None;
+    *state.protection_hash.lock().unwrap() = None;
+    if let Some(ref mut key) = *state.vault_key.lock().unwrap() {
+        key.zeroize();
+    }
+    *state.vault_key.lock().unwrap() = None;
+    *state.password_hash.lock().unwrap() = None;
+
     // Detect vault status
     if load_vault_config(&folder).is_some() {
         // Vault exists but is locked until password is provided
