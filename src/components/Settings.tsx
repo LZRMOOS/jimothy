@@ -523,7 +523,7 @@ function VaultProfilesSection({ profiles, activeFolder, onSwitch, onAdd, onRenam
       {effectiveProfiles.map((profile, index) => {
         const isActive = profile.path === activeFolder;
         const isEditing = editingPath === profile.path;
-        const isDefault = index === 0;
+        const isLast = effectiveProfiles.length === 1;
         // Default name when the field is cleared: the vault's folder name.
         const folderName = profile.path.split("/").pop() || "Vault";
         return (
@@ -603,8 +603,8 @@ function VaultProfilesSection({ profiles, activeFolder, onSwitch, onAdd, onRenam
                   <button
                     className="vault-profile-action danger"
                     onClick={() => onRemove(profile.path)}
-                    title={isDefault ? "Default profile cannot be removed" : "Remove profile"}
-                    disabled={isDefault}
+                    title={isLast ? "At least one profile is required" : "Remove profile"}
+                    disabled={isLast}
                   >
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                   </button>
