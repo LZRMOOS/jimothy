@@ -77,6 +77,8 @@ export function createCollapsibleHeadingExtension() {
 
             state.doc.forEach((node, offset) => {
               if (node.type.name !== "heading") return;
+              // Skip empty headings (nodeSize of 2 means just the opening and closing)
+              if (node.nodeSize <= 2) return;
               const isCollapsed = collapsed.has(offset);
               const endPos = offset + node.nodeSize - 1;
 
