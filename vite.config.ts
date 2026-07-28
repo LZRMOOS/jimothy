@@ -9,6 +9,7 @@ export default defineConfig(async () => ({
   plugins: [react()],
   clearScreen: false,
   build: {
+    chunkSizeWarningLimit: 1500,
     rollupOptions: {
       input: {
         main: resolve(__dirname, "index.html"),
