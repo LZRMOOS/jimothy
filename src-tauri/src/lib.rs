@@ -56,7 +56,23 @@ fn toggle_window(app: &tauri::AppHandle, label: &str) {
 }
 
 fn toggle_scratchpad(app: &tauri::AppHandle) {
-    toggle_window(app, "scratchpad");
+    if let Some(window) = app.get_webview_window("scratchpad") {
+        if window.is_minimized().unwrap_or(false) {
+            let _ = window.unminimize();
+            let _ = window.center();
+            let _ = window.set_focus();
+        } else if window.is_visible().unwrap_or(false) {
+            if window.is_focused().unwrap_or(false) {
+                let _ = window.hide();
+            } else {
+                let _ = window.set_focus();
+            }
+        } else {
+            let _ = window.center();
+            let _ = window.show();
+            let _ = window.set_focus();
+        }
+    }
 }
 
 #[tauri::command]

@@ -30,10 +30,13 @@ export function Scratchpad() {
 
   useEffect(() => {
     textareaRef.current?.focus();
-    const handleFocus = () => textareaRef.current?.focus();
+    const handleFocus = () => {
+      textareaRef.current?.focus();
+      loadEntries();
+    };
     window.addEventListener("focus", handleFocus);
     return () => window.removeEventListener("focus", handleFocus);
-  }, []);
+  }, [loadEntries]);
 
   const handleSubmit = async () => {
     const text = input.trim();
