@@ -3,9 +3,10 @@ import { PasswordInput } from "./PasswordInput";
 
 type Props = {
   onSetup: (password: string) => Promise<boolean>;
+  onCancel?: () => void;
 };
 
-export function ProtectionSetup({ onSetup }: Props) {
+export function ProtectionSetup({ onSetup, onCancel }: Props) {
   const [password, setPassword] = useState("");
   const [confirm, setConfirm] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -17,6 +18,17 @@ export function ProtectionSetup({ onSetup }: Props) {
   useEffect(() => {
     inputRef.current?.focus();
   }, []);
+
+  useEffect(() => {
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape" && onCancel) {
+        e.preventDefault();
+        onCancel();
+      }
+    };
+    window.addEventListener("keydown", handleKey);
+    return () => window.removeEventListener("keydown", handleKey);
+  }, [onCancel]);
 
   const triggerShake = () => {
     setShake(true);
@@ -89,6 +101,15 @@ export function ProtectionSetup({ onSetup }: Props) {
           >
             {loading ? "Setting up…" : "Set Password"}
           </button>
+          {onCancel && (
+            <button
+              className="btn ghost unlock-btn"
+              type="button"
+              onClick={onCancel}
+            >
+              Cancel
+            </button>
+          )}
         </form>
       </div>
     </div>

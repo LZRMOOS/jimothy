@@ -1707,6 +1707,7 @@ function App() {
                 }
                 return ok;
               }}
+              onCancel={() => setProtectionSetupPending(null)}
             />
           ) : protectionUnlockPending ? (
             <SensitivePrompt
