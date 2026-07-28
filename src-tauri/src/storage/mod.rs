@@ -88,6 +88,9 @@ pub fn note_filename(note: &Note) -> String {
 }
 
 pub fn write_note_atomic(folder: &Path, note: &Note) -> Result<PathBuf, String> {
+    if !notes::is_safe_note_id(&note.id) {
+        return Err("Invalid note id".to_string());
+    }
     let filename = note_filename(note);
     let dest = folder.join(&filename);
     let content = notes::serialize_note(note);
@@ -272,6 +275,10 @@ pub fn save_conflict_copy(
 /// old `{slug}--{id}.md` name until their next save migrates them, so we fall
 /// back to scanning for the `--{id}.md` suffix.
 pub fn find_note_file(folder: &Path, note_id: &str) -> Option<PathBuf> {
+    if !notes::is_safe_note_id(note_id) {
+        return None;
+    }
+
     let snote = folder.join(format!("{}.snote", note_id));
     if snote.exists() {
         return Some(snote);
@@ -495,6 +502,9 @@ pub fn restore_note_from_trash(folder: &Path, filename: &str) -> Result<Note, St
 
 /// Write an encrypted note file (.snote) atomically
 pub fn write_note_encrypted(folder: &Path, note: &Note, key: &[u8]) -> Result<PathBuf, String> {
+    if !notes::is_safe_note_id(&note.id) {
+        return Err("Invalid note id".to_string());
+    }
     let encrypted = crypto::encrypt_note(note, key)?;
     let json = crypto::serialize_encrypted_note(&encrypted)?;
 
@@ -516,6 +526,9 @@ pub fn write_note_encrypted(folder: &Path, note: &Note, key: &[u8]) -> Result<Pa
 
 /// Write a protected note file (.pnote) atomically — metadata in clear, body encrypted
 pub fn write_note_protected(folder: &Path, note: &Note, key: &[u8]) -> Result<PathBuf, String> {
+    if !notes::is_safe_note_id(&note.id) {
+        return Err("Invalid note id".to_string());
+    }
     let protected = crypto::encrypt_note_body(note, key)?;
     let json = crypto::serialize_protected_note(&protected)?;
 
@@ -728,6 +741,20 @@ mod tests {
         assert_eq!(loaded.len(), 1);
         assert_eq!(loaded[0].title, "Test Note");
         assert_eq!(loaded[0].body, "Hello world");
+    }
+
+    #[test]
+    fn test_atomic_write_rejects_path_traversal_id() {
+        let dir = tempfile::tempdir().unwrap();
+        let mut note = make_note("Evil");
+        note.id = "../../../etc/passwd".to_string();
+        assert!(write_note_atomic(dir.path(), &note).is_err());
+    }
+
+    #[test]
+    fn test_find_note_file_rejects_path_traversal_id() {
+        let dir = tempfile::tempdir().unwrap();
+        assert!(find_note_file(dir.path(), "../../../etc/passwd").is_none());
     }
 
     #[test]

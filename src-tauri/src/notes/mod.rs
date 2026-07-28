@@ -15,6 +15,20 @@ pub struct Note {
     pub archived: bool,
 }
 
+/// Notes are named on disk purely by id (`{id}.md`/`.snote`/`.pnote`), so an id
+/// containing a path separator or `..` must never reach a path join — a
+/// frontmatter value like `../../../etc/passwd` would otherwise let a
+/// synced-in file read or write outside the notes folder. This intentionally
+/// stays looser than "is a well-formed ULID" (existing ids predate ULID-only
+/// generation in some test/legacy paths) and only blocks traversal.
+pub fn is_safe_note_id(id: &str) -> bool {
+    !id.is_empty()
+        && !id.contains('/')
+        && !id.contains('\\')
+        && !id.contains("..")
+        && id != "."
+}
+
 impl Note {
     pub fn new(title: String) -> Self {
         let id = Ulid::new().to_string();
@@ -102,7 +116,7 @@ pub fn parse_note(content: &str, file_path: &str) -> Option<Note> {
         }
     }
 
-    if id.is_empty() {
+    if !is_safe_note_id(&id) {
         return None;
     }
 
@@ -149,6 +163,22 @@ mod tests {
         assert_eq!(note.id, "ABC123");
         assert_eq!(note.title, "Hello");
         assert_eq!(note.body, "This is the body.\nSecond line.");
+    }
+
+    #[test]
+    fn test_parse_rejects_path_traversal_id() {
+        let content = "---\nid: ../../../etc/passwd\ntitle: Evil\n---\n\nBody";
+        assert!(parse_note(content, "test.md").is_none());
+    }
+
+    #[test]
+    fn test_is_safe_note_id() {
+        assert!(is_safe_note_id("01JABC123"));
+        assert!(!is_safe_note_id(""));
+        assert!(!is_safe_note_id("../secret"));
+        assert!(!is_safe_note_id("a/b"));
+        assert!(!is_safe_note_id("a\\b"));
+        assert!(!is_safe_note_id(".."));
     }
 
     #[test]

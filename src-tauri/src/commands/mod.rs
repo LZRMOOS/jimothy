@@ -1329,8 +1329,16 @@ pub fn save_tasks(content: String, state: State<'_, AppState>) -> Result<(), Str
 
 #[tauri::command]
 pub fn open_folder(path: String) -> Result<(), String> {
+    // `open` treats its argument as a URL on macOS, so a non-directory string
+    // (e.g. an `https://` URL smuggled in via a compromised webview) could
+    // make it open something other than a local folder. Only ever hand it a
+    // path that resolves to a real directory on disk.
+    let dir = Path::new(&path);
+    if !dir.is_dir() {
+        return Err("Not a directory".to_string());
+    }
     std::process::Command::new("open")
-        .arg(&path)
+        .arg(dir)
         .spawn()
         .map_err(|e| e.to_string())?;
     Ok(())
@@ -1338,7 +1346,8 @@ pub fn open_folder(path: String) -> Result<(), String> {
 
 #[tauri::command]
 pub fn check_vault_exists(path: String) -> bool {
-    Path::new(&path).join(".scratch").join("vault.json").exists()
+    let dir = Path::new(&path);
+    dir.is_dir() && dir.join(".scratch").join("vault.json").exists()
 }
 
 /// One entry in the conflict resolver: the preserved conflict file plus the

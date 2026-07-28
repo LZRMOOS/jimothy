@@ -23,8 +23,12 @@ function resolveImageSrc(src: string, notesFolder: string | null): string {
   if (src.startsWith(".scratch/") && notesFolder) {
     return convertFileSrc(`${notesFolder}/${src}`);
   }
+  // An absolute path only renders as an image when it's inside the active
+  // notes folder — note bodies are synced/shared content, so resolving any
+  // absolute path on disk would let a note leak arbitrary local files as an
+  // inline image.
   if (src.startsWith("/")) {
-    return convertFileSrc(src);
+    return notesFolder && src.startsWith(`${notesFolder}/`) ? convertFileSrc(src) : "";
   }
   if (notesFolder) {
     return convertFileSrc(`${notesFolder}/${src}`);
