@@ -605,8 +605,8 @@ function VaultProfilesSection({ profiles, activeFolder, onSwitch, onAdd, onRenam
                   <button
                     className="vault-profile-action danger"
                     onClick={() => onRemove(profile.path)}
-                    title={isLast ? "At least one profile is required" : "Remove profile"}
-                    disabled={isLast}
+                    title={isLast ? "At least one profile is required" : isActive ? "Switch to another vault before removing" : "Remove profile"}
+                    disabled={isLast || isActive}
                   >
                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                   </button>
@@ -2453,7 +2453,8 @@ export function Settings({
                   }}
                   onRemove={(path) => {
                     const profiles = (settings.vaultProfiles || []).filter(p => p.path !== path);
-                    onSettingsChange({ ...settings, vaultProfiles: profiles });
+                    const updated = { ...settings, vaultProfiles: profiles };
+                    onSettingsChange(updated);
                   }}
                   onChangePath={(oldPath, newPath) => {
                     if ((settings.vaultProfiles || []).some(p => p.path === newPath && p.path !== oldPath)) return;

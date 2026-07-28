@@ -681,6 +681,7 @@ function App() {
       const { local } = splitSettings({ ...appSettingsRef.current, notesFolder: path });
       await invoke("save_app_settings", { settingsJson: JSON.stringify(local) });
       await checkVaultStatus();
+      await checkProtectionStatus();
       // Load the portable preferences that belong to the new folder. Rebuild
       // from defaults + the device-local keys, then layer the new vault's prefs
       // on top — do NOT spread `prev`, or per-vault preferences the new vault
@@ -698,7 +699,7 @@ function App() {
         return { ...DEFAULT_SETTINGS, ...local, ...prefs, notesFolder: path };
       });
     },
-    [initFolder, checkVaultStatus]
+    [initFolder, checkVaultStatus, checkProtectionStatus]
   );
 
   const handleTogglePin = useCallback(
