@@ -309,7 +309,7 @@ type Props = {
 type TocHeading = { level: number; text: string; pos: number };
 type Backlink = { id: string; title: string };
 
-export function Editor({ note, saveStatus, onTitleChange, onBodyChange, onCodexChange, onEditingChange, onBaseVersion, onFlush, searchQuery = "", codexList, isSensitive, editorRef, macros = {}, allNotes = [], onNavigateToNote, frozen, onToggleFreeze, tocDefault, onCloseSplit, onToggleSplit, isSplit, tagColors, dictionary = [], notesFolder = null, emojis = [] }: Props) {
+export function Editor({ note, saveStatus, onTitleChange, onBodyChange, onCodexChange, onEditingChange, onBaseVersion, onFlush, focusTrigger, searchQuery = "", codexList, isSensitive, editorRef, macros = {}, allNotes = [], onNavigateToNote, frozen, onToggleFreeze, tocDefault, onCloseSplit, onToggleSplit, isSplit, tagColors, dictionary = [], notesFolder = null, emojis = [] }: Props) {
   const [showCharCount, setShowCharCount] = useState(false);
   const [isTitleFocused, setIsTitleFocused] = useState(false);
   const [showToc, setShowToc] = useState(false);
@@ -930,7 +930,14 @@ export function Editor({ note, saveStatus, onTitleChange, onBodyChange, onCodexC
         </div>
       )}
       <div className="editor-content-area">
-        <div className="editor-body" ref={editorBodyRef} onKeyDownCapture={(e) => {
+        <div className="editor-body" ref={editorBodyRef} onClick={(e) => {
+          if (!editor || frozen) return;
+          const target = e.target as HTMLElement;
+          const proseMirrorContent = editorBodyRef.current?.querySelector('.ProseMirror');
+          if (proseMirrorContent && !proseMirrorContent.contains(target)) {
+            editor.commands.focus('end');
+          }
+        }} onKeyDownCapture={(e) => {
           if (e.key !== "Tab" || e.altKey || e.metaKey || e.ctrlKey || !editor) return;
           const isTask = editor.isActive("taskItem");
           const isList = editor.isActive("listItem");
