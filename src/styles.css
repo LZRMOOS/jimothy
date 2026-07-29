@@ -1222,7 +1222,7 @@ body {
 .editor-body {
   flex: 1;
   overflow-y: auto;
-  padding: 4px 24px;
+  padding: 4px 24px 4px 48px;
   position: relative;
 }
 
@@ -1771,9 +1771,9 @@ img.emoji {
 
 .editor-body .tiptap ul,
 .editor-body .tiptap ol {
-  padding-left: 0;
+  padding-left: 40px;
   margin: 0.4em 0;
-  list-style-position: inside;
+  list-style-position: outside;
 }
 
 .editor-body .tiptap li {
