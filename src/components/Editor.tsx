@@ -309,7 +309,7 @@ type Props = {
 type TocHeading = { level: number; text: string; pos: number };
 type Backlink = { id: string; title: string };
 
-export function Editor({ note, saveStatus, onTitleChange, onBodyChange, onCodexChange, onEditingChange, onBaseVersion, onFlush, focusTrigger, searchQuery = "", codexList, isSensitive, editorRef, macros = {}, allNotes = [], onNavigateToNote, frozen, onToggleFreeze, tocDefault, onCloseSplit, onToggleSplit, isSplit, tagColors, dictionary = [], notesFolder = null, emojis = [] }: Props) {
+export function Editor({ note, saveStatus, onTitleChange, onBodyChange, onCodexChange, onEditingChange, onBaseVersion, onFlush, searchQuery = "", codexList, isSensitive, editorRef, macros = {}, allNotes = [], onNavigateToNote, frozen, onToggleFreeze, tocDefault, onCloseSplit, onToggleSplit, isSplit, tagColors, dictionary = [], notesFolder = null, emojis = [] }: Props) {
   const [showCharCount, setShowCharCount] = useState(false);
   const [isTitleFocused, setIsTitleFocused] = useState(false);
   const [showToc, setShowToc] = useState(false);
