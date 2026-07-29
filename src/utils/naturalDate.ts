@@ -37,11 +37,11 @@ function parseTime(token: string): number | null {
   const t = token.toLowerCase();
   if (t === "noon") return 12 * 60;
   if (t === "midnight") return 0;
-  const m = t.match(/^(\d{1,2})(?::(\d{2}))?(am|pm)$/) || t.match(/^(\d{1,2}):(\d{2})$/);
+  const m = t.match(/^(\d{1,2})(?::(\d{2}))?(am?|pm?)$/) || t.match(/^(\d{1,2}):(\d{2})$/);
   if (!m) return null;
   let hh = Number(m[1]);
-  const mm = m[2] !== undefined && m[2] !== "am" && m[2] !== "pm" ? Number(m[2]) : 0;
-  const mer = t.endsWith("am") ? "am" : t.endsWith("pm") ? "pm" : null;
+  const mm = m[2] !== undefined && m[2] !== "am" && m[2] !== "a" && m[2] !== "pm" && m[2] !== "p" ? Number(m[2]) : 0;
+  const mer = t.endsWith("am") || t.endsWith("a") ? "am" : t.endsWith("pm") || t.endsWith("p") ? "pm" : null;
   if (mer) {
     if (hh < 1 || hh > 12) return null;
     if (hh === 12) hh = 0;
