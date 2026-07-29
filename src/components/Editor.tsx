@@ -935,7 +935,15 @@ export function Editor({ note, saveStatus, onTitleChange, onBodyChange, onCodexC
           const target = e.target as HTMLElement;
           const proseMirrorContent = editorBodyRef.current?.querySelector('.ProseMirror');
           if (proseMirrorContent && !proseMirrorContent.contains(target)) {
-            editor.commands.focus('end');
+            // Clicked in padding/margin - use ProseMirror's coordinate system to find the right position
+            const rect = proseMirrorContent.getBoundingClientRect();
+            const clickX = Math.max(rect.left, Math.min(rect.right, e.clientX));
+            const clickY = e.clientY;
+            const pos = editor.view.posAtCoords({ left: clickX, top: clickY });
+            if (pos) {
+              editor.commands.setTextSelection(pos.pos);
+              editor.commands.focus();
+            }
           }
         }} onKeyDownCapture={(e) => {
           if (e.key !== "Tab" || e.altKey || e.metaKey || e.ctrlKey || !editor) return;
