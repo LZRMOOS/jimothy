@@ -33,6 +33,7 @@ import { FEATURE_TOUR_TITLE, FEATURE_TOUR_BODY } from "./utils/featureTour";
 import { TourOverlay } from "./components/TourOverlay";
 import { TasksPanel } from "./components/TasksPanel";
 import { TASK_CODEX } from "./utils/taskList";
+import { IonIcon } from "./components/IonIcon";
 
 // App-wide defaults for portable preferences that should still have a value in
 // a vault whose preferences.json omits them. Everything else (codexes, tag
@@ -1519,10 +1520,7 @@ function App() {
             onClick={() => { setViewingTasks((s) => !s); setActiveCodex(null); setViewingArchive(false); setShowSettings(false); }}
             title="Tasks"
           >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <rect x="3" y="3" width="18" height="18" rx="3" />
-              <polyline points="9 11 12 14 16 9" />
-            </svg>
+            <IonIcon name="checkbox-outline" size={14} />
           </button>
           <div className="codex-sidebar-divider" />
           <div className="codex-sidebar-item-wrap">
@@ -1531,12 +1529,7 @@ function App() {
               onClick={() => { setActiveCodex(null); setViewingArchive(false); setViewingTasks(false); setShowSettings(false); }}
               title="All Notes"
             >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <rect x="3" y="3" width="7" height="7" rx="1" />
-                <rect x="14" y="3" width="7" height="7" rx="1" />
-                <rect x="3" y="14" width="7" height="7" rx="1" />
-                <rect x="14" y="14" width="7" height="7" rx="1" />
-              </svg>
+              <IonIcon name="grid-outline" size={14} />
             </button>
             <span className="codex-sidebar-shortcut">1</span>
           </div>
@@ -1574,11 +1567,7 @@ function App() {
                 onClick={() => { setViewingArchive((s) => !s); setActiveCodex(null); setViewingTasks(false); setShowSettings(false); }}
                 title={`Archive (${archivedCount})`}
               >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <polyline points="21 8 21 21 3 21 3 8"/>
-                  <rect x="1" y="3" width="22" height="5"/>
-                  <line x1="10" y1="12" x2="14" y2="12"/>
-                </svg>
+                <IonIcon name="archive-outline" size={14} />
               </button>
             )}
             <button
@@ -1586,9 +1575,7 @@ function App() {
               onClick={() => setSidebarCollapsed(true)}
               title="Collapse sidebar"
             >
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <polyline points="15 18 9 12 15 6" />
-              </svg>
+              <IonIcon name="chevron-back-outline" size={18} />
             </button>
           </div>
         </div>
@@ -1599,9 +1586,7 @@ function App() {
           onClick={() => setSidebarCollapsed(false)}
           title="Expand sidebar"
         >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <polyline points="9 18 15 12 9 6" />
-          </svg>
+          <IonIcon name="chevron-forward-outline" size={18} />
         </button>
       )}
       <div className="app-main">

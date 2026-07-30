@@ -237,6 +237,16 @@ export function TasksPanel({ notes, dictionary = [], onNavigateNote }: Props) {
         return;
       }
 
+      // Detect priority (!high, !med, !low) and lift into priority state
+      const priorityMatch = next.match(/(^|\s)!(high|med|low)\s$/i);
+      if (priorityMatch) {
+        const priority = priorityMatch[2].toLowerCase() as Priority;
+        const stripped = next.slice(0, priorityMatch.index! + priorityMatch[1].length).trimEnd();
+        setAddInput(stripped ? stripped + " " : "");
+        setAddPriority(priority);
+        return;
+      }
+
       // Detect tags and lift into chips
       const liftedTagMatch = next.match(/(^|\s)(#[a-zA-Z0-9_-]+)\s$/);
       if (liftedTagMatch) {
