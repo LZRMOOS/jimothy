@@ -24,6 +24,7 @@ import { createTableExtensions } from "../extensions/tableExtensions";
 import { createCollapsibleHeadingExtension } from "../extensions/collapsibleHeading";
 import { TableToolbar } from "./TableToolbar";
 import { extractTags } from "../utils/tags";
+import { IonIcon } from "./IonIcon";
 
 const lowlight = createLowlight(common);
 
@@ -1021,10 +1022,7 @@ export function Editor({ note, saveStatus, onTitleChange, onBodyChange, onCodexC
             onClick={onToggleSplit}
             title="Split View"
           >
-            <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-              <rect x="1" y="2" width="14" height="12" rx="1.5" />
-              <line x1="8" y1="2" x2="8" y2="14" />
-            </svg>
+            <IonIcon name="albums-outline" size={12} />
           </button>
         )}
         <button
@@ -1032,13 +1030,7 @@ export function Editor({ note, saveStatus, onTitleChange, onBodyChange, onCodexC
           onClick={() => setShowToc((s) => !s)}
           title="Index"
         >
-          <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
-            <line x1="3" y1="3" x2="13" y2="3" />
-            <line x1="5" y1="7" x2="13" y2="7" />
-            <line x1="5" y1="11" x2="13" y2="11" />
-            <circle cx="2" cy="7" r="1" fill="currentColor" stroke="none" />
-            <circle cx="2" cy="11" r="1" fill="currentColor" stroke="none" />
-          </svg>
+          <IonIcon name="list-outline" size={12} />
         </button>
       </div>
     </div>

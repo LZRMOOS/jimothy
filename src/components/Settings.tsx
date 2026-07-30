@@ -12,6 +12,7 @@ import { isMac, modName, altName, superName } from "../utils/platform";
 import { HIDEABLE_COMMANDS } from "../utils/commands";
 import raccoonCircle from "../assets/raccoon-circle.png";
 import artRaccoon from "../assets/art-raccoon.png";
+import { IonIcon } from "./IonIcon";
 
 type SettingsTab = "general" | "organization" | "keyboard" | "editor" | "storage" | "security" | "markdown";
 type GeneralTab = "behavior" | "about";
@@ -563,7 +564,7 @@ function VaultProfilesSection({ profiles, activeFolder, onSwitch, onAdd, onRenam
                     <span className="vault-profile-name">
                       {profile.name}
                       {encryptedPaths.has(profile.path) && (
-                        <svg className="vault-profile-lock" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                        <IonIcon className="vault-profile-lock" name="lock-closed-outline" size={11} />
                       )}
                     </span>
                     <span className="vault-profile-path">{profile.path}</span>
@@ -593,14 +594,14 @@ function VaultProfilesSection({ profiles, activeFolder, onSwitch, onAdd, onRenam
                     onClick={() => { setEditingPath(profile.path); setEditName(profile.name); }}
                     title="Rename"
                   >
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/></svg>
+                    <IonIcon name="create-outline" size={12} />
                   </button>
                   <button
                     className="vault-profile-action"
                     onClick={() => handleChangePath(profile.path)}
                     title="Change location"
                   >
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></svg>
+                    <IonIcon name="folder-outline" size={12} />
                   </button>
                   <button
                     className="vault-profile-action danger"
@@ -608,7 +609,7 @@ function VaultProfilesSection({ profiles, activeFolder, onSwitch, onAdd, onRenam
                     title={isLast ? "At least one profile is required" : isActive ? "Switch to another vault before removing" : "Remove profile"}
                     disabled={isLast || isActive}
                   >
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                    <IonIcon name="close-outline" size={12} />
                   </button>
                 </div>
               </>
@@ -1011,21 +1012,14 @@ function ColorSettings({ settings, onSettingsChange }: { settings: AppSettings; 
                 onClick={handleOverwritePreset}
                 title="Save current colors to this preset"
               >
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"/>
-                  <polyline points="17 21 17 13 7 13 7 21"/>
-                  <polyline points="7 3 7 8 15 8"/>
-                </svg>
+                <IonIcon name="save-outline" size={12} />
               </button>
               <button
                 className="color-preset-action danger"
                 onClick={handleDeletePreset}
                 title="Delete this preset"
               >
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <polyline points="3 6 5 6 21 6"/>
-                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
-                </svg>
+                <IonIcon name="trash-outline" size={12} />
               </button>
             </div>
           )}
@@ -1034,14 +1028,7 @@ function ColorSettings({ settings, onSettingsChange }: { settings: AppSettings; 
             onClick={handleRandomize}
             title="Randomize colors"
           >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
-              <rect x="2" y="2" width="20" height="20" rx="3"/>
-              <circle cx="8" cy="8" r="1.5" fill="currentColor" stroke="none"/>
-              <circle cx="16" cy="8" r="1.5" fill="currentColor" stroke="none"/>
-              <circle cx="12" cy="12" r="1.5" fill="currentColor" stroke="none"/>
-              <circle cx="8" cy="16" r="1.5" fill="currentColor" stroke="none"/>
-              <circle cx="16" cy="16" r="1.5" fill="currentColor" stroke="none"/>
-            </svg>
+            <IonIcon name="dice-outline" size={16} />
           </button>
         </div>
         <div className="color-preset-save">
@@ -1412,10 +1399,7 @@ function CodexList({ codexList, codexCounts, onRenameCodex, codexColors, onChang
                       onClick={() => startRename(codex)}
                       title="Rename codex"
                     >
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-                        <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-                      </svg>
+                      <IonIcon name="create-outline" size={12} />
                     </button>
                   )}
                 </div>
@@ -1509,10 +1493,7 @@ function TagsList({ allTags, onRenameTag, onDeleteTag, tagColors, onChangeColor 
                     onClick={() => startRename(name)}
                     title="Rename tag"
                   >
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
-                      <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
-                    </svg>
+                    <IonIcon name="create-outline" size={12} />
                   </button>
                 )}
                 {onDeleteTag && (
@@ -1521,10 +1502,7 @@ function TagsList({ allTags, onRenameTag, onDeleteTag, tagColors, onChangeColor 
                     onClick={() => { setConfirmingDelete(name); setEditingTag(null); }}
                     title="Remove from all notes"
                   >
-                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <polyline points="3 6 5 6 21 6"/>
-                      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
-                    </svg>
+                    <IonIcon name="trash-outline" size={12} />
                   </button>
                 )}
               </div>
@@ -1539,11 +1517,7 @@ function TagsList({ allTags, onRenameTag, onDeleteTag, tagColors, onChangeColor 
 function InfoTooltip({ text, children }: { text?: string; children?: React.ReactNode }) {
   return (
     <span className="settings-tooltip-wrapper">
-      <svg className="settings-tooltip-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <circle cx="12" cy="12" r="10"/>
-        <path d="M12 16v-4"/>
-        <path d="M12 8h.01"/>
-      </svg>
+      <IonIcon className="settings-tooltip-icon" name="information-circle-outline" size={12} />
       <span className="settings-tooltip">{children || text}</span>
     </span>
   );
@@ -2007,7 +1981,7 @@ export function Settings({
                       <Dropdown
                         options={[
                           { value: "", label: "None" },
-                          { value: "Tasks", label: "Tasks", dividerAfter: true, icon: <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="3" /><polyline points="9 11 12 14 16 9" /></svg> },
+                          { value: "Tasks", label: "Tasks", dividerAfter: true, icon: <IonIcon name="checkbox-outline" size={12} /> },
                           ...codexList.map((c) => ({ value: c, label: c })),
                         ]}
                         value={settings.defaultCodex || ""}

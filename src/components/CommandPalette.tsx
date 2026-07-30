@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useMemo } from "react";
 import type { Note } from "../types";
+import { IonIcon } from "./IonIcon";
 
 
 export type Command = {
@@ -149,9 +150,7 @@ export function CommandPalette({ commands, pinnedIds = [], onTogglePin, onClose,
                         onClick={(e) => { e.stopPropagation(); onTogglePin(item.command.id); }}
                         title={pinnedIds.includes(item.command.id) ? "Unpin" : "Pin to top"}
                       >
-                        <svg width="10" height="10" viewBox="0 0 24 24" fill={pinnedIds.includes(item.command.id) ? "currentColor" : "none"} stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                          <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/>
-                        </svg>
+                        <IonIcon name={pinnedIds.includes(item.command.id) ? "star" : "star-outline"} size={10} />
                       </span>
                     )}
                     {item.type === "note" && item.note.codex && (
