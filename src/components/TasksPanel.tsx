@@ -1190,7 +1190,7 @@ export function TasksPanel({ notes, dictionary = [], onNavigateNote }: Props) {
           </div>
         )}
         {isEmpty && tab === "active" && !activeGroup && (
-          <div className="tasks-empty">No tasks yet. Press <strong>+ New</strong> or <strong>Q</strong> to add one.</div>
+          <div className="tasks-empty">No tasks yet. Press <strong>+ Task</strong> or <strong>Q</strong> to add one.</div>
         )}
         {isEmpty && tab === "active" && activeGroup && (
           <div className="tasks-empty">No tasks in this group.</div>
@@ -1238,7 +1238,7 @@ export function TasksPanel({ notes, dictionary = [], onNavigateNote }: Props) {
 
       {(tab === "active" || activeGroup) && (
         <button className="tasks-fab" onClick={() => { setAddInput(""); setAddPriority(null); setSchedDate(null); setSchedTime(null); setSchedRecurrence(null); setAttachments([]); setNoteSuggestions([]); setNoteQueryStart(null); setShowNotePicker(false); setShowAddModal(true); }}>
-          + New <span className="tasks-fab-hint">Q</span>
+          + Task <span className="tasks-fab-hint">Q</span>
         </button>
       )}
     </div>
