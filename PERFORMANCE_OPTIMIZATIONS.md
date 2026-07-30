@@ -60,31 +60,48 @@ Key fields that modify data (crypto keys, hashes, watcher) remain as `Mutex` for
 - Search doesn't block while viewing a note
 - Better responsiveness under concurrent operations
 
-## 4. Future Optimizations (Not Yet Implemented)
+## 4. Optimizations Already in Place
 
-These were identified but not implemented in this pass:
+These were checked and found to be already well-optimized:
 
-### Search Highlight Debouncing
+### Backlink and Tag Computation
+**Location**: `src/App.tsx:242-260` and `src/App.tsx:224-240`
+
+Both backlink index and tag extraction use `useMemo()` and only recompute when notes change. The regex-based link extraction is efficient (single pass per note body).
+
+### Search Bar
+**Location**: `src/components/SearchBar.tsx`
+
+MiniSearch handles the heavy lifting efficiently. Tag/mention autocomplete is already optimized with substring matching and result limits.
+
+## 5. Future Optimizations (Not Yet Implemented)
+
+These were identified but deferred as lower priority:
+
+### Editor Find-in-Note Debouncing
 **Location**: `src/components/Editor.tsx:56-88`
 
-The search highlight plugin already has decoration caching, but could benefit from:
-- Debouncing the search query input (delay highlight recalc by 100-200ms)
-- Skip rebuilding when only selection changes (not doc content)
+The search highlight plugin already has decoration caching. Additional gains would be marginal:
+- Debounce find query input by 100-200ms (currently instant)
+- Skip rebuilding when only selection changes (already cached by doc identity)
 
 ### Incremental File Watcher Reloads
 **Location**: `src-tauri/src/watcher/mod.rs`
 
-Currently `reload_notes` reads ALL notes from disk even if only one changed. Could:
-- Batch multiple file events into a single reload
-- Only reload the specific changed file (incremental update)
+Currently `reload_notes` reads ALL notes from disk even if only one changed. Potential improvements:
+- Batch multiple file events into a single reload (already has 250ms debounce)
+- Only reload the specific changed file (complex with encryption/protection states)
+- Risk/benefit: sync conflicts and vault state make this tricky to implement safely
 
-### Backend Tag/Link Caching
+### Backend Tag/Link Extraction
 **Location**: Various components
 
-Components repeatedly parse note bodies to extract tags, links, backlinks. Could:
-- Compute tags/links once per note in the backend
-- Cache in `Note` struct and update on save
-- Reduces frontend CPU on re-renders
+Currently tags/links are extracted on-demand in the frontend. Could pre-compute in backend:
+- Extract tags/links during note load/save
+- Store in `Note` struct fields
+- Reduces frontend parsing on re-renders
+
+Trade-off: Adds complexity to backend, frontend memoization already works well
 
 ## Performance Measurement
 
