@@ -672,12 +672,25 @@ export function TasksPanel({ notes, dictionary = [], onNavigateNote }: Props) {
   const handleScroll = useCallback(() => {
     const list = listRef.current;
     if (!list) return;
-    const listTop = list.getBoundingClientRect().top;
+    const listRect = list.getBoundingClientRect();
+    const viewportMiddle = listRect.top + 100; // Focus point is 100px from top
+
     let closest: string | null = null;
+    let closestDistance = Infinity;
+
     for (const [date, el] of sectionRefs.current) {
       const rect = el.getBoundingClientRect();
-      if (rect.top <= listTop) closest = date;
+      // Only consider sections that are visible
+      if (rect.bottom < listRect.top || rect.top > listRect.bottom) continue;
+
+      // Find the section whose header is closest to our focus point
+      const distance = Math.abs(rect.top - viewportMiddle);
+      if (distance < closestDistance) {
+        closestDistance = distance;
+        closest = date;
+      }
     }
+
     if (closest) setFocusedDay(closest);
 
     if (list.scrollTop + list.clientHeight >= list.scrollHeight - 200) {
@@ -1210,7 +1223,7 @@ export function TasksPanel({ notes, dictionary = [], onNavigateNote }: Props) {
           section.tasks.length === 0 && tab === "done" ? null : (
             <div key={section.date} className="tasks-section" ref={(el) => { if (el) sectionRefs.current.set(section.date, el); }}>
               <div
-                className={`tasks-section-header ${dropSectionDate === section.date ? "tasks-section-header-drop" : ""}`}
+                className={`tasks-section-header ${dropSectionDate === section.date ? "tasks-section-header-drop" : ""} ${focusedDay === section.date && tab === "active" ? "tasks-section-header-focus" : ""}`}
                 onDragOver={(e) => handleSectionDragOver(e, section.date)}
                 onDragLeave={handleSectionDragLeave}
                 onDrop={(e) => handleSectionDrop(e, section.date)}

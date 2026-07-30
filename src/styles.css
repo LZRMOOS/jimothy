@@ -5362,6 +5362,11 @@ img.emoji {
   color: var(--accent);
 }
 
+.tasks-section-header-focus .tasks-section-title {
+  color: var(--accent);
+  font-weight: 600;
+}
+
 .task-row:hover {
   background: var(--bg-hover);
 }
