@@ -209,6 +209,7 @@ export function NotesList({ notes, backlinkIndex, selectedId, onSelect, onDelete
                 closeContextMenu();
               }}
             >
+              <IonIcon name={sensitiveIds.includes(contextMenu.noteId) ? "lock-open-outline" : "lock-closed-outline"} size={14} />
               {sensitiveIds.includes(contextMenu.noteId)
                 ? "Remove Note Protection" : "Protect Note"}
             </button>
@@ -250,6 +251,7 @@ export function NotesList({ notes, backlinkIndex, selectedId, onSelect, onDelete
             className="context-menu-item"
             onClick={() => handleCopyMarkdown(contextMenu.noteId)}
           >
+            <IonIcon name="copy-outline" size={14} />
             Copy as Markdown
           </button>
           {onToggleArchive && (
@@ -260,6 +262,7 @@ export function NotesList({ notes, backlinkIndex, selectedId, onSelect, onDelete
                 closeContextMenu();
               }}
             >
+              <IonIcon name="archive-outline" size={14} />
               {notes.find((n) => n.id === contextMenu.noteId)?.archived
                 ? "Unarchive Note" : "Archive Note"}
             </button>
@@ -271,6 +274,7 @@ export function NotesList({ notes, backlinkIndex, selectedId, onSelect, onDelete
               closeContextMenu();
             }}
           >
+            <IonIcon name="trash-outline" size={14} />
             Delete Note
           </button>
         </div>
