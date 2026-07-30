@@ -16,6 +16,8 @@ import {
 } from "../utils/taskList";
 import { buildAgenda, buildDoneList, ymd, dayTitle, type IdTask } from "../utils/agenda";
 import { recognize } from "../utils/naturalDate";
+import { getGroups, getTasksForGroup, searchTasks, extractTags as extractHashTags, getUntaggedTasks, type Group } from "../utils/taskGroups";
+import { IonIcon } from "./IonIcon";
 
 type Props = {
   notes: Note[];
@@ -24,7 +26,14 @@ type Props = {
 };
 
 export function TasksPanel({ notes, dictionary = [], onNavigateNote }: Props) {
-  const [tab, setTab] = useState<"active" | "done">("active");
+  const [tab, setTab] = useState<"active" | "groups" | "done">("active");
+  const [activeGroup, setActiveGroup] = useState<Group | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [expandedGroups, setExpandedGroups] = useState<Set<string>>(new Set());
+  const [showGroupsSearch, setShowGroupsSearch] = useState(false);
+  const [showTasksSearch, setShowTasksSearch] = useState(false);
+  const groupsSearchInputRef = useRef<HTMLInputElement>(null);
+  const tasksSearchInputRef = useRef<HTMLInputElement>(null);
   const [hideEmpty, setHideEmpty] = useState(false);
   const [showAddModal, setShowAddModal] = useState(false);
   const [addInput, setAddInput] = useState("");
@@ -34,7 +43,7 @@ export function TasksPanel({ notes, dictionary = [], onNavigateNote }: Props) {
   const [schedRecurrence, setSchedRecurrence] = useState<{ value: Recurrence; label: string; phrase: string } | null>(null);
   const [focusedDay, setFocusedDay] = useState<string | null>(null);
   const [editingCid, setEditingCid] = useState<string | null>(null);
-  const [attachments, setAttachments] = useState<Array<{ kind: "url"; label: string; href: string } | { kind: "note"; label: string; id: string }>>([]);
+  const [attachments, setAttachments] = useState<Array<{ kind: "url"; label: string; href: string } | { kind: "note"; label: string; id: string } | { kind: "tag"; label: string }>>([]);
   const [noteSuggestions, setNoteSuggestions] = useState<Note[]>([]);
   const [noteQueryStart, setNoteQueryStart] = useState<number | null>(null);
   const [selectedSuggestion, setSelectedSuggestion] = useState(0);
@@ -43,6 +52,9 @@ export function TasksPanel({ notes, dictionary = [], onNavigateNote }: Props) {
   const [mentionSuggestions, setMentionSuggestions] = useState<string[]>([]);
   const [mentionQueryStart, setMentionQueryStart] = useState<number | null>(null);
   const [selectedMention, setSelectedMention] = useState(0);
+  const [tagSuggestions, setTagSuggestions] = useState<string[]>([]);
+  const [tagQueryStart, setTagQueryStart] = useState<number | null>(null);
+  const [selectedTag, setSelectedTag] = useState(0);
   const notePickerRef = useRef<HTMLInputElement>(null);
   const [dragCid, setDragCid] = useState<string | null>(null);
   const [dropTarget, setDropTarget] = useState<{ cid: string; position: "before" | "after" } | null>(null);
@@ -79,10 +91,69 @@ export function TasksPanel({ notes, dictionary = [], onNavigateNote }: Props) {
   const today = useMemo(() => ymd(new Date()), []);
   const [daysAhead, setDaysAhead] = useState(30);
 
+  const allGroups = useMemo(() => getGroups(allTasks, today), [allTasks, today]);
+
+  // Filter groups by search query (match group name or tasks within)
+  const filteredGroups = useMemo(() => {
+    if (!searchQuery.trim() || tab !== "groups") return allGroups;
+    const q = searchQuery.toLowerCase();
+    return allGroups.filter((group) => {
+      // Match group name
+      if (group.name.toLowerCase().includes(q)) return true;
+      // Match tasks within the group
+      const groupTasks = getTasksForGroup(allTasks, group, today);
+      return groupTasks.some((t) => t.text.toLowerCase().includes(q));
+    });
+  }, [allGroups, searchQuery, tab, allTasks, today]);
+
+  const allExistingTags = useMemo(() => {
+    const tagSet = new Set<string>();
+    allTasks.forEach(task => {
+      extractHashTags(task.text).forEach(tag => tagSet.add(tag));
+    });
+    return Array.from(tagSet).sort();
+  }, [allTasks]);
+
+  const untaggedTasks = useMemo(() => {
+    const untagged = getUntaggedTasks(allTasks);
+    // Filter out tasks that appear in any smart group
+    let filtered = untagged.filter((task) => {
+      for (const group of allGroups) {
+        if (group.type === "smart") {
+          const groupTasks = getTasksForGroup(allTasks, group, today);
+          if (groupTasks.some((t) => t.cid === task.cid)) {
+            return false; // Task is in a smart group, exclude from untagged
+          }
+        }
+      }
+      return true; // Not in any smart group, truly untagged
+    });
+    // Apply search filter if present
+    if (searchQuery.trim() && tab === "groups") {
+      const q = searchQuery.toLowerCase();
+      filtered = filtered.filter((t) => t.text.toLowerCase().includes(q));
+    }
+    return filtered;
+  }, [allTasks, allGroups, today, searchQuery, tab]);
+
   const activeSections = useMemo(() => {
-    const all = buildAgenda(allTasks, { today, daysAhead: hideEmpty ? 36500 : daysAhead });
-    return hideEmpty ? all.filter((s) => s.tasks.length > 0) : all;
-  }, [allTasks, today, daysAhead, hideEmpty]);
+    if (tab === "active" && !activeGroup) {
+      let tasks = allTasks;
+      if (searchQuery.trim()) {
+        tasks = searchTasks(allTasks, searchQuery);
+      }
+      const all = buildAgenda(tasks, { today, daysAhead: hideEmpty ? 36500 : daysAhead });
+      return hideEmpty ? all.filter((s) => s.tasks.length > 0) : all;
+    } else if (activeGroup) {
+      let filtered = getTasksForGroup(allTasks, activeGroup, today);
+      if (searchQuery.trim()) {
+        filtered = searchTasks(filtered, searchQuery);
+      }
+      const all = buildAgenda(filtered, { today, daysAhead: hideEmpty ? 36500 : daysAhead });
+      return hideEmpty ? all.filter((s) => s.tasks.length > 0) : all;
+    }
+    return [];
+  }, [allTasks, today, daysAhead, hideEmpty, tab, activeGroup, searchQuery]);
 
   const [doneSectionsLimit, setDoneSectionsLimit] = useState(30);
   const doneSections = useMemo(() => buildDoneList(allTasks, { today, maxSections: doneSectionsLimit }), [allTasks, today, doneSectionsLimit]);
@@ -94,6 +165,29 @@ export function TasksPanel({ notes, dictionary = [], onNavigateNote }: Props) {
 
       const cursor = cursorPos ?? next.length;
       const beforeCursor = next.slice(0, cursor);
+
+      // Check for # trigger (tag autocomplete)
+      const tagMatch = beforeCursor.match(/(^|\s)#([^\s]*)$/);
+      if (tagMatch && allExistingTags.length > 0) {
+        const query = tagMatch[2].toLowerCase();
+        const hashStart = beforeCursor.length - tagMatch[2].length - 1; // position of #
+        setTagQueryStart(hashStart);
+        setSelectedTag(0);
+        const filtered = allExistingTags
+          .filter((t) => t.toLowerCase().startsWith(query))
+          .slice(0, 8);
+        setTagSuggestions(filtered);
+        setAddInput(next);
+        // Clear other suggestions if active
+        if (noteQueryStart !== null) { setNoteSuggestions([]); setNoteQueryStart(null); }
+        if (mentionQueryStart !== null) { setMentionSuggestions([]); setMentionQueryStart(null); }
+        return;
+      } else {
+        if (tagQueryStart !== null) {
+          setTagSuggestions([]);
+          setTagQueryStart(null);
+        }
+      }
 
       // Check for @ trigger (dictionary mentions)
       const mentionMatch = beforeCursor.match(/(^|\s)@([^\s]*)$/);
@@ -109,6 +203,7 @@ export function TasksPanel({ notes, dictionary = [], onNavigateNote }: Props) {
         setAddInput(next);
         // Clear note suggestions if active
         if (noteQueryStart !== null) { setNoteSuggestions([]); setNoteQueryStart(null); }
+        if (tagQueryStart !== null) { setTagSuggestions([]); setTagQueryStart(null); }
         return;
       } else {
         if (mentionQueryStart !== null) {
@@ -139,6 +234,16 @@ export function TasksPanel({ notes, dictionary = [], onNavigateNote }: Props) {
 
       if (!justCompletedWord) {
         setAddInput(next);
+        return;
+      }
+
+      // Detect tags and lift into chips
+      const liftedTagMatch = next.match(/(^|\s)(#[a-zA-Z0-9_-]+)\s$/);
+      if (liftedTagMatch) {
+        const tag = liftedTagMatch[2].slice(1); // Remove the # prefix
+        const stripped = next.slice(0, liftedTagMatch.index! + liftedTagMatch[1].length).trimEnd();
+        setAddInput(stripped ? stripped + " " : "");
+        setAttachments((prev) => [...prev, { kind: "tag", label: tag }]);
         return;
       }
 
@@ -205,7 +310,21 @@ export function TasksPanel({ notes, dictionary = [], onNavigateNote }: Props) {
         setAddInput(next);
       }
     },
-    [addInput, schedDate, schedTime, schedRecurrence, today, notes, dictionary, noteQueryStart, mentionQueryStart]
+    [addInput, schedDate, schedTime, schedRecurrence, today, notes, dictionary, allExistingTags, noteQueryStart, mentionQueryStart, tagQueryStart]
+  );
+
+  const insertTag = useCallback(
+    (tag: string) => {
+      if (tagQueryStart === null) return;
+      const before = addInput.slice(0, tagQueryStart);
+      const afterMatch = addInput.slice(tagQueryStart).match(/^#[^\s]*/);
+      const after = afterMatch ? addInput.slice(tagQueryStart + afterMatch[0].length) : addInput.slice(tagQueryStart);
+      setAddInput(before + `#${tag}` + " " + after.trimStart());
+      setTagSuggestions([]);
+      setTagQueryStart(null);
+      addInputRef.current?.focus();
+    },
+    [addInput, tagQueryStart]
   );
 
   const insertMention = useCallback(
@@ -325,15 +444,21 @@ export function TasksPanel({ notes, dictionary = [], onNavigateNote }: Props) {
       if (!task) return;
       // Parse existing attachments out of text
       const { title, chips } = extractChips(task.text);
+      const tags = extractHashTags(task.text);
       setEditingCid(cid);
       setAddInput(title);
       setAddPriority(task.priority);
       setSchedDate(task.date ? { value: task.date, label: dayTitle(task.date, today), phrase: task.date } : null);
       setSchedTime(task.time !== null ? { value: task.time, label: formatTime(task.time), phrase: formatTime(task.time) } : null);
       setSchedRecurrence(task.recurrence ? { value: task.recurrence, label: formatRecurrence(task.recurrence), phrase: formatRecurrence(task.recurrence) } : null);
-      setAttachments(chips.map((c) =>
-        c.kind === "note" ? { kind: "note" as const, label: c.label, id: c.id } : { kind: "url" as const, label: c.label, href: c.href }
-      ));
+      setAttachments([
+        ...chips.map((c) => {
+          if (c.kind === "note") return { kind: "note" as const, label: c.label, id: c.id };
+          if (c.kind === "url") return { kind: "url" as const, label: c.label, href: c.href };
+          return { kind: "tag" as const, label: c.label };
+        }),
+        ...tags.map((tag) => ({ kind: "tag" as const, label: tag }))
+      ]);
       setNoteSuggestions([]);
       setNoteQueryStart(null);
       setMentionSuggestions([]);
@@ -471,9 +596,11 @@ export function TasksPanel({ notes, dictionary = [], onNavigateNote }: Props) {
     const rawText = addInput.trim();
     if (!rawText && attachments.length === 0) return;
 
-    const linkParts = attachments.map((a) =>
-      a.kind === "url" ? `[${a.label}](${a.href})` : `[${a.label}](scratch://${a.id})`
-    );
+    const linkParts = attachments.map((a) => {
+      if (a.kind === "url") return `[${a.label}](${a.href})`;
+      if (a.kind === "note") return `[${a.label}](scratch://${a.id})`;
+      return `#${a.label}`;
+    });
     const text = [rawText, ...linkParts].filter(Boolean).join(" ");
 
     const date = schedDate?.value ?? focusedDay ?? null;
@@ -502,8 +629,37 @@ export function TasksPanel({ notes, dictionary = [], onNavigateNote }: Props) {
     setEditingCid(null);
   }, []);
 
-  const sections = tab === "active" ? activeSections : doneSections;
+  const sections = (tab === "active" || activeGroup) ? activeSections : doneSections;
   const isEmpty = sections.every((s) => s.tasks.length === 0);
+
+  const toggleGroupExpanded = useCallback((groupId: string) => {
+    setExpandedGroups(prev => {
+      const next = new Set(prev);
+      if (next.has(groupId)) {
+        next.delete(groupId);
+      } else {
+        next.add(groupId);
+      }
+      return next;
+    });
+  }, []);
+
+  const toggleExpandAll = useCallback(() => {
+    const allGroupIds = filteredGroups.map(g => g.id);
+    const allExpanded = allGroupIds.every(id => expandedGroups.has(id));
+
+    if (allExpanded) {
+      // Collapse all
+      setExpandedGroups(new Set());
+    } else {
+      // Expand all
+      setExpandedGroups(new Set(allGroupIds));
+    }
+  }, [filteredGroups, expandedGroups]);
+
+  const clearFilter = useCallback(() => {
+    setActiveGroup(null);
+  }, []);
 
   const handleScroll = useCallback(() => {
     const list = listRef.current;
@@ -527,6 +683,36 @@ export function TasksPanel({ notes, dictionary = [], onNavigateNote }: Props) {
       setFocusedDay(sections[0].date);
     }
   }, [sections, focusedDay]);
+
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === "f" && !e.shiftKey) {
+        const target = e.target as HTMLElement;
+        if (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable) return;
+        e.preventDefault();
+
+        if (tab === "groups") {
+          setShowGroupsSearch((prev) => {
+            const next = !prev;
+            if (next) {
+              setTimeout(() => groupsSearchInputRef.current?.focus(), 50);
+            }
+            return next;
+          });
+        } else if (tab === "active" || activeGroup) {
+          setShowTasksSearch((prev) => {
+            const next = !prev;
+            if (next) {
+              setTimeout(() => tasksSearchInputRef.current?.focus(), 50);
+            }
+            return next;
+          });
+        }
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [tab, activeGroup]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -555,6 +741,14 @@ export function TasksPanel({ notes, dictionary = [], onNavigateNote }: Props) {
       const el = addInputRef.current;
       el.style.height = "auto";
       el.style.height = el.scrollHeight + "px";
+      // Position cursor at end when editing
+      setTimeout(() => {
+        if (addInputRef.current) {
+          const length = addInputRef.current.value.length;
+          addInputRef.current.setSelectionRange(length, length);
+          addInputRef.current.focus();
+        }
+      }, 0);
     }
   }, [showAddModal]);
 
@@ -574,36 +768,87 @@ export function TasksPanel({ notes, dictionary = [], onNavigateNote }: Props) {
         <div className="tasks-focus-left">
           <div className="tasks-focus-accent" />
           <div className="tasks-focus-text">
-            <span className="tasks-focus-eyebrow">IN FOCUS</span>
+            <span className="tasks-focus-eyebrow">
+              {activeGroup ? "FILTERED BY" : tab === "groups" ? "TAG" : tab === "done" ? "DONE" : "IN FOCUS"}
+            </span>
             <span className="tasks-focus-day">
-              {focusLabel || "Today"}
-              {focusCount > 0 && <span className="tasks-focus-count">{focusCount}</span>}
+              {activeGroup ? (
+                <>
+                  {activeGroup.type === "smart" && <span style={{ marginRight: "6px" }}><IonIcon name={activeGroup.icon} size={16} /></span>}
+                  {activeGroup.name}
+                  <button
+                    className="tasks-clear-filter"
+                    onClick={clearFilter}
+                    style={{
+                      marginLeft: "8px",
+                      padding: "2px 8px",
+                      fontSize: "11px",
+                      background: "var(--bg-secondary)",
+                      border: "1px solid var(--border)",
+                      borderRadius: "4px",
+                      cursor: "pointer",
+                      color: "var(--text-secondary)",
+                    }}
+                  >
+                    Clear
+                  </button>
+                </>
+              ) : tab === "groups" ? (
+                "Groups"
+              ) : tab === "done" ? (
+                "Tasks"
+              ) : (
+                <>
+                  {focusLabel || "Today"}
+                  {focusCount > 0 && <span className="tasks-focus-count">{focusCount}</span>}
+                </>
+              )}
             </span>
           </div>
         </div>
         <div className="tasks-tabs">
           <button
-            className={`tasks-tab ${tab === "active" ? "active" : ""}`}
-            onClick={() => setTab("active")}
+            className={`tasks-tab ${tab === "active" && !activeGroup ? "active" : ""}`}
+            onClick={() => { setTab("active"); setActiveGroup(null); setSearchQuery(""); }}
           >
-            Upcoming
+            Tasks
+          </button>
+          <button
+            className={`tasks-tab ${tab === "groups" ? "active" : ""}`}
+            onClick={() => { setTab("groups"); setActiveGroup(null); setSearchQuery(""); }}
+          >
+            Tags
           </button>
           <button
             className={`tasks-tab ${tab === "done" ? "active" : ""}`}
-            onClick={() => setTab("done")}
+            onClick={() => { setTab("done"); setActiveGroup(null); setSearchQuery(""); }}
           >
             Done
           </button>
           <button
-            className={`tasks-tab-toggle ${hideEmpty ? "active" : ""} ${tab === "done" ? "disabled" : ""}`}
-            onClick={() => { if (tab !== "done") setHideEmpty((v) => !v); }}
-            title="Hide empty days"
+            className={`tasks-tab-toggle ${(tab === "active" && hideEmpty) || (tab === "groups" && filteredGroups.every(g => expandedGroups.has(g.id))) ? "active" : ""} ${tab === "done" ? "disabled" : ""}`}
+            onClick={() => {
+              if (tab === "groups") {
+                toggleExpandAll();
+              } else if (tab === "active") {
+                setHideEmpty((v) => !v);
+              }
+            }}
+            title={tab === "groups" ? (filteredGroups.every(g => expandedGroups.has(g.id)) ? "Collapse all groups" : "Expand all groups") : "Hide empty days"}
           >
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              {hideEmpty ? (
-                <polyline points="6 15 12 9 18 15" />
+              {tab === "groups" ? (
+                filteredGroups.every(g => expandedGroups.has(g.id)) ? (
+                  <polyline points="6 9 12 15 18 9" />
+                ) : (
+                  <polyline points="9 6 15 12 9 18" />
+                )
               ) : (
-                <polyline points="6 9 12 15 18 9" />
+                hideEmpty ? (
+                  <polyline points="9 6 15 12 9 18" />
+                ) : (
+                  <polyline points="6 9 12 15 18 9" />
+                )
               )}
             </svg>
           </button>
@@ -644,7 +889,7 @@ export function TasksPanel({ notes, dictionary = [], onNavigateNote }: Props) {
               <div className="tasks-modal-attachments">
                 {attachments.map((a, i) => (
                   <button key={i} className={`tasks-chip tasks-chip-dismiss tasks-chip-${a.kind}`} onClick={() => removeAttachment(i)}>
-                    {a.kind === "note" ? `[[${a.label}]]` : a.label}
+                    {a.kind === "note" ? `[[${a.label}]]` : a.kind === "tag" ? `#${a.label}` : a.label}
                     <span className="tasks-chip-x">×</span>
                   </button>
                 ))}
@@ -663,6 +908,12 @@ export function TasksPanel({ notes, dictionary = [], onNavigateNote }: Props) {
                   e.target.style.height = e.target.scrollHeight + "px";
                 }}
                 onKeyDown={(e) => {
+                  if (tagSuggestions.length > 0) {
+                    if (e.key === "ArrowDown") { e.preventDefault(); setSelectedTag((s) => Math.min(s + 1, tagSuggestions.length - 1)); return; }
+                    if (e.key === "ArrowUp") { e.preventDefault(); setSelectedTag((s) => Math.max(s - 1, 0)); return; }
+                    if (e.key === "Enter" || e.key === "Tab") { e.preventDefault(); insertTag(tagSuggestions[selectedTag]); return; }
+                    if (e.key === "Escape") { e.preventDefault(); setTagSuggestions([]); setTagQueryStart(null); return; }
+                  }
                   if (mentionSuggestions.length > 0) {
                     if (e.key === "ArrowDown") { e.preventDefault(); setSelectedMention((s) => Math.min(s + 1, mentionSuggestions.length - 1)); return; }
                     if (e.key === "ArrowUp") { e.preventDefault(); setSelectedMention((s) => Math.max(s - 1, 0)); return; }
@@ -680,6 +931,19 @@ export function TasksPanel({ notes, dictionary = [], onNavigateNote }: Props) {
                 }}
                 autoFocus
               />
+              {tagSuggestions.length > 0 && (
+                <div className="tasks-note-suggestions">
+                  {tagSuggestions.map((tag, i) => (
+                    <button
+                      key={tag}
+                      className={`tasks-note-suggestion ${i === selectedTag ? "selected" : ""}`}
+                      onMouseDown={(e) => { e.preventDefault(); insertTag(tag); }}
+                    >
+                      <span className="tasks-note-suggestion-title">#{tag}</span>
+                    </button>
+                  ))}
+                </div>
+              )}
               {mentionSuggestions.length > 0 && (
                 <div className="tasks-note-suggestions">
                   {mentionSuggestions.map((mention, i) => (
@@ -774,15 +1038,174 @@ export function TasksPanel({ notes, dictionary = [], onNavigateNote }: Props) {
         </div>
       )}
 
-
       <div className="tasks-list" ref={listRef} onScroll={handleScroll}>
-        {isEmpty && tab === "active" && (
+        {(tab === "active" || activeGroup) && showTasksSearch && (
+          <div className="tasks-groups-search-dropdown">
+            <input
+              ref={tasksSearchInputRef}
+              type="text"
+              className="tasks-groups-search-input"
+              placeholder="Search tasks..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Escape") {
+                  setSearchQuery("");
+                  setShowTasksSearch(false);
+                  e.currentTarget.blur();
+                }
+              }}
+              onBlur={() => {
+                if (!searchQuery.trim()) {
+                  setShowTasksSearch(false);
+                }
+              }}
+            />
+            {searchQuery.trim() && (
+              <button
+                className="tasks-groups-search-clear"
+                onClick={() => setSearchQuery("")}
+                onMouseDown={(e) => e.preventDefault()}
+                title="Clear search"
+              >
+                ×
+              </button>
+            )}
+          </div>
+        )}
+        {tab === "groups" && (
+          <div className="tasks-groups-view">
+            {showGroupsSearch && (
+              <div className="tasks-groups-search-dropdown">
+                <input
+                  ref={groupsSearchInputRef}
+                  type="text"
+                  className="tasks-groups-search-input"
+                  placeholder="Search groups and tasks..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Escape") {
+                      setSearchQuery("");
+                      setShowGroupsSearch(false);
+                      e.currentTarget.blur();
+                    }
+                  }}
+                  onBlur={() => {
+                    if (!searchQuery.trim()) {
+                      setShowGroupsSearch(false);
+                    }
+                  }}
+                />
+                {searchQuery.trim() && (
+                  <button
+                    className="tasks-groups-search-clear"
+                    onClick={() => setSearchQuery("")}
+                    onMouseDown={(e) => e.preventDefault()}
+                    title="Clear search"
+                  >
+                    ×
+                  </button>
+                )}
+              </div>
+            )}
+            <div className="tasks-groups-list">
+              {filteredGroups.length === 0 && searchQuery.trim() ? (
+                <div className="tasks-empty">No groups match "{searchQuery}"</div>
+              ) : filteredGroups.length === 0 ? (
+                  <div className="tasks-empty">
+                    No groups yet. Add tags to your tasks (e.g., #work, #personal) to organize them.
+                  </div>
+                ) : (
+                  filteredGroups.map((group) => {
+                    const isExpanded = expandedGroups.has(group.id);
+                    const groupTasks = getTasksForGroup(allTasks, group, today);
+                    const count = groupTasks.length;
+                    return (
+                      <div key={group.id} className="tasks-groups-item-container">
+                        <button
+                          className="tasks-groups-item"
+                          onClick={() => toggleGroupExpanded(group.id)}
+                        >
+                          <div className="tasks-groups-item-left">
+                            {group.type === "smart" && (
+                              <span className="tasks-groups-item-icon"><IonIcon name={group.icon} size={18} /></span>
+                            )}
+                            <span className="tasks-groups-item-name">{group.name}</span>
+                          </div>
+                          <span className="tasks-groups-item-count">{count}</span>
+                          <span className="tasks-groups-item-chevron">
+                            {isExpanded ? "▼" : "▶"}
+                          </span>
+                        </button>
+                        {isExpanded && (
+                          <div className="tasks-groups-expanded-tasks">
+                            {groupTasks.map((task) => (
+                              <TaskRow
+                                key={task.cid}
+                                task={task}
+                                today={today}
+                                compact={false}
+                                onToggle={() => toggleDone(task.cid)}
+                                onDelete={() => deleteTask(task.cid)}
+                                onEdit={() => openEditModal(task.cid)}
+                                onNavigateNote={onNavigateNote}
+                                isDragging={false}
+                                dropIndicator={null}
+                                onDragStart={() => {}}
+                                onDragOver={() => {}}
+                                onDragLeave={() => {}}
+                                onDrop={() => {}}
+                                onDragEnd={() => {}}
+                              />
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })
+                )}
+            </div>
+
+            {/* Untagged tasks section */}
+            {untaggedTasks.length > 0 && (
+              <div className="tasks-groups-untagged">
+                <div className="tasks-groups-untagged-header">
+                  Untagged ({untaggedTasks.length})
+                </div>
+                {untaggedTasks.map((task) => (
+                  <TaskRow
+                    key={task.cid}
+                    task={task}
+                    today={today}
+                    compact={false}
+                    onToggle={() => toggleDone(task.cid)}
+                    onDelete={() => deleteTask(task.cid)}
+                    onEdit={() => openEditModal(task.cid)}
+                    onNavigateNote={onNavigateNote}
+                    isDragging={false}
+                    dropIndicator={null}
+                    onDragStart={() => {}}
+                    onDragOver={() => {}}
+                    onDragLeave={() => {}}
+                    onDrop={() => {}}
+                    onDragEnd={() => {}}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+        {isEmpty && tab === "active" && !activeGroup && (
           <div className="tasks-empty">No tasks yet. Press <strong>+ New</strong> or <strong>Q</strong> to add one.</div>
+        )}
+        {isEmpty && tab === "active" && activeGroup && (
+          <div className="tasks-empty">No tasks in this group.</div>
         )}
         {isEmpty && tab === "done" && (
           <div className="tasks-empty">No completed tasks.</div>
         )}
-        {sections.map((section) =>
+        {tab !== "groups" && sections.map((section) =>
           section.tasks.length === 0 && tab === "done" ? null : (
             <div key={section.date} className="tasks-section" ref={(el) => { if (el) sectionRefs.current.set(section.date, el); }}>
               <div
@@ -820,8 +1243,8 @@ export function TasksPanel({ notes, dictionary = [], onNavigateNote }: Props) {
         )}
       </div>
 
-      {tab === "active" && (
-        <button className="tasks-fab" onClick={() => { setAddInput(""); setAddPriority(null); setSchedDate(null); setSchedTime(null); setAttachments([]); setNoteSuggestions([]); setNoteQueryStart(null); setShowNotePicker(false); setShowAddModal(true); }}>
+      {(tab === "active" || activeGroup) && (
+        <button className="tasks-fab" onClick={() => { setAddInput(""); setAddPriority(null); setSchedDate(null); setSchedTime(null); setSchedRecurrence(null); setAttachments([]); setNoteSuggestions([]); setNoteQueryStart(null); setShowNotePicker(false); setShowAddModal(true); }}>
           + New <span className="tasks-fab-hint">Q</span>
         </button>
       )}
@@ -886,37 +1309,51 @@ function TaskRow({
         )}
       </button>
       <div className="task-content">
-        <span className="task-title">{title}</span>
+        <div className="task-title-row">
+          <span className="task-title">{title}</span>
+          <div className="task-title-right">
+            {task.priority && (
+              <span className={`task-priority task-priority-${task.priority}`}>
+                {task.priority}
+              </span>
+            )}
+            {task.time !== null && (
+              <span className="task-time">
+                {formatTime(task.time)}
+              </span>
+            )}
+          </div>
+        </div>
         <div className="task-meta">
           {!task.done && task.date !== null && task.date < today && (
             <span className="task-overdue">overdue</span>
-          )}
-          {task.priority && (
-            <span className={`task-priority task-priority-${task.priority}`}>
-              {task.priority}
-            </span>
-          )}
-          {task.time !== null && (
-            <span className="task-time">
-              {formatTime(task.time)}
-            </span>
           )}
           {task.recurrence && (
             <span className="task-recurrence">
               {formatRecurrence(task.recurrence)}
             </span>
           )}
-          {chips.map((chip, i) =>
-            chip.kind === "note" ? (
-              <button key={i} className="task-chip task-chip-note" onClick={() => onNavigateNote(chip.id)}>
-                {chip.label}
-              </button>
-            ) : (
-              <a key={i} className="task-chip task-chip-url" href={chip.href} target="_blank" rel="noopener noreferrer">
-                {chip.label}
-              </a>
-            )
-          )}
+          {chips.map((chip, i) => {
+            if (chip.kind === "note") {
+              return (
+                <button key={i} className="task-chip task-chip-note" onClick={() => onNavigateNote(chip.id)}>
+                  {chip.label}
+                </button>
+              );
+            }
+            if (chip.kind === "url") {
+              return (
+                <a key={i} className="task-chip task-chip-url" href={chip.href} target="_blank" rel="noopener noreferrer">
+                  {chip.label}
+                </a>
+              );
+            }
+            return (
+              <span key={i} className="task-chip task-chip-tag">
+                #{chip.label}
+              </span>
+            );
+          })}
         </div>
       </div>
       <div className="task-actions">
@@ -947,14 +1384,16 @@ function TaskRow({
 
 type Chip =
   | { kind: "note"; label: string; id: string }
-  | { kind: "url"; label: string; href: string };
+  | { kind: "url"; label: string; href: string }
+  | { kind: "tag"; label: string };
 
 const MD_LINK_RE = /\[([^\]]*)\]\(([^)\s]+)\)/g;
 const BARE_URL_RE = /https?:\/\/[^\s]+/g;
+const TAG_RE = /#([a-zA-Z0-9_-]+)/g;
 
 function extractChips(text: string): { title: string; chips: Chip[] } {
   const chips: Chip[] = [];
-  type Hit = { start: number; end: number; chip?: Chip; raw?: string };
+  type Hit = { start: number; end: number; chip?: Chip; raw?: string; isTag?: boolean };
   const hits: Hit[] = [];
 
   MD_LINK_RE.lastIndex = 0;
@@ -981,6 +1420,14 @@ function extractChips(text: string): { title: string; chips: Chip[] } {
     hits.push({ start: m.index, end: m.index + href.length, chip: { kind: "url", label: host, href } });
   }
 
+  // Extract tags to remove from title (they're displayed as separate chips)
+  TAG_RE.lastIndex = 0;
+  while ((m = TAG_RE.exec(text)) !== null) {
+    if (claimed(m.index)) continue;
+    const tag = m[1];
+    hits.push({ start: m.index, end: m.index + m[0].length, chip: { kind: "tag", label: tag } });
+  }
+
   hits.sort((a, b) => a.start - b.start);
   let title = "";
   let cursor = 0;
@@ -989,6 +1436,7 @@ function extractChips(text: string): { title: string; chips: Chip[] } {
     title += text.slice(cursor, h.start);
     if (h.chip) chips.push(h.chip);
     else if (h.raw) title += h.raw;
+    // Tags are skipped (not added to title, displayed as separate chips below)
     cursor = h.end;
   }
   title += text.slice(cursor);
