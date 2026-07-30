@@ -1,7 +1,9 @@
 import { forwardRef, useMemo, useState, useCallback, useEffect, useRef } from "react";
 import type { VaultProfile } from "../types";
-import { mod, modName } from "../utils/platform";
+import { mod, modName, isMac } from "../utils/platform";
 import { IonIcon } from "./IonIcon";
+import { WindowControls } from "./WindowControls";
+import { getCurrentWindow } from "@tauri-apps/api/window";
 
 type Props = {
   value: string;
@@ -143,8 +145,14 @@ export const SearchBar = forwardRef<HTMLInputElement, Props>(
       }
     }, [selectedSuggestion, activeSuggestions.length]);
 
+    const handleDoubleClick = useCallback(() => {
+      if (!isMac) {
+        getCurrentWindow().toggleMaximize();
+      }
+    }, []);
+
     return (
-      <div className="search-bar" data-tauri-drag-region>
+      <div className="search-bar" data-tauri-drag-region onDoubleClick={handleDoubleClick}>
         <div className="search-bar-inner">
           <div className="search-input-container">
             <div className="search-input-wrapper">
@@ -310,6 +318,7 @@ export const SearchBar = forwardRef<HTMLInputElement, Props>(
               )}
             </div>
           )}
+          <WindowControls />
         </div>
       </div>
     );

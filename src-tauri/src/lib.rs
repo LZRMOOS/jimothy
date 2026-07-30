@@ -422,6 +422,14 @@ pub fn run() {
             // shown, otherwise the app would launch with no window AND no tray
             // (recoverable only via the global shortcut). If the tray is off we
             // always show, regardless of launchMinimized.
+            // Windows: disable decorations to enable custom title bar
+            #[cfg(target_os = "windows")]
+            {
+                if let Some(window) = app.get_webview_window("main") {
+                    let _ = window.set_decorations(false);
+                }
+            }
+
             let tray_shown = read_bool_setting("showTrayIcon").unwrap_or(true);
             let launch_minimized = tray_shown
                 && read_bool_setting("launchMinimized").unwrap_or_else(|| {

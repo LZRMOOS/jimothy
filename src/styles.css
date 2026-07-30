@@ -478,6 +478,46 @@ body {
   opacity: 1;
 }
 
+/* Window Controls (Windows only) */
+.window-controls {
+  display: flex;
+  -webkit-app-region: no-drag;
+  pointer-events: auto;
+  gap: 0;
+  margin-left: auto;
+  height: 28px;
+}
+
+.window-control-btn {
+  width: 46px;
+  height: 28px;
+  border: none;
+  background: transparent;
+  color: var(--text-secondary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: background var(--transition), color var(--transition);
+  padding: 0;
+}
+
+.window-control-btn:hover {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+}
+
+.window-control-close:hover {
+  background: #e81123;
+  color: white;
+}
+
+.window-control-icon {
+  width: 10px;
+  height: 10px;
+  stroke-width: 1px;
+}
+
 /* Main Content */
 .main-content {
   display: flex;
