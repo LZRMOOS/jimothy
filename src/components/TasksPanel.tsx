@@ -454,21 +454,19 @@ export function TasksPanel({ notes, dictionary = [], onNavigateNote }: Props) {
       if (!task) return;
       // Parse existing attachments out of text
       const { title, chips } = extractChips(task.text);
-      const tags = extractHashTags(task.text);
       setEditingCid(cid);
       setAddInput(title);
       setAddPriority(task.priority);
       setSchedDate(task.date ? { value: task.date, label: dayTitle(task.date, today), phrase: task.date } : null);
       setSchedTime(task.time !== null ? { value: task.time, label: formatTime(task.time), phrase: formatTime(task.time) } : null);
       setSchedRecurrence(task.recurrence ? { value: task.recurrence, label: formatRecurrence(task.recurrence), phrase: formatRecurrence(task.recurrence) } : null);
-      setAttachments([
-        ...chips.map((c) => {
+      setAttachments(
+        chips.map((c) => {
           if (c.kind === "note") return { kind: "note" as const, label: c.label, id: c.id };
           if (c.kind === "url") return { kind: "url" as const, label: c.label, href: c.href };
           return { kind: "tag" as const, label: c.label };
-        }),
-        ...tags.map((tag) => ({ kind: "tag" as const, label: tag }))
-      ]);
+        })
+      );
       setNoteSuggestions([]);
       setNoteQueryStart(null);
       setMentionSuggestions([]);
