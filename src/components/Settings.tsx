@@ -6,13 +6,13 @@ import { getVersion } from "@tauri-apps/api/app";
 import { Dropdown } from "./Dropdown";
 import { PasswordInput } from "./PasswordInput";
 import { PinInput } from "./PinInput";
+import { IonIcon } from "./IonIcon";
 import type { AppSettings, VaultStatus, ThemeColors, ColorPreset, VaultProfile } from "../types";
 import type { EmojiEntry } from "../extensions/emoji";
 import { isMac, modName, altName, superName } from "../utils/platform";
 import { HIDEABLE_COMMANDS } from "../utils/commands";
 import raccoonCircle from "../assets/raccoon-circle.png";
 import artRaccoon from "../assets/art-raccoon.png";
-import { IonIcon } from "./IonIcon";
 
 type SettingsTab = "general" | "organization" | "keyboard" | "editor" | "storage" | "security" | "markdown";
 type GeneralTab = "behavior" | "about";
@@ -1758,14 +1758,14 @@ export function Settings({
   const [keyboardTab, setKeyboardTab] = useState<KeyboardTab>("shortcuts");
   const [editorTab, setEditorTab] = useState<EditorTab>("colors");
 
-  const tabs: { id: SettingsTab; label: string }[] = [
-    { id: "general", label: "General" },
-    { id: "organization", label: "Organization" },
-    { id: "keyboard", label: "Controls" },
-    { id: "editor", label: "Customization" },
-    { id: "storage", label: "Storage" },
-    { id: "security", label: "Security" },
-    { id: "markdown", label: "Markdown" },
+  const tabs: { id: SettingsTab; label: string; icon?: string }[] = [
+    { id: "general", label: "General", icon: "settings-outline" },
+    { id: "organization", label: "Organization", icon: "file-tray-outline" },
+    { id: "keyboard", label: "Controls", icon: "keypad-outline" },
+    { id: "editor", label: "Customization", icon: "color-palette-outline" },
+    { id: "storage", label: "Storage", icon: "folder-outline" },
+    { id: "security", label: "Security", icon: "lock-closed-outline" },
+    { id: "markdown", label: "Markdown", icon: "code-outline" },
   ];
 
   const generalTabs: { id: GeneralTab; label: string }[] = [
@@ -1802,6 +1802,7 @@ export function Settings({
                 className={`settings-tab ${activeTab === tab.id ? "active" : ""}`}
                 onClick={() => setActiveTab(tab.id)}
               >
+                {tab.icon && <IonIcon name={tab.icon} size={16} />}
                 {tab.label}
               </button>
             ))}
