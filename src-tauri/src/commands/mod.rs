@@ -1,6 +1,6 @@
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::sync::Mutex;
+use std::sync::{Mutex, RwLock};
 
 use base64::Engine;
 use chrono::Utc;
@@ -26,36 +26,36 @@ pub enum VaultStatus {
 }
 
 pub struct AppState {
-    pub notes_folder: Mutex<Option<PathBuf>>,
-    pub notes: Mutex<Vec<Note>>,
+    pub notes_folder: RwLock<Option<PathBuf>>,
+    pub notes: RwLock<Vec<Note>>,
     pub watcher: Mutex<Option<FileWatcher>>,
     pub vault_key: Mutex<Option<Vec<u8>>>,
-    pub vault_status: Mutex<VaultStatus>,
+    pub vault_status: RwLock<VaultStatus>,
     pub password_hash: Mutex<Option<[u8; 32]>>,
     pub protection_key: Mutex<Option<Vec<u8>>>,
     pub protection_hash: Mutex<Option<[u8; 32]>>,
     /// The ID of the note currently being edited in the frontend.
-    pub active_note_id: Mutex<Option<String>>,
+    pub active_note_id: RwLock<Option<String>>,
 }
 
 impl AppState {
     pub fn new() -> Self {
         Self {
-            notes_folder: Mutex::new(None),
-            notes: Mutex::new(Vec::new()),
+            notes_folder: RwLock::new(None),
+            notes: RwLock::new(Vec::new()),
             watcher: Mutex::new(None),
             vault_key: Mutex::new(None),
-            vault_status: Mutex::new(VaultStatus::Plaintext),
+            vault_status: RwLock::new(VaultStatus::Plaintext),
             password_hash: Mutex::new(None),
             protection_key: Mutex::new(None),
             protection_hash: Mutex::new(None),
-            active_note_id: Mutex::new(None),
+            active_note_id: RwLock::new(None),
         }
     }
 
     pub fn folder(&self) -> Result<PathBuf, String> {
         self.notes_folder
-            .lock()
+            .read()
             .unwrap()
             .clone()
             .ok_or_else(|| "No notes folder set".to_string())
@@ -245,11 +245,11 @@ pub fn set_notes_folder(
     // Detect vault status
     if load_vault_config(&folder).is_some() {
         // Vault exists but is locked until password is provided
-        *state.vault_status.lock().unwrap() = VaultStatus::Locked;
+        *state.vault_status.write().unwrap() = VaultStatus::Locked;
         *state.vault_key.lock().unwrap() = None;
-        *state.notes.lock().unwrap() = Vec::new();
+        *state.notes.write().unwrap() = Vec::new();
     } else {
-        *state.vault_status.lock().unwrap() = VaultStatus::Plaintext;
+        *state.vault_status.write().unwrap() = VaultStatus::Plaintext;
         let (mut notes, dropbox_conflicts) = storage::load_notes_deduped(&folder);
         // Also load protected note stubs (title visible, body encrypted)
         let protected_stubs = storage::load_protected_note_stubs(&folder);
@@ -259,13 +259,13 @@ pub fn set_notes_folder(
             }
         }
         notes.sort_by(|a, b| b.updated_at.cmp(&a.updated_at));
-        *state.notes.lock().unwrap() = notes;
+        *state.notes.write().unwrap() = notes;
         if !dropbox_conflicts.is_empty() {
             let _ = app_handle.emit("dropbox-conflict", ());
         }
     }
 
-    *state.notes_folder.lock().unwrap() = Some(folder.clone());
+    *state.notes_folder.write().unwrap() = Some(folder.clone());
 
     if let Ok(watcher) = FileWatcher::new(folder, app_handle) {
         *state.watcher.lock().unwrap() = Some(watcher);
@@ -278,7 +278,7 @@ pub fn set_notes_folder(
 pub fn get_notes_folder(state: State<'_, AppState>) -> Option<String> {
     state
         .notes_folder
-        .lock()
+        .read()
         .unwrap()
         .as_ref()
         .map(|p| p.to_string_lossy().to_string())
@@ -288,7 +288,7 @@ pub fn get_notes_folder(state: State<'_, AppState>) -> Option<String> {
 pub fn get_notes(state: State<'_, AppState>) -> Vec<NoteDto> {
     state
         .notes
-        .lock()
+        .read()
         .unwrap()
         .iter()
         .map(NoteDto::from)
@@ -299,7 +299,7 @@ pub fn get_notes(state: State<'_, AppState>) -> Vec<NoteDto> {
 pub fn create_note(title: String, codex: Option<String>, state: State<'_, AppState>) -> Result<NoteDto, String> {
     let folder = state.folder()?;
 
-    let vault_status = state.vault_status.lock().unwrap().clone();
+    let vault_status = state.vault_status.read().unwrap().clone();
 
     let mut note = Note::new(title);
     note.codex = codex;
@@ -314,7 +314,7 @@ pub fn create_note(title: String, codex: Option<String>, state: State<'_, AppSta
     )?;
 
     let dto = NoteDto::from(&note);
-    state.notes.lock().unwrap().insert(0, note);
+    state.notes.write().unwrap().insert(0, note);
     Ok(dto)
 }
 
@@ -330,7 +330,7 @@ pub fn save_note(
 ) -> Result<NoteDto, String> {
     let folder = state.folder()?;
 
-    let vault_status = state.vault_status.lock().unwrap().clone();
+    let vault_status = state.vault_status.read().unwrap().clone();
     let vault_key = state.vault_key.lock().unwrap().clone();
 
     // Optimistic-concurrency guard: if the caller told us which version its edit
@@ -356,7 +356,7 @@ pub fn save_note(
         }
     }
 
-    let mut notes = state.notes.lock().unwrap();
+    let mut notes = state.notes.write().unwrap();
     let note = notes
         .iter_mut()
         .find(|n| n.id == id)
@@ -391,10 +391,10 @@ pub fn save_note(
 #[tauri::command]
 pub fn set_note_archived(id: String, archived: bool, state: State<'_, AppState>) -> Result<NoteDto, String> {
     let folder = state.folder()?;
-    let vault_status = state.vault_status.lock().unwrap().clone();
+    let vault_status = state.vault_status.read().unwrap().clone();
     let vault_key = state.vault_key.lock().unwrap().clone();
 
-    let mut notes = state.notes.lock().unwrap();
+    let mut notes = state.notes.write().unwrap();
     let note = notes
         .iter_mut()
         .find(|n| n.id == id)
@@ -416,7 +416,7 @@ pub fn set_note_archived(id: String, archived: bool, state: State<'_, AppState>)
 pub fn delete_note(id: String, state: State<'_, AppState>) -> Result<(), String> {
     let folder = state.folder()?;
 
-    let mut notes = state.notes.lock().unwrap();
+    let mut notes = state.notes.write().unwrap();
     let idx = notes
         .iter()
         .position(|n| n.id == id)
@@ -432,14 +432,14 @@ pub fn delete_note(id: String, state: State<'_, AppState>) -> Result<(), String>
 
 #[tauri::command]
 pub fn reload_notes(state: State<'_, AppState>, app_handle: AppHandle) -> Result<Vec<NoteDto>, String> {
-    let folder = state.notes_folder.lock().unwrap().clone();
+    let folder = state.notes_folder.read().unwrap().clone();
     if let Some(folder) = folder {
         storage::check_folder_available(&folder).map_err(|e| {
             let _ = app_handle.emit("folder-unavailable", ());
             e
         })?;
 
-        let vault_status = state.vault_status.lock().unwrap().clone();
+        let vault_status = state.vault_status.read().unwrap().clone();
         match vault_status {
             VaultStatus::Locked => {
                 Ok(Vec::new())
@@ -449,7 +449,7 @@ pub fn reload_notes(state: State<'_, AppState>, app_handle: AppHandle) -> Result
                 if let Some(key) = key {
                     let notes = storage::load_encrypted_notes_from_folder(&folder, &key);
                     let dtos: Vec<NoteDto> = notes.iter().map(NoteDto::from).collect();
-                    *state.notes.lock().unwrap() = notes;
+                    *state.notes.write().unwrap() = notes;
                     Ok(dtos)
                 } else {
                     Ok(Vec::new())
@@ -468,7 +468,7 @@ pub fn reload_notes(state: State<'_, AppState>, app_handle: AppHandle) -> Result
                 }
                 notes.sort_by(|a, b| b.updated_at.cmp(&a.updated_at));
                 let dtos: Vec<NoteDto> = notes.iter().map(NoteDto::from).collect();
-                *state.notes.lock().unwrap() = notes;
+                *state.notes.write().unwrap() = notes;
                 Ok(dtos)
             }
         }
@@ -590,8 +590,8 @@ pub fn setup_vault(password: String, state: State<'_, AppState>) -> Result<(), S
     // Update state
     store_hash(&state.password_hash, &password);
     *state.vault_key.lock().unwrap() = Some(key);
-    *state.vault_status.lock().unwrap() = VaultStatus::Unlocked;
-    *state.notes.lock().unwrap() = encrypted_notes;
+    *state.vault_status.write().unwrap() = VaultStatus::Unlocked;
+    *state.notes.write().unwrap() = encrypted_notes;
 
     Ok(())
 }
@@ -610,15 +610,15 @@ pub fn unlock_vault(password: String, state: State<'_, AppState>) -> Result<(), 
 
     // Update state
     *state.vault_key.lock().unwrap() = Some(key);
-    *state.vault_status.lock().unwrap() = VaultStatus::Unlocked;
-    *state.notes.lock().unwrap() = notes;
+    *state.vault_status.write().unwrap() = VaultStatus::Unlocked;
+    *state.notes.write().unwrap() = notes;
 
     Ok(())
 }
 
 #[tauri::command]
 pub fn lock_vault(state: State<'_, AppState>) -> Result<(), String> {
-    let status = state.vault_status.lock().unwrap().clone();
+    let status = state.vault_status.read().unwrap().clone();
     if status == VaultStatus::Plaintext {
         return Err("No vault to lock".to_string());
     }
@@ -634,15 +634,15 @@ pub fn lock_vault(state: State<'_, AppState>) -> Result<(), String> {
     }
     *state.protection_key.lock().unwrap() = None;
     *state.protection_hash.lock().unwrap() = None;
-    *state.vault_status.lock().unwrap() = VaultStatus::Locked;
-    *state.notes.lock().unwrap() = Vec::new();
+    *state.vault_status.write().unwrap() = VaultStatus::Locked;
+    *state.notes.write().unwrap() = Vec::new();
 
     Ok(())
 }
 
 #[tauri::command]
 pub fn get_vault_status(state: State<'_, AppState>) -> String {
-    let status = state.vault_status.lock().unwrap().clone();
+    let status = state.vault_status.read().unwrap().clone();
     match status {
         VaultStatus::Plaintext => "plaintext".to_string(),
         VaultStatus::Locked => "locked".to_string(),
@@ -670,7 +670,7 @@ pub fn verify_password(mut password: String, state: State<'_, AppState>) -> Resu
 
 #[tauri::command]
 pub fn set_active_note(id: Option<String>, state: State<'_, AppState>) {
-    *state.active_note_id.lock().unwrap() = id;
+    *state.active_note_id.write().unwrap() = id;
 }
 
 #[tauri::command]
@@ -716,8 +716,8 @@ pub fn change_vault_password(
 
     // Update state
     *state.vault_key.lock().unwrap() = Some(new_key);
-    *state.vault_status.lock().unwrap() = VaultStatus::Unlocked;
-    *state.notes.lock().unwrap() = re_encrypted_notes;
+    *state.vault_status.write().unwrap() = VaultStatus::Unlocked;
+    *state.notes.write().unwrap() = re_encrypted_notes;
 
     Ok(())
 }
@@ -762,8 +762,8 @@ pub fn disable_vault(password: String, state: State<'_, AppState>) -> Result<(),
 
     // Update state
     *state.vault_key.lock().unwrap() = None;
-    *state.vault_status.lock().unwrap() = VaultStatus::Plaintext;
-    *state.notes.lock().unwrap() = plaintext_notes;
+    *state.vault_status.write().unwrap() = VaultStatus::Plaintext;
+    *state.notes.write().unwrap() = plaintext_notes;
 
     Ok(())
 }
@@ -887,8 +887,8 @@ pub fn pin_unlock(pin: String, state: State<'_, AppState>) -> Result<PinUnlockDt
         |key| {
             let notes = storage::load_encrypted_notes_from_folder(&folder, &key);
             *state.vault_key.lock().unwrap() = Some(key);
-            *state.vault_status.lock().unwrap() = VaultStatus::Unlocked;
-            *state.notes.lock().unwrap() = notes;
+            *state.vault_status.write().unwrap() = VaultStatus::Unlocked;
+            *state.notes.write().unwrap() = notes;
             Ok(())
         },
     )
@@ -963,7 +963,7 @@ pub fn pin_unlock_protection(
 
             // Merge protected note stubs into the cache, mirroring unlock_protection.
             let protected_stubs = storage::load_protected_note_stubs(&folder);
-            let mut notes = state.notes.lock().unwrap();
+            let mut notes = state.notes.write().unwrap();
             for stub in protected_stubs {
                 if !notes.iter().any(|n| n.id == stub.id) {
                     notes.push(stub);
@@ -981,7 +981,7 @@ pub fn restore_from_trash(filename: String, state: State<'_, AppState>) -> Resul
 
     let note = storage::restore_note_from_trash(&folder, &filename)?;
     let dto = NoteDto::from(&note);
-    state.notes.lock().unwrap().push(note);
+    state.notes.write().unwrap().push(note);
     Ok(dto)
 }
 
@@ -1031,7 +1031,7 @@ pub fn unlock_protection(password: String, state: State<'_, AppState>) -> Result
 
     // Load protected note stubs and merge with existing notes
     let protected_stubs = storage::load_protected_note_stubs(&folder);
-    let mut notes = state.notes.lock().unwrap();
+    let mut notes = state.notes.write().unwrap();
     for stub in protected_stubs {
         if !notes.iter().any(|n| n.id == stub.id) {
             notes.push(stub);
@@ -1066,7 +1066,7 @@ pub fn protect_note(id: String, state: State<'_, AppState>) -> Result<NoteDto, S
     let key = state.protection_key.lock().unwrap().clone()
         .ok_or("Protection not unlocked")?;
 
-    let mut notes = state.notes.lock().unwrap();
+    let mut notes = state.notes.write().unwrap();
     let note = notes.iter_mut().find(|n| n.id == id).ok_or("Note not found")?;
 
     // Write as protected .pnote
@@ -1090,7 +1090,7 @@ pub fn unprotect_note(id: String, state: State<'_, AppState>) -> Result<NoteDto,
     let key = state.protection_key.lock().unwrap().clone()
         .ok_or("Protection not unlocked")?;
 
-    let mut notes = state.notes.lock().unwrap();
+    let mut notes = state.notes.write().unwrap();
     let note = notes.iter_mut().find(|n| n.id == id).ok_or("Note not found")?;
 
     // Decrypt body
@@ -1112,7 +1112,7 @@ pub fn get_protected_note_body(id: String, state: State<'_, AppState>) -> Result
     let key = state.protection_key.lock().unwrap().clone()
         .ok_or("Protection not unlocked")?;
 
-    let notes = state.notes.lock().unwrap();
+    let notes = state.notes.read().unwrap();
     let note = notes.iter().find(|n| n.id == id).ok_or("Note not found")?;
 
     let path = Path::new(&note.file_path);
@@ -1131,7 +1131,7 @@ pub fn save_protected_note(
     let key = state.protection_key.lock().unwrap().clone()
         .ok_or("Protection not unlocked")?;
 
-    let mut notes = state.notes.lock().unwrap();
+    let mut notes = state.notes.write().unwrap();
     let note = notes.iter_mut().find(|n| n.id == id).ok_or("Note not found")?;
 
     note.title = title;
@@ -1152,7 +1152,7 @@ pub fn disable_protection(password: String, state: State<'_, AppState>) -> Resul
     let key = verify_and_derive(&password, &config)?;
 
     // Decrypt all protected notes back to plaintext
-    let mut notes = state.notes.lock().unwrap();
+    let mut notes = state.notes.write().unwrap();
     for note in notes.iter_mut() {
         let path = Path::new(&note.file_path);
         if path.extension().and_then(|e| e.to_str()) == Some("pnote") {
@@ -1196,7 +1196,7 @@ pub fn change_protection_password(
     let (new_config, new_key) = crypto::create_vault_config(&new_password)?;
 
     // Re-encrypt all protected notes with new key
-    let mut notes = state.notes.lock().unwrap();
+    let mut notes = state.notes.write().unwrap();
     for note in notes.iter_mut() {
         let path = Path::new(&note.file_path);
         if path.extension().and_then(|e| e.to_str()) == Some("pnote") {
@@ -1298,7 +1298,7 @@ pub fn get_tasks(state: State<'_, AppState>) -> Result<String, String> {
         return Ok(std::fs::read_to_string(&path).unwrap_or_default());
     }
     // Migrate from legacy task note (codex: Tasks) if present
-    let notes = state.notes.lock().unwrap();
+    let notes = state.notes.read().unwrap();
     if let Some(note) = notes.iter().find(|n| n.codex.as_deref() == Some("Tasks") && !n.archived) {
         let body = note.body.clone();
         drop(notes);
@@ -1430,7 +1430,7 @@ pub fn list_conflicts(state: State<'_, AppState>) -> Result<Vec<ConflictEntry>, 
         let note_id = parsed.as_ref().map(|n| n.id.clone()).unwrap_or_default();
 
         // Match against the live in-memory note by id.
-        let notes = state.notes.lock().unwrap();
+        let notes = state.notes.read().unwrap();
         let live = if note_id.is_empty() {
             None
         } else {
@@ -1499,9 +1499,9 @@ pub fn resolve_conflict(
             }
             let conflict = parsed.ok_or("Conflict file could not be parsed")?;
 
-            let vault_status = state.vault_status.lock().unwrap().clone();
+            let vault_status = state.vault_status.read().unwrap().clone();
             let vault_key = state.vault_key.lock().unwrap().clone();
-            let mut notes = state.notes.lock().unwrap();
+            let mut notes = state.notes.write().unwrap();
             let note = notes
                 .iter_mut()
                 .find(|n| n.id == conflict.id)
@@ -1535,7 +1535,7 @@ pub fn resolve_conflict(
             new_note.body = conflict.body;
             new_note.codex = conflict.codex;
 
-            let vault_status = state.vault_status.lock().unwrap().clone();
+            let vault_status = state.vault_status.read().unwrap().clone();
             let vault_key = state.vault_key.lock().unwrap().clone();
             persist_note(
                 &folder,
@@ -1544,7 +1544,7 @@ pub fn resolve_conflict(
                 &mut new_note,
                 "Vault is locked. Unlock before resolving.",
             )?;
-            state.notes.lock().unwrap().push(new_note);
+            state.notes.write().unwrap().push(new_note);
 
             fs::remove_file(&canonical_file)
                 .map_err(|e| format!("Failed to delete conflict file: {}", e))?;

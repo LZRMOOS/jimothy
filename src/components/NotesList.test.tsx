@@ -1,7 +1,22 @@
 import { render, screen, fireEvent } from "@testing-library/react";
-import { describe, it, expect, vi } from "vitest";
+import { describe, it, expect, vi, beforeEach } from "vitest";
 import { NotesList } from "./NotesList";
 import type { Note } from "../types";
+
+// Mock IntersectionObserver and ResizeObserver for virtualizer
+beforeEach(() => {
+  (globalThis as any).IntersectionObserver = vi.fn().mockImplementation(() => ({
+    observe: vi.fn(),
+    unobserve: vi.fn(),
+    disconnect: vi.fn(),
+  }));
+
+  (globalThis as any).ResizeObserver = vi.fn().mockImplementation(() => ({
+    observe: vi.fn(),
+    unobserve: vi.fn(),
+    disconnect: vi.fn(),
+  }));
+});
 
 function makeNote(overrides: Partial<Note> = {}): Note {
   return {

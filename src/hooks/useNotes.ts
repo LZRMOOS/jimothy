@@ -38,6 +38,23 @@ export function useNotes() {
     searchRef.current.addAll(noteList);
   }, []);
 
+  const updateIndexIncremental = useCallback((note: Note) => {
+    try {
+      searchRef.current.discard(note.id);
+    } catch {
+      // Note wasn't in index, that's fine
+    }
+    searchRef.current.add(note);
+  }, []);
+
+  const removeFromIndex = useCallback((id: string) => {
+    try {
+      searchRef.current.discard(id);
+    } catch {
+      // Note wasn't in index, that's fine
+    }
+  }, []);
+
   const loadNotes = useCallback(async () => {
     const loaded = (await invoke("reload_notes")) as Note[];
     setNotes(loaded);
@@ -87,14 +104,13 @@ export function useNotes() {
     async (title: string, codex?: string | null): Promise<Note> => {
       const note = (await invoke("create_note", { title, codex: codex || null })) as Note;
       setNotes((prev) => {
-        const updated = [note, ...prev];
-        rebuildIndex(updated);
-        return updated;
+        updateIndexIncremental(note);
+        return [note, ...prev];
       });
       setSelectedId(note.id);
       return note;
     },
-    [rebuildIndex]
+    [updateIndexIncremental]
   );
 
   const saveNote = useCallback(
@@ -119,9 +135,10 @@ export function useNotes() {
             // effect (which fires when updated_at changes) sees a mismatch and
             // resets the editor to the stale content — e.g. wiping a
             // just-dropped image the moment the editor loses focus.
-            return { ...n, title, body, codex: codex ?? n.codex, updated_at: updated.updated_at };
+            const updatedNote = { ...n, title, body, codex: codex ?? n.codex, updated_at: updated.updated_at };
+            updateIndexIncremental(updatedNote);
+            return updatedNote;
           });
-          rebuildIndex(newList);
           return newList;
         });
         setSaveStatus("saved");
@@ -172,16 +189,13 @@ export function useNotes() {
   const deleteNote = useCallback(
     async (id: string) => {
       await invoke("delete_note", { id });
-      setNotes((prev) => {
-        const updated = prev.filter((n) => n.id !== id);
-        rebuildIndex(updated);
-        return updated;
-      });
+      removeFromIndex(id);
+      setNotes((prev) => prev.filter((n) => n.id !== id));
       if (selectedId === id) {
         setSelectedId(null);
       }
     },
-    [selectedId, rebuildIndex]
+    [selectedId, removeFromIndex]
   );
 
   const search = useCallback(

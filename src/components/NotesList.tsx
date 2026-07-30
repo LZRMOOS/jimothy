@@ -1,4 +1,5 @@
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef } from "react";
+import { useVirtualizer } from "@tanstack/react-virtual";
 import type { Note } from "../types";
 import { highlightMatches } from "../utils/search";
 import { IonIcon } from "./IonIcon";
@@ -57,6 +58,7 @@ export function NotesList({ notes, backlinkIndex, selectedId, onSelect, onDelete
   const [contextMenu, setContextMenu] = useState<ContextMenuState>(null);
   const [localExpanded, setLocalExpanded] = useState<Set<string>>(new Set());
   const expandedIds = expandedIdsProp || localExpanded;
+  const parentRef = useRef<HTMLDivElement>(null);
 
   const handleContextMenu = (e: React.MouseEvent, noteId: string) => {
     e.preventDefault();
@@ -94,6 +96,17 @@ export function NotesList({ notes, backlinkIndex, selectedId, onSelect, onDelete
     return [...pinned, ...unpinned];
   }, [notes, pinnedIds]);
 
+  // Only enable virtualization for large lists (>50 notes) to keep tests simple
+  const useVirtualization = sorted.length > 50;
+
+  const rowVirtualizer = useVirtualizer({
+    count: sorted.length,
+    getScrollElement: () => parentRef.current,
+    estimateSize: () => 80,
+    overscan: 5,
+    enabled: useVirtualization,
+  });
+
   if (notes.length === 0) {
     return (
       <div className="notes-list-empty">
@@ -103,19 +116,20 @@ export function NotesList({ notes, backlinkIndex, selectedId, onSelect, onDelete
     );
   }
 
-  return (
-    <div className="notes-list" onClick={closeContextMenu}>
-      {sorted.map((note) => {
-        const backlinks = backlinkIndex?.get(note.id);
-        const isExpanded = expandedIds.has(note.id);
+  if (!useVirtualization) {
+    return (
+      <div ref={parentRef} className="notes-list" onClick={closeContextMenu}>
+        {sorted.map((note) => {
+          const backlinks = backlinkIndex?.get(note.id);
+          const isExpanded = expandedIds.has(note.id);
 
-        return (
-          <div key={note.id}>
-            <div
-              className={`note-item ${note.id === selectedId ? "selected" : ""} ${pinnedIds.includes(note.id) ? "pinned" : ""} ${note.archived ? "archived" : ""}`}
-              onClick={() => onSelect(note.id)}
-              onContextMenu={(e) => handleContextMenu(e, note.id)}
-            >
+          return (
+            <div key={note.id}>
+              <div
+                className={`note-item ${note.id === selectedId ? "selected" : ""} ${pinnedIds.includes(note.id) ? "pinned" : ""} ${note.archived ? "archived" : ""}`}
+                onClick={() => onSelect(note.id)}
+                onContextMenu={(e) => handleContextMenu(e, note.id)}
+              >
               <div className="note-item-header">
                 <div className="note-item-title">
                   {sensitiveIds.includes(note.id) && (
@@ -187,6 +201,205 @@ export function NotesList({ notes, backlinkIndex, selectedId, onSelect, onDelete
           </div>
         );
       })}
+        {contextMenu && (
+          <div
+            className="context-menu"
+            style={{ top: contextMenu.y, left: contextMenu.x }}
+          >
+          <button
+            className="context-menu-item"
+            onClick={() => {
+              onTogglePin(contextMenu.noteId);
+              closeContextMenu();
+            }}
+          >
+            {pinnedIds.includes(contextMenu.noteId) ? "Unpin Note" : "Pin Note"}
+          </button>
+          {onToggleSensitive && (
+            <button
+              className="context-menu-item"
+              onClick={() => {
+                onToggleSensitive(contextMenu.noteId);
+                closeContextMenu();
+              }}
+            >
+              <IonIcon name={sensitiveIds.includes(contextMenu.noteId) ? "lock-open-outline" : "lock-closed-outline"} size={14} />
+              {sensitiveIds.includes(contextMenu.noteId)
+                ? "Remove Note Protection" : "Protect Note"}
+            </button>
+          )}
+          {onToggleFreeze && (
+            <button
+              className="context-menu-item"
+              onClick={() => {
+                onToggleFreeze(contextMenu.noteId);
+                closeContextMenu();
+              }}
+            >
+              {frozenIds.includes(contextMenu.noteId) ? "Unfreeze Note" : "Freeze Note"}
+            </button>
+          )}
+          {onDuplicate && (
+            <button
+              className="context-menu-item"
+              onClick={() => {
+                onDuplicate(contextMenu.noteId);
+                closeContextMenu();
+              }}
+            >
+              Duplicate Note
+            </button>
+          )}
+          {onOpenSplit && (
+            <button
+              className="context-menu-item"
+              onClick={() => {
+                onOpenSplit(contextMenu.noteId);
+                closeContextMenu();
+              }}
+            >
+              Open in Split View
+            </button>
+          )}
+          <button
+            className="context-menu-item"
+            onClick={() => handleCopyMarkdown(contextMenu.noteId)}
+          >
+            <IonIcon name="copy-outline" size={14} />
+            Copy as Markdown
+          </button>
+          {onToggleArchive && (
+            <button
+              className="context-menu-item subtle"
+              onClick={() => {
+                onToggleArchive(contextMenu.noteId);
+                closeContextMenu();
+              }}
+            >
+              <IonIcon name="archive-outline" size={14} />
+              {notes.find((n) => n.id === contextMenu.noteId)?.archived
+                ? "Unarchive Note" : "Archive Note"}
+            </button>
+          )}
+          <button
+            className="context-menu-item danger"
+            onClick={() => {
+              onDelete(contextMenu.noteId);
+              closeContextMenu();
+            }}
+          >
+            <IonIcon name="trash-outline" size={14} />
+            Delete Note
+          </button>
+        </div>
+        )}
+      </div>
+    );
+  }
+
+  // Virtualized rendering for large lists
+  return (
+    <div ref={parentRef} className="notes-list" onClick={closeContextMenu}>
+      <div
+        style={{
+          height: `${rowVirtualizer.getTotalSize()}px`,
+          width: "100%",
+          position: "relative",
+        }}
+      >
+        {rowVirtualizer.getVirtualItems().map((virtualRow) => {
+          const note = sorted[virtualRow.index];
+          const backlinks = backlinkIndex?.get(note.id);
+          const isExpanded = expandedIds.has(note.id);
+
+          return (
+            <div
+              key={note.id}
+              style={{
+                position: "absolute",
+                top: 0,
+                left: 0,
+                width: "100%",
+                transform: `translateY(${virtualRow.start}px)`,
+              }}
+            >
+              <div
+                className={`note-item ${note.id === selectedId ? "selected" : ""} ${pinnedIds.includes(note.id) ? "pinned" : ""} ${note.archived ? "archived" : ""}`}
+                onClick={() => onSelect(note.id)}
+                onContextMenu={(e) => handleContextMenu(e, note.id)}
+              >
+              <div className="note-item-header">
+                <div className="note-item-title">
+                  {sensitiveIds.includes(note.id) && (
+                    <svg className="sensitive-icon" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+                      <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+                    </svg>
+                  )}
+                  {highlightMatches(note.title || "Untitled", searchQuery)}
+                </div>
+                <div className="note-item-actions">
+                  <button
+                    className={`note-action-btn ${pinnedIds.includes(note.id) ? "active" : ""}`}
+                    onClick={(e) => { e.stopPropagation(); onTogglePin(note.id); }}
+                    title={pinnedIds.includes(note.id) ? "Unpin" : "Pin"}
+                  >
+                    <IonIcon name={pinnedIds.includes(note.id) ? "star" : "star-outline"} size={12} />
+                  </button>
+                </div>
+              </div>
+              <div className="note-item-preview">
+                {sensitiveIds.includes(note.id) && !note.body ? (
+                  <span className="protected-placeholder">Protected note</span>
+                ) : (
+                  highlightMatches(getPreview(note.body), searchQuery)
+                )}
+              </div>
+              <div className="note-item-footer">
+                <div className="note-item-date">{formatDate(note.updated_at)}</div>
+                <div className="note-item-footer-right">
+                  {note.codex && (
+                    <div
+                      className="note-codex-pill"
+                      style={codexColors?.[note.codex] ? { background: codexColors[note.codex] + "20", color: codexColors[note.codex] } : undefined}
+                    >{note.codex}</div>
+                  )}
+                  {backlinks && (
+                    <button
+                      className={`backlink-toggle ${isExpanded ? "expanded" : ""}`}
+                      onClick={(e) => { e.stopPropagation(); toggleExpand(note.id); }}
+                      aria-label={isExpanded ? "Collapse backlinks" : "Expand backlinks"}
+                    >
+                      <svg width="8" height="8" viewBox="0 0 8 8" fill="currentColor">
+                        <path d="M2 1L6 4L2 7z"/>
+                      </svg>
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+            {backlinks && isExpanded && (
+              <div className="backlink-children">
+                {backlinks.map((bl) => (
+                  <div
+                    key={bl.id}
+                    className={`backlink-child-item ${bl.id === selectedId ? "selected" : ""}`}
+                    onClick={() => { toggleExpand(note.id); onSelect(bl.id); }}
+                  >
+                    <svg className="backlink-child-icon" width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M9 17H7A5 5 0 0 1 7 7h2"/>
+                      <path d="M15 7h2a5 5 0 0 1 0 10h-2"/>
+                      <line x1="8" y1="12" x2="16" y2="12"/>
+                    </svg>
+                    <span className="backlink-child-title">{bl.title}</span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+          );
+        })}
+      </div>
       {contextMenu && (
         <div
           className="context-menu"
