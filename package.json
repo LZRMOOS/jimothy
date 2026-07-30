@@ -36,6 +36,7 @@
     "@tiptap/react": "^3.28.0",
     "@tiptap/starter-kit": "^3.28.0",
     "@tiptap/suggestion": "^3.28.0",
+    "ionicons": "^8.1.0",
     "lowlight": "^3.3.0",
     "minisearch": "^7.1.1",
     "react": "^19.1.0",

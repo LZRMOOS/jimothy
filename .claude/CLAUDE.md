@@ -119,13 +119,17 @@ Tokens: `!high`/`!med`/`!low` (priority), `!YYYY-MM-DD` or `!YYYY-MM-DDTHH:MM` (
 - `src/utils/taskList.ts` - Parse/serialize task doc, `TASK_CODEX` constant
 - `src/utils/agenda.ts` - Build agenda sections (active/done) from tasks
 - `src/utils/naturalDate.ts` - Natural language date/time recognition for task input
-- `src/components/TasksPanel.tsx` - Full panel UI (agenda view, add/edit modal, drag-and-drop)
+- `src/utils/taskGroups.ts` - Tag extraction, grouping logic (smart groups + tag groups)
+- `src/components/TasksPanel.tsx` - Full panel UI (agenda view, groups view, add/edit modal, drag-and-drop)
 
 **UI behavior:**
 - Task notes are hidden from the regular notes list, search bar, and command palette note search
 - The Tasks codex does not appear in the codex sidebar list
 - "View Tasks" command and Cmd+T are the entry points
+- Three tabs: Upcoming (agenda view), Groups (organize by tags and smart filters), Done
+- **Groups tab**: Organize tasks by #tags (extracted from task text) and smart filters (Recurring, High priority, Overdue, No due date). Tags use the same `#([a-zA-Z0-9_-]+)` pattern as the markdown tag highlight, ensuring byte compatibility with mobile. Groups expand/collapse inline to show tasks. Search bar (Cmd+F) filters groups by name and tasks within them, also filters untagged tasks.
 - Add modal supports natural date/time/recurrence parsing ("tomorrow 9am", "every 2 weeks"), `[[` note link autocomplete, `@` dictionary mentions, and URL auto-detection
+- Task rows display inline tag pills for all `#tags` in the task text
 - Done tab uses compact table-like rows with undo button on hover
 - Infinite scroll (loads 30 days at a time)
 - Drag-and-drop reordering within and across date sections
