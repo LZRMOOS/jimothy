@@ -836,21 +836,19 @@ export function TasksPanel({ notes, dictionary = [], onNavigateNote }: Props) {
             }}
             title={tab === "groups" ? (filteredGroups.every(g => expandedGroups.has(g.id)) ? "Collapse all groups" : "Expand all groups") : "Hide empty days"}
           >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              {tab === "groups" ? (
-                filteredGroups.every(g => expandedGroups.has(g.id)) ? (
-                  <polyline points="6 9 12 15 18 9" />
-                ) : (
-                  <polyline points="9 6 15 12 9 18" />
-                )
+            {tab === "groups" ? (
+              filteredGroups.every(g => expandedGroups.has(g.id)) ? (
+                <IonIcon name="chevron-down-outline" size={14} />
               ) : (
-                hideEmpty ? (
-                  <polyline points="9 6 15 12 9 18" />
-                ) : (
-                  <polyline points="6 9 12 15 18 9" />
-                )
-              )}
-            </svg>
+                <IonIcon name="chevron-forward-outline" size={14} />
+              )
+            ) : (
+              hideEmpty ? (
+                <IonIcon name="chevron-forward-outline" size={14} />
+              ) : (
+                <IonIcon name="chevron-down-outline" size={14} />
+              )
+            )}
           </button>
         </div>
       </div>
@@ -880,9 +878,7 @@ export function TasksPanel({ notes, dictionary = [], onNavigateNote }: Props) {
                 )}
               </div>
               <button className="tasks-modal-close" onClick={closeModal}>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
-                </svg>
+                <IonIcon name="close-outline" size={16} />
               </button>
             </div>
             {attachments.length > 0 && (
@@ -990,10 +986,7 @@ export function TasksPanel({ notes, dictionary = [], onNavigateNote }: Props) {
                     onClick={() => { setShowNotePicker((v) => !v); setNotePickerQuery(""); }}
                     title="Link a note"
                   >
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
-                      <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
-                    </svg>
+                    <IonIcon name="link-outline" size={14} />
                     Note
                   </button>
                   {showNotePicker && (
@@ -1298,14 +1291,9 @@ function TaskRow({
     >
       <button className="task-checkbox" onClick={onToggle} aria-label={task.done ? "Mark incomplete" : "Mark complete"}>
         {task.done ? (
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <rect x="3" y="3" width="18" height="18" rx="3" fill="var(--accent)" stroke="var(--accent)" />
-            <polyline points="9 11 12 14 16 9" stroke="var(--bg-primary)" strokeWidth="2.5" />
-          </svg>
+          <IonIcon name="checkbox" size={16} />
         ) : (
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <rect x="3" y="3" width="18" height="18" rx="3" />
-          </svg>
+          <IonIcon name="square-outline" size={16} />
         )}
       </button>
       <div className="task-content">
@@ -1359,23 +1347,14 @@ function TaskRow({
       <div className="task-actions">
         {compact && (
           <button className="task-undo" onClick={onToggle} title="Undo">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-              <polyline points="1 4 1 10 7 10" />
-              <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
-            </svg>
+            <IonIcon name="arrow-undo-outline" size={14} />
           </button>
         )}
         <button className="task-edit" onClick={onEdit} title="Edit task">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-          </svg>
+          <IonIcon name="create-outline" size={14} />
         </button>
         <button className="task-delete" onClick={onDelete} title="Delete task">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <line x1="18" y1="6" x2="6" y2="18" />
-            <line x1="6" y1="6" x2="18" y2="18" />
-          </svg>
+          <IonIcon name="close-outline" size={14} />
         </button>
       </div>
     </div>
