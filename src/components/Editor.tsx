@@ -624,8 +624,11 @@ export function Editor({ note, saveStatus, onTitleChange, onBodyChange, onCodexC
       noteIdRef.current = note.id;
       suppressUpdate.current = true;
       editor.setEditable(!frozen, false);
-      editor.commands.setContent(note.body);
-      suppressUpdate.current = false;
+      // Defer setContent to avoid flushSync during render (React 19 strictness)
+      queueMicrotask(() => {
+        editor.commands.setContent(note.body);
+        suppressUpdate.current = false;
+      });
       // Switching notes: this note's on-disk version is our edit base.
       onBaseVersionRef.current?.(note.id, note.updated_at);
       return;
@@ -633,8 +636,11 @@ export function Editor({ note, saveStatus, onTitleChange, onBodyChange, onCodexC
     const currentMd = (editor.storage as any).markdown.getMarkdown();
     if (currentMd !== note.body && !editor.isFocused) {
       suppressUpdate.current = true;
-      editor.commands.setContent(note.body);
-      suppressUpdate.current = false;
+      // Defer setContent to avoid flushSync during render (React 19 strictness)
+      queueMicrotask(() => {
+        editor.commands.setContent(note.body);
+        suppressUpdate.current = false;
+      });
       // Adopted an external change while not editing: rebase to it.
       onBaseVersionRef.current?.(note.id, note.updated_at);
     }
@@ -650,8 +656,11 @@ export function Editor({ note, saveStatus, onTitleChange, onBodyChange, onCodexC
     emojiCountRef.current = emojis.length;
     if (editor.isFocused) return;
     suppressUpdate.current = true;
-    editor.commands.setContent(note.body);
-    suppressUpdate.current = false;
+    // Defer setContent to avoid flushSync during render (React 19 strictness)
+    queueMicrotask(() => {
+      editor.commands.setContent(note.body);
+      suppressUpdate.current = false;
+    });
   }, [emojis.length, editor, note.body]);
 
   // Extract headings from editor document for TOC

@@ -27,15 +27,41 @@ export function WindowControls() {
   }, []);
 
   const handleMinimize = async () => {
-    await getCurrentWindow().minimize();
+    console.log("[WindowControls] 🔽 Minimize button clicked");
+    try {
+      const window = getCurrentWindow();
+      console.log("[WindowControls] Got window object:", window);
+      await window.minimize();
+      console.log("[WindowControls] ✓ Minimize succeeded");
+    } catch (err) {
+      console.error("[WindowControls] ✗ Minimize failed:", err);
+    }
   };
 
   const handleMaximize = async () => {
-    await getCurrentWindow().toggleMaximize();
+    console.log("[WindowControls] ⬜ Maximize button clicked");
+    try {
+      const window = getCurrentWindow();
+      console.log("[WindowControls] Got window object:", window);
+      const wasMaximized = await window.isMaximized();
+      console.log("[WindowControls] Current maximized state:", wasMaximized);
+      await window.toggleMaximize();
+      console.log("[WindowControls] ✓ Maximize toggle succeeded");
+    } catch (err) {
+      console.error("[WindowControls] ✗ Maximize failed:", err);
+    }
   };
 
   const handleClose = async () => {
-    await getCurrentWindow().close();
+    console.log("[WindowControls] ❌ Close button clicked");
+    try {
+      const window = getCurrentWindow();
+      console.log("[WindowControls] Got window object:", window);
+      await window.close();
+      console.log("[WindowControls] ✓ Close succeeded (window should hide/close now)");
+    } catch (err) {
+      console.error("[WindowControls] ✗ Close failed:", err);
+    }
   };
 
   return (

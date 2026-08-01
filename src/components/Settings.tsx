@@ -1951,6 +1951,29 @@ export function Settings({
                       </div>
                     </div>
 
+                    <h3>Debug</h3>
+                    <div className="settings-row">
+                      <div className="settings-row-text">
+                        <label>Developer Tools</label>
+                        <p className="settings-row-desc">
+                          Open DevTools to view console logs and debug issues.
+                        </p>
+                      </div>
+                      <button
+                        className="btn btn-sm secondary"
+                        onClick={async () => {
+                          try {
+                            await invoke("open_devtools");
+                          } catch (err: any) {
+                            // In production, show the error which includes instructions
+                            alert(err || "Failed to open DevTools. Try pressing F12 or right-click → Inspect Element.");
+                          }
+                        }}
+                      >
+                        Open DevTools
+                      </button>
+                    </div>
+
                     <h3>Developer</h3>
                     <div className="about-info">
                       <div className="settings-row">

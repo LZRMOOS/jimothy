@@ -1919,3 +1919,13 @@ mod tests {
         assert!(parsed.is_none());
     }
 }
+
+#[tauri::command]
+pub fn open_devtools(app: AppHandle) -> Result<(), String> {
+    use tauri::Manager;
+    if let Some(window) = app.get_webview_window("main") {
+        window.open_devtools();
+        return Ok(());
+    }
+    Err("Main window not found".into())
+}

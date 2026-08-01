@@ -338,6 +338,7 @@ pub fn run() {
             commands::import_emoji,
             commands::delete_emoji,
             commands::rename_emoji,
+            commands::open_devtools,
             set_tray_visible,
             open_scratchpad,
             update_global_shortcut,

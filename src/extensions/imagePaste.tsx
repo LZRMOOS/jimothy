@@ -98,6 +98,19 @@ function ImageNodeView({ node, updateAttributes, deleteNode, selected, editor }:
   const width: number | null = node.attrs.width ?? null;
   const active = selected && editor.isEditable;
 
+  // Schedule attribute updates to avoid flushSync during render
+  const handleResize = (newWidth: number | null) => {
+    queueMicrotask(() => {
+      updateAttributes({ width: newWidth });
+    });
+  };
+
+  const handleDelete = () => {
+    queueMicrotask(() => {
+      deleteNode();
+    });
+  };
+
   return (
     <NodeViewWrapper as="span" className="image-node" data-selected={active ? "true" : undefined}>
       <span className="image-node-inner">
@@ -116,7 +129,7 @@ function ImageNodeView({ node, updateAttributes, deleteNode, selected, editor }:
               title="Remove image"
               aria-label="Remove image"
               onMouseDown={(e) => e.preventDefault()}
-              onClick={() => deleteNode()}
+              onClick={handleDelete}
             >
               ×
             </button>
@@ -127,7 +140,7 @@ function ImageNodeView({ node, updateAttributes, deleteNode, selected, editor }:
                   className={`image-resize-btn${(p.width ?? null) === width ? " active" : ""}`}
                   // Keep focus in the editor so the node stays selected.
                   onMouseDown={(e) => e.preventDefault()}
-                  onClick={() => updateAttributes({ width: p.width })}
+                  onClick={() => handleResize(p.width)}
                 >
                   {p.label}
                 </button>
