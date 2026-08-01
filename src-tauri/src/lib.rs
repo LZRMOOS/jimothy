@@ -113,11 +113,13 @@ fn register_shortcuts_with(app: &tauri::AppHandle, settings: &serde_json::Value)
         if let Some(s) = s {
             if let Ok(parsed) = s.parse::<Shortcut>() {
                 let h = app.clone();
-                let _ = gs.on_shortcut(parsed, move |_app, _shortcut, event| {
+                if let Err(e) = gs.on_shortcut(parsed, move |_app, _shortcut, event| {
                     if event.state == ShortcutState::Pressed {
                         toggle_window(&h, "main");
                     }
-                });
+                }) {
+                    eprintln!("Failed to register global shortcut '{}': {}", s, e);
+                }
             }
         }
     }
@@ -126,11 +128,13 @@ fn register_shortcuts_with(app: &tauri::AppHandle, settings: &serde_json::Value)
         if let Some(s) = s {
             if let Ok(parsed) = s.parse::<Shortcut>() {
                 let h = app.clone();
-                let _ = gs.on_shortcut(parsed, move |_app, _shortcut, event| {
+                if let Err(e) = gs.on_shortcut(parsed, move |_app, _shortcut, event| {
                     if event.state == ShortcutState::Pressed {
                         toggle_scratchpad(&h);
                     }
-                });
+                }) {
+                    eprintln!("Failed to register capture shortcut '{}': {}", s, e);
+                }
             }
         }
     }
@@ -422,10 +426,17 @@ pub fn run() {
             // shown, otherwise the app would launch with no window AND no tray
             // (recoverable only via the global shortcut). If the tray is off we
             // always show, regardless of launchMinimized.
-            // Windows: disable decorations to enable custom title bar
-            #[cfg(target_os = "windows")]
-            {
-                if let Some(window) = app.get_webview_window("main") {
+            //
+            // Platform-specific window setup: macOS uses overlay title bar,
+            // Windows uses custom title bar with decorations disabled.
+            if let Some(window) = app.get_webview_window("main") {
+                #[cfg(target_os = "macos")]
+                {
+                    let _ = window.set_title_bar_style(tauri::TitleBarStyle::Overlay);
+                    let _ = window.set_hidden_title(true);
+                }
+                #[cfg(target_os = "windows")]
+                {
                     let _ = window.set_decorations(false);
                 }
             }

@@ -1329,15 +1329,21 @@ pub fn save_tasks(content: String, state: State<'_, AppState>) -> Result<(), Str
 
 #[tauri::command]
 pub fn open_folder(path: String) -> Result<(), String> {
-    // `open` treats its argument as a URL on macOS, so a non-directory string
-    // (e.g. an `https://` URL smuggled in via a compromised webview) could
-    // make it open something other than a local folder. Only ever hand it a
-    // path that resolves to a real directory on disk.
+    // Only open paths that resolve to real directories on disk to prevent
+    // opening arbitrary URLs or files.
     let dir = Path::new(&path);
     if !dir.is_dir() {
         return Err("Not a directory".to_string());
     }
-    std::process::Command::new("open")
+
+    #[cfg(target_os = "macos")]
+    let command = "open";
+    #[cfg(target_os = "windows")]
+    let command = "explorer";
+    #[cfg(target_os = "linux")]
+    let command = "xdg-open";
+
+    std::process::Command::new(command)
         .arg(dir)
         .spawn()
         .map_err(|e| e.to_string())?;

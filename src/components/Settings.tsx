@@ -687,7 +687,9 @@ function ShortcutRecorder({ value, onChange, command = "update_global_shortcut",
   const [recording, setRecording] = useState(false);
   const [previous, setPrevious] = useState<string | null>(null);
   const [showUndo, setShowUndo] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const undoTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const errorTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const handleKeyDown = useCallback((e: KeyboardEvent) => {
     e.preventDefault();
@@ -717,13 +719,18 @@ function ShortcutRecorder({ value, onChange, command = "update_global_shortcut",
     setRecording(false);
     setPrevious(value);
     setShowUndo(true);
+    setError(null);
     if (undoTimer.current) clearTimeout(undoTimer.current);
+    if (errorTimer.current) clearTimeout(errorTimer.current);
     undoTimer.current = setTimeout(() => setShowUndo(false), 4000);
     invoke(command, { shortcut: shortcutStr, ...commandArgs }).then(() => {
       onChange(shortcutStr);
-    }).catch(() => {
+    }).catch((err) => {
       setPrevious(null);
       setShowUndo(false);
+      const errorMsg = typeof err === 'string' ? err : 'Failed to register shortcut';
+      setError(errorMsg);
+      errorTimer.current = setTimeout(() => setError(null), 4000);
     });
   }, [value, onChange, command, commandArgs]);
 
@@ -761,12 +768,13 @@ function ShortcutRecorder({ value, onChange, command = "update_global_shortcut",
   return (
     <div className="shortcut-recorder">
       <button
-        className={`shortcut-recorder-btn${recording ? " recording" : ""}${!value && placeholder ? " placeholder" : ""}`}
+        className={`shortcut-recorder-btn${recording ? " recording" : ""}${!value && placeholder ? " placeholder" : ""}${error ? " error" : ""}`}
         onClick={() => setRecording(true)}
+        title={error || undefined}
       >
-        {recording ? "Press shortcut..." : displayText}
+        {recording ? "Press shortcut..." : (error || displayText)}
       </button>
-      {value && placeholder !== undefined && !recording && !showUndo && (
+      {value && placeholder !== undefined && !recording && !showUndo && !error && (
         <button className="shortcut-clear" onClick={handleClear} title="Clear shortcut">&times;</button>
       )}
       {showUndo && (
@@ -2116,7 +2124,10 @@ export function Settings({
                         </div>
                       </div>
                     ))}
-                    <p className="settings-hint">Click a shortcut to change it. Scratchpad opens a floating notepad from any app. F-keys work as single-key shortcuts.</p>
+                    <p className="settings-hint">
+                      Click a shortcut to change it. Scratchpad opens a floating notepad from any app. F-keys work as single-key shortcuts.
+                      {!isMac && <><br /><strong>Note:</strong> Some function keys (F5, F6, etc.) may be reserved by the system on Windows. If a shortcut fails to register, try a different key combination.</>}
+                    </p>
                     <h3>Search</h3>
                 <div className="settings-row">
                   <label>Find in note</label>
@@ -2389,9 +2400,9 @@ export function Settings({
                       className="btn secondary btn-sm"
                       onClick={handleOpenFolder}
                       disabled={!notesFolder}
-                      title="Open the active vault in Finder"
+                      title={`Open the active vault in ${isMac ? "Finder" : "Explorer"}`}
                     >
-                      Open in Finder
+                      Open in {isMac ? "Finder" : "Explorer"}
                     </button>
                     <button className="btn secondary btn-sm" onClick={onReloadNotes} title="Re-reads all notes from disk and rebuilds the search index">
                       Rebuild Index

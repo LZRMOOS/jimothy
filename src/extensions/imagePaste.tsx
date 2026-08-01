@@ -20,18 +20,29 @@ function resolveImageSrc(src: string, notesFolder: string | null): string {
   if (src.startsWith("http://") || src.startsWith("https://")) {
     return src;
   }
-  if (src.startsWith(".scratch/") && notesFolder) {
-    return convertFileSrc(`${notesFolder}/${src}`);
+
+  // Normalize paths: convert backslashes to forward slashes for cross-platform
+  // compatibility. Markdown stores paths with forward slashes, but Windows paths
+  // may use backslashes.
+  const normalizedSrc = src.replace(/\\/g, "/");
+  const normalizedFolder = notesFolder ? notesFolder.replace(/\\/g, "/") : null;
+
+  if (normalizedSrc.startsWith(".scratch/") && normalizedFolder) {
+    return convertFileSrc(`${notesFolder}/${normalizedSrc}`);
   }
   // An absolute path only renders as an image when it's inside the active
   // notes folder — note bodies are synced/shared content, so resolving any
   // absolute path on disk would let a note leak arbitrary local files as an
   // inline image.
-  if (src.startsWith("/")) {
-    return notesFolder && src.startsWith(`${notesFolder}/`) ? convertFileSrc(src) : "";
+  if (normalizedSrc.startsWith("/") || /^[a-zA-Z]:/.test(normalizedSrc)) {
+    // Windows absolute paths start with drive letter (C:), Unix paths start with /
+    if (normalizedFolder && normalizedSrc.startsWith(normalizedFolder + "/")) {
+      return convertFileSrc(src);
+    }
+    return "";
   }
   if (notesFolder) {
-    return convertFileSrc(`${notesFolder}/${src}`);
+    return convertFileSrc(`${notesFolder}/${normalizedSrc}`);
   }
   return src;
 }

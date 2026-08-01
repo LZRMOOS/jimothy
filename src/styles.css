@@ -3026,6 +3026,12 @@ img.emoji {
   animation: pulse-glow 1.5s ease-in-out infinite;
 }
 
+.shortcut-recorder-btn.error {
+  border-color: #ef4444;
+  background: #fef2f2;
+  color: #dc2626;
+}
+
 @keyframes pulse-glow {
   0%, 100% { box-shadow: 0 0 0 2px var(--accent-subtle); }
   50% { box-shadow: 0 0 0 4px var(--accent-subtle); }
