@@ -433,11 +433,11 @@ pub fn run() {
                 #[cfg(target_os = "macos")]
                 {
                     let _ = window.set_title_bar_style(tauri::TitleBarStyle::Overlay);
-                    let _ = window.set_hidden_title(true);
                 }
                 #[cfg(target_os = "windows")]
                 {
                     let _ = window.set_decorations(false);
+                    let _ = window.set_hidden_title(true);
                 }
             }
 
