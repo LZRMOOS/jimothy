@@ -1920,12 +1920,14 @@ mod tests {
     }
 }
 
-#[tauri::command]
-pub fn open_devtools(app: AppHandle) -> Result<(), String> {
-    use tauri::Manager;
-    if let Some(window) = app.get_webview_window("main") {
-        window.open_devtools();
-        return Ok(());
-    }
-    Err("Main window not found".into())
-}
+// DevTools API was removed in Tauri 2.x
+// Re-enable when/if a devtools plugin becomes available
+// #[tauri::command]
+// pub fn open_devtools(app: AppHandle) -> Result<(), String> {
+//     use tauri::Manager;
+//     if let Some(window) = app.get_webview_window("main") {
+//         window.open_devtools();
+//         return Ok(());
+//     }
+//     Err("Main window not found".into())
+// }
