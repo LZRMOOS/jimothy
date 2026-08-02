@@ -16,22 +16,9 @@ permissions:
   contents: write
 
 jobs:
-  build-debug:
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - os: macos-latest
-            target: universal-apple-darwin
-            label: macOS-Universal
-            enabled: ${{ github.event.inputs.platform == 'macos' || github.event.inputs.platform == 'both' }}
-          - os: windows-latest
-            target: x86_64-pc-windows-msvc
-            label: Windows-x64
-            enabled: ${{ github.event.inputs.platform == 'windows' || github.event.inputs.platform == 'both' }}
-
-    runs-on: ${{ matrix.os }}
-    if: ${{ matrix.enabled }}
+  build-windows:
+    runs-on: windows-latest
+    if: ${{ github.event.inputs.platform == 'windows' || github.event.inputs.platform == 'both' }}
     steps:
       - uses: actions/checkout@v4
 
@@ -42,7 +29,7 @@ jobs:
 
       - uses: dtolnay/rust-toolchain@stable
         with:
-          targets: ${{ matrix.os == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || matrix.target }}
+          targets: x86_64-pc-windows-msvc
 
       - uses: Swatinem/rust-cache@v2
         with:
@@ -55,16 +42,52 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          args: --target ${{ matrix.target }} --debug
+          args: --target x86_64-pc-windows-msvc --debug
           releaseId: 0
 
       - name: Upload Debug Artifact
         uses: actions/upload-artifact@v4
         with:
-          name: jimothy-debug-${{ matrix.label }}
+          name: jimothy-debug-Windows-x64
           path: |
             src-tauri/target/debug/bundle/**/*.exe
             src-tauri/target/debug/bundle/**/*.msi
+          retention-days: 7
+
+  build-macos:
+    runs-on: macos-latest
+    if: ${{ github.event.inputs.platform == 'macos' || github.event.inputs.platform == 'both' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: aarch64-apple-darwin,x86_64-apple-darwin
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - run: npm ci
+
+      - name: Build Debug Tauri app
+        uses: tauri-apps/tauri-action@dev
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          args: --target universal-apple-darwin --debug
+          releaseId: 0
+
+      - name: Upload Debug Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: jimothy-debug-macOS-Universal
+          path: |
             src-tauri/target/debug/bundle/**/*.dmg
             src-tauri/target/debug/bundle/**/*.app.tar.gz
           retention-days: 7
