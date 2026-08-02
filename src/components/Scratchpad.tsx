@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { mod } from "../utils/platform";
 
@@ -36,6 +37,15 @@ export function Scratchpad() {
     };
     window.addEventListener("focus", handleFocus);
     return () => window.removeEventListener("focus", handleFocus);
+  }, [loadEntries]);
+
+  useEffect(() => {
+    const unlisten = listen("scratchpad-changed", () => {
+      loadEntries();
+    });
+    return () => {
+      unlisten.then((fn) => fn());
+    };
   }, [loadEntries]);
 
   const handleSubmit = async () => {

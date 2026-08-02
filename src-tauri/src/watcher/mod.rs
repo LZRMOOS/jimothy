@@ -39,6 +39,13 @@ impl FileWatcher {
                         if has_tasks_file {
                             tasks_debounce = Some(std::time::Instant::now());
                         }
+                        let has_scratchpad_file = event.paths.iter().any(|p| {
+                            p.file_name().map(|n| n == "scratchpad.json").unwrap_or(false)
+                                && p.parent().map(|d| d.file_name().map(|n| n == ".scratch").unwrap_or(false)).unwrap_or(false)
+                        });
+                        if has_scratchpad_file {
+                            let _ = handle.emit("scratchpad-changed", ());
+                        }
                         let dominated_by_scratch = event.paths.iter().all(|p| {
                             let s = p.to_string_lossy();
                             s.contains(".scratch") || s.contains(".scratch-tmp")
@@ -110,7 +117,7 @@ impl FileWatcher {
                     let _ = tx.send(event);
                 }
             },
-            Config::default().with_poll_interval(Duration::from_secs(2)),
+            Config::default().with_poll_interval(Duration::from_millis(500)),
         )
         .map_err(|e| format!("Failed to create watcher: {}", e))?;
 

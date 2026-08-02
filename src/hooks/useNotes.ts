@@ -91,8 +91,10 @@ export function useNotes() {
 
   useEffect(() => {
     const unlisten = listen("notes-changed", () => {
-      const elapsed = Date.now() - lastSaveRef.current;
-      if (elapsed < 2000) return;
+      // Reload all notes from disk. The editor's reconcile logic (in Editor.tsx)
+      // will preserve the user's buffer if they're actively typing, so we don't
+      // need to gate the reload here. This ensures changes from other devices
+      // are always picked up, even if they arrive shortly after a local save.
       loadNotes();
     });
     return () => {
@@ -127,6 +129,8 @@ export function useNotes() {
         lastSaveRef.current = Date.now();
         // Our write is now the base for the next edit.
         baseVersionRef.current[id] = updated.updated_at;
+        // Also update the in-memory note so we match the disk state exactly.
+        // This prevents the reconcile from seeing a false mismatch on the next reload.
         setNotes((prev) => {
           const newList = prev.map((n) => {
             if (n.id !== id) return n;
