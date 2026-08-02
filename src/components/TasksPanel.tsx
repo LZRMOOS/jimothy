@@ -416,11 +416,18 @@ export function TasksPanel({ notes, dictionary = [], onNavigateNote }: Props) {
   const persistDoc = useCallback(
     (newDoc: TaskDoc) => {
       const body = serializeTaskDoc(newDoc);
+      const prevBody = taskBody;
       setTaskBody(body);
       lastSaveRef.current = Date.now();
-      invoke("save_tasks", { content: body }).catch(() => {});
+      invoke("save_tasks", { content: body }).catch((err) => {
+        console.error("Failed to save tasks:", err);
+        // Revert optimistic update on failure
+        setTaskBody(prevBody);
+        lastSaveRef.current = 0;
+        alert(`Failed to save task changes: ${err}`);
+      });
     },
-    []
+    [taskBody]
   );
 
   const toggleDone = useCallback(

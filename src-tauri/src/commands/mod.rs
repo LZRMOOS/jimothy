@@ -1320,11 +1320,24 @@ pub fn save_tasks(content: String, state: State<'_, AppState>) -> Result<(), Str
     let dest = tasks_path(&folder);
     let temp = scratch_dir.join(".tmp-tasks.md");
     std::fs::write(&temp, &content).map_err(|e| e.to_string())?;
-    std::fs::rename(&temp, &dest).map_err(|e| {
-        let _ = std::fs::remove_file(&temp);
-        e.to_string()
-    })?;
-    Ok(())
+
+    // Retry rename on Windows to handle file locking by antivirus/indexing
+    let mut attempts = 0;
+    let max_attempts = 5;
+    loop {
+        match std::fs::rename(&temp, &dest) {
+            Ok(_) => break Ok(()),
+            Err(e) => {
+                attempts += 1;
+                if attempts >= max_attempts {
+                    let _ = std::fs::remove_file(&temp);
+                    break Err(format!("Failed to save after {} attempts: {}", max_attempts, e));
+                }
+                // Exponential backoff: 10ms, 20ms, 40ms, 80ms
+                std::thread::sleep(std::time::Duration::from_millis(10 * (1 << (attempts - 1))));
+            }
+        }
+    }
 }
 
 #[tauri::command]
