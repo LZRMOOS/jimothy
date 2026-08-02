@@ -577,13 +577,17 @@ export function TasksPanel({ notes, dictionary = [], onNavigateNote }: Props) {
   );
 
   const handleDragStart = useCallback((e: React.DragEvent, cid: string) => {
-    console.log("[TasksPanel] handleDragStart:", cid);
+    console.log("[TasksPanel] handleDragStart:", cid, "target:", e.target, "currentTarget:", e.currentTarget);
     e.dataTransfer.effectAllowed = "move";
     e.dataTransfer.setData("text/plain", cid);
+    // Try setting multiple data types for Windows compatibility
+    e.dataTransfer.setData("text", cid);
+    e.dataTransfer.setData("application/x-task-id", cid);
     requestAnimationFrame(() => setDragCid(cid));
   }, []);
 
   const handleDragOver = useCallback((e: React.DragEvent, cid: string) => {
+    console.log("[TasksPanel] handleDragOver:", cid);
     e.preventDefault();
     e.dataTransfer.dropEffect = "move";
     const rect = e.currentTarget.getBoundingClientRect();
@@ -599,10 +603,14 @@ export function TasksPanel({ notes, dictionary = [], onNavigateNote }: Props) {
 
   const handleDrop = useCallback(
     (e: React.DragEvent, toCid: string, sectionDate: string) => {
-      console.log("[TasksPanel] handleDrop:", { toCid, sectionDate });
+      console.log("[TasksPanel] handleDrop:", { toCid, sectionDate, types: e.dataTransfer.types });
       e.preventDefault();
-      const fromCid = e.dataTransfer.getData("text/plain");
-      console.log("[TasksPanel] handleDrop fromCid:", fromCid);
+      e.stopPropagation();
+      // Try multiple data types for Windows compatibility
+      let fromCid = e.dataTransfer.getData("text/plain") ||
+                    e.dataTransfer.getData("text") ||
+                    e.dataTransfer.getData("application/x-task-id");
+      console.log("[TasksPanel] handleDrop fromCid:", fromCid, "dropTarget:", dropTarget);
       if (!fromCid || fromCid === toCid) {
         console.log("[TasksPanel] handleDrop aborted - invalid cids");
         setDragCid(null);
@@ -621,6 +629,7 @@ export function TasksPanel({ notes, dictionary = [], onNavigateNote }: Props) {
   );
 
   const handleDragEnd = useCallback(() => {
+    console.log("[TasksPanel] handleDragEnd");
     setDragCid(null);
     setDropTarget(null);
     setDropSectionDate(null);
@@ -639,9 +648,13 @@ export function TasksPanel({ notes, dictionary = [], onNavigateNote }: Props) {
 
   const handleSectionDrop = useCallback(
     (e: React.DragEvent, sectionDate: string) => {
-      console.log("[TasksPanel] handleSectionDrop:", sectionDate);
+      console.log("[TasksPanel] handleSectionDrop:", sectionDate, "types:", e.dataTransfer.types);
       e.preventDefault();
-      const fromCid = e.dataTransfer.getData("text/plain");
+      e.stopPropagation();
+      // Try multiple data types for Windows compatibility
+      let fromCid = e.dataTransfer.getData("text/plain") ||
+                    e.dataTransfer.getData("text") ||
+                    e.dataTransfer.getData("application/x-task-id");
       console.log("[TasksPanel] handleSectionDrop fromCid:", fromCid);
       if (!fromCid) {
         console.log("[TasksPanel] handleSectionDrop aborted - no fromCid");
