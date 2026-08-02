@@ -38,7 +38,8 @@ jobs:
       - run: npm ci
 
       - name: Build Debug Tauri app
-        run: npm run tauri build -- --target x86_64-pc-windows-msvc --debug || exit 0
+        run: npm run tauri build -- --target x86_64-pc-windows-msvc --debug
+        continue-on-error: true
 
       - name: Upload Debug Artifact
         if: always()
@@ -72,7 +73,8 @@ jobs:
       - run: npm ci
 
       - name: Build Debug Tauri app
-        run: npm run tauri build -- --target universal-apple-darwin --debug || exit 0
+        run: npm run tauri build -- --target universal-apple-darwin --debug
+        continue-on-error: true
 
       - name: Upload Debug Artifact
         if: always()
