@@ -589,6 +589,7 @@ export function TasksPanel({ notes, dictionary = [], onNavigateNote }: Props) {
   const handleDragOver = useCallback((e: React.DragEvent, cid: string) => {
     console.log("[TasksPanel] handleDragOver:", cid);
     e.preventDefault();
+    e.stopPropagation();
     e.dataTransfer.dropEffect = "move";
     const rect = e.currentTarget.getBoundingClientRect();
     const midY = rect.top + rect.height / 2;
@@ -635,8 +636,15 @@ export function TasksPanel({ notes, dictionary = [], onNavigateNote }: Props) {
     setDropSectionDate(null);
   }, []);
 
+  const handleDragEnter = useCallback((e: React.DragEvent) => {
+    console.log("[TasksPanel] handleDragEnter");
+    e.preventDefault();
+    e.stopPropagation();
+  }, []);
+
   const handleSectionDragOver = useCallback((e: React.DragEvent, date: string) => {
     e.preventDefault();
+    e.stopPropagation();
     e.dataTransfer.dropEffect = "move";
     setDropSectionDate(date);
     setDropTarget(null);
@@ -1237,6 +1245,7 @@ export function TasksPanel({ notes, dictionary = [], onNavigateNote }: Props) {
                                 isDragging={false}
                                 dropIndicator={null}
                                 onDragStart={() => {}}
+                                onDragEnter={() => {}}
                                 onDragOver={() => {}}
                                 onDragLeave={() => {}}
                                 onDrop={() => {}}
@@ -1270,6 +1279,7 @@ export function TasksPanel({ notes, dictionary = [], onNavigateNote }: Props) {
                     isDragging={false}
                     dropIndicator={null}
                     onDragStart={() => {}}
+                    onDragEnter={() => {}}
                     onDragOver={() => {}}
                     onDragLeave={() => {}}
                     onDrop={() => {}}
@@ -1294,6 +1304,7 @@ export function TasksPanel({ notes, dictionary = [], onNavigateNote }: Props) {
             <div key={section.date} className="tasks-section" ref={(el) => { if (el) sectionRefs.current.set(section.date, el); }}>
               <div
                 className={`tasks-section-header ${dropSectionDate === section.date ? "tasks-section-header-drop" : ""} ${focusedDay === section.date && tab === "active" ? "tasks-section-header-focus" : ""}`}
+                onDragEnter={handleDragEnter}
                 onDragOver={(e) => handleSectionDragOver(e, section.date)}
                 onDragLeave={handleSectionDragLeave}
                 onDrop={(e) => handleSectionDrop(e, section.date)}
@@ -1316,6 +1327,7 @@ export function TasksPanel({ notes, dictionary = [], onNavigateNote }: Props) {
                   isDragging={dragCid === task.cid}
                   dropIndicator={dropTarget?.cid === task.cid ? dropTarget.position : null}
                   onDragStart={(e) => handleDragStart(e, task.cid)}
+                  onDragEnter={handleDragEnter}
                   onDragOver={(e) => handleDragOver(e, task.cid)}
                   onDragLeave={handleDragLeave}
                   onDrop={(e) => handleDrop(e, task.cid, section.date)}
@@ -1347,6 +1359,7 @@ function TaskRow({
   isDragging,
   dropIndicator,
   onDragStart,
+  onDragEnter,
   onDragOver,
   onDragLeave,
   onDrop,
@@ -1362,6 +1375,7 @@ function TaskRow({
   isDragging: boolean;
   dropIndicator: "before" | "after" | null;
   onDragStart: (e: React.DragEvent) => void;
+  onDragEnter: (e: React.DragEvent) => void;
   onDragOver: (e: React.DragEvent) => void;
   onDragLeave: () => void;
   onDrop: (e: React.DragEvent) => void;
@@ -1374,6 +1388,7 @@ function TaskRow({
       className={`task-row ${task.done ? "task-done" : ""} ${compact ? "task-done-compact" : ""} ${isDragging ? "task-dragging" : ""} ${dropIndicator ? `task-drop-${dropIndicator}` : ""}`}
       draggable
       onDragStart={onDragStart}
+      onDragEnter={onDragEnter}
       onDragOver={onDragOver}
       onDragLeave={onDragLeave}
       onDrop={onDrop}
