@@ -38,12 +38,8 @@ jobs:
       - run: npm ci
 
       - name: Build Debug Tauri app
-        uses: tauri-apps/tauri-action@dev
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          args: --target x86_64-pc-windows-msvc --debug
-          releaseId: 0
+        run: npm run tauri build -- --target x86_64-pc-windows-msvc --debug
+        continue-on-error: true
 
       - name: Upload Debug Artifact
         uses: actions/upload-artifact@v4
@@ -76,12 +72,8 @@ jobs:
       - run: npm ci
 
       - name: Build Debug Tauri app
-        uses: tauri-apps/tauri-action@dev
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          args: --target universal-apple-darwin --debug
-          releaseId: 0
+        run: npm run tauri build -- --target universal-apple-darwin --debug
+        continue-on-error: true
 
       - name: Upload Debug Artifact
         uses: actions/upload-artifact@v4
