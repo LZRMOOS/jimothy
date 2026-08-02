@@ -415,17 +415,24 @@ export function TasksPanel({ notes, dictionary = [], onNavigateNote }: Props) {
 
   const persistDoc = useCallback(
     (newDoc: TaskDoc) => {
+      console.log("[TasksPanel] persistDoc called, serializing doc with", newDoc.length, "items");
       const body = serializeTaskDoc(newDoc);
+      console.log("[TasksPanel] persistDoc serialized body length:", body.length, "chars");
       const prevBody = taskBody;
       setTaskBody(body);
       lastSaveRef.current = Date.now();
-      invoke("save_tasks", { content: body }).catch((err) => {
-        console.error("Failed to save tasks:", err);
-        // Revert optimistic update on failure
-        setTaskBody(prevBody);
-        lastSaveRef.current = 0;
-        alert(`Failed to save task changes: ${err}`);
-      });
+      console.log("[TasksPanel] persistDoc calling save_tasks command");
+      invoke("save_tasks", { content: body })
+        .then(() => {
+          console.log("[TasksPanel] persistDoc save_tasks succeeded");
+        })
+        .catch((err) => {
+          console.error("[TasksPanel] persistDoc save_tasks failed:", err);
+          // Revert optimistic update on failure
+          setTaskBody(prevBody);
+          lastSaveRef.current = 0;
+          alert(`Failed to save task changes: ${err}`);
+        });
     },
     [taskBody]
   );
@@ -486,6 +493,7 @@ export function TasksPanel({ notes, dictionary = [], onNavigateNote }: Props) {
 
   const reorderTask = useCallback(
     (fromCid: string, toCid: string, position: "before" | "after", targetDate: string | null) => {
+      console.log("[TasksPanel] reorderTask called:", { fromCid, toCid, position, targetDate });
       let idx = 0;
       let fromIdx = -1;
       let toIdx = -1;
@@ -496,20 +504,34 @@ export function TasksPanel({ notes, dictionary = [], onNavigateNote }: Props) {
           if (cid === toCid) toIdx = i;
         }
       }
-      if (fromIdx === -1 || toIdx === -1 || fromIdx === toIdx) return;
+      console.log("[TasksPanel] reorderTask indices:", { fromIdx, toIdx });
+      if (fromIdx === -1 || toIdx === -1 || fromIdx === toIdx) {
+        console.log("[TasksPanel] reorderTask aborted - invalid indices");
+        return;
+      }
 
       const item = doc[fromIdx];
-      if (item.kind !== "task") return;
+      if (item.kind !== "task") {
+        console.log("[TasksPanel] reorderTask aborted - item is not a task");
+        return;
+      }
 
       const updatedItem = targetDate
         ? { kind: "task" as const, task: { ...item.task, date: targetDate === today ? null : targetDate } }
         : item;
+
+      console.log("[TasksPanel] reorderTask updating task:", {
+        oldDate: item.task.date,
+        newDate: updatedItem.task.date,
+        text: item.task.text
+      });
 
       const newDoc = [...doc];
       newDoc.splice(fromIdx, 1);
       const adjustedTo = toIdx > fromIdx ? toIdx - 1 : toIdx;
       const insertAt = position === "after" ? adjustedTo + 1 : adjustedTo;
       newDoc.splice(insertAt, 0, updatedItem);
+      console.log("[TasksPanel] reorderTask calling persistDoc");
       persistDoc(newDoc);
     },
     [doc, persistDoc, today]
@@ -517,6 +539,7 @@ export function TasksPanel({ notes, dictionary = [], onNavigateNote }: Props) {
 
   const moveToSection = useCallback(
     (fromCid: string, sectionDate: string) => {
+      console.log("[TasksPanel] moveToSection called:", { fromCid, sectionDate });
       let idx = 0;
       let fromIdx = -1;
       for (let i = 0; i < doc.length; i++) {
@@ -524,22 +547,37 @@ export function TasksPanel({ notes, dictionary = [], onNavigateNote }: Props) {
           if (`t${idx++}` === fromCid) { fromIdx = i; break; }
         }
       }
-      if (fromIdx === -1) return;
+      console.log("[TasksPanel] moveToSection fromIdx:", fromIdx);
+      if (fromIdx === -1) {
+        console.log("[TasksPanel] moveToSection aborted - task not found");
+        return;
+      }
       const item = doc[fromIdx];
-      if (item.kind !== "task") return;
+      if (item.kind !== "task") {
+        console.log("[TasksPanel] moveToSection aborted - item is not a task");
+        return;
+      }
 
       const newDate = sectionDate === today ? null : sectionDate;
       const updatedItem = { kind: "task" as const, task: { ...item.task, date: newDate } };
 
+      console.log("[TasksPanel] moveToSection updating task:", {
+        text: item.task.text,
+        oldDate: item.task.date,
+        newDate: updatedItem.task.date
+      });
+
       const newDoc = [...doc];
       newDoc.splice(fromIdx, 1);
       newDoc.push(updatedItem);
+      console.log("[TasksPanel] moveToSection calling persistDoc");
       persistDoc(newDoc);
     },
     [doc, today, persistDoc]
   );
 
   const handleDragStart = useCallback((e: React.DragEvent, cid: string) => {
+    console.log("[TasksPanel] handleDragStart:", cid);
     e.dataTransfer.effectAllowed = "move";
     e.dataTransfer.setData("text/plain", cid);
     requestAnimationFrame(() => setDragCid(cid));
@@ -561,15 +599,19 @@ export function TasksPanel({ notes, dictionary = [], onNavigateNote }: Props) {
 
   const handleDrop = useCallback(
     (e: React.DragEvent, toCid: string, sectionDate: string) => {
+      console.log("[TasksPanel] handleDrop:", { toCid, sectionDate });
       e.preventDefault();
       const fromCid = e.dataTransfer.getData("text/plain");
+      console.log("[TasksPanel] handleDrop fromCid:", fromCid);
       if (!fromCid || fromCid === toCid) {
+        console.log("[TasksPanel] handleDrop aborted - invalid cids");
         setDragCid(null);
         setDropTarget(null);
         setDropSectionDate(null);
         return;
       }
       const position = dropTarget?.cid === toCid ? dropTarget.position : "after";
+      console.log("[TasksPanel] handleDrop calling reorderTask with position:", position);
       reorderTask(fromCid, toCid, position, sectionDate);
       setDragCid(null);
       setDropTarget(null);
@@ -597,9 +639,17 @@ export function TasksPanel({ notes, dictionary = [], onNavigateNote }: Props) {
 
   const handleSectionDrop = useCallback(
     (e: React.DragEvent, sectionDate: string) => {
+      console.log("[TasksPanel] handleSectionDrop:", sectionDate);
       e.preventDefault();
       const fromCid = e.dataTransfer.getData("text/plain");
-      if (!fromCid) { setDragCid(null); setDropSectionDate(null); return; }
+      console.log("[TasksPanel] handleSectionDrop fromCid:", fromCid);
+      if (!fromCid) {
+        console.log("[TasksPanel] handleSectionDrop aborted - no fromCid");
+        setDragCid(null);
+        setDropSectionDate(null);
+        return;
+      }
+      console.log("[TasksPanel] handleSectionDrop calling moveToSection");
       moveToSection(fromCid, sectionDate);
       setDragCid(null);
       setDropSectionDate(null);
