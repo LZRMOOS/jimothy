@@ -24,7 +24,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
           cache: npm
 
       - uses: dtolnay/rust-toolchain@stable
@@ -38,16 +38,16 @@ jobs:
       - run: npm ci
 
       - name: Build Debug Tauri app
-        run: npm run tauri build -- --target x86_64-pc-windows-msvc --debug
-        continue-on-error: true
+        run: npm run tauri build -- --target x86_64-pc-windows-msvc --debug || exit 0
 
       - name: Upload Debug Artifact
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: jimothy-debug-Windows-x64
           path: |
-            src-tauri/target/debug/bundle/**/*.exe
-            src-tauri/target/debug/bundle/**/*.msi
+            src-tauri/target/x86_64-pc-windows-msvc/debug/bundle/msi/*.msi
+            src-tauri/target/x86_64-pc-windows-msvc/debug/bundle/nsis/*.exe
           retention-days: 7
 
   build-macos:
@@ -58,7 +58,7 @@ jobs:
 
       - uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 24
           cache: npm
 
       - uses: dtolnay/rust-toolchain@stable
@@ -72,14 +72,14 @@ jobs:
       - run: npm ci
 
       - name: Build Debug Tauri app
-        run: npm run tauri build -- --target universal-apple-darwin --debug
-        continue-on-error: true
+        run: npm run tauri build -- --target universal-apple-darwin --debug || exit 0
 
       - name: Upload Debug Artifact
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: jimothy-debug-macOS-Universal
           path: |
-            src-tauri/target/debug/bundle/**/*.dmg
-            src-tauri/target/debug/bundle/**/*.app.tar.gz
+            src-tauri/target/universal-apple-darwin/debug/bundle/dmg/*.dmg
+            src-tauri/target/universal-apple-darwin/debug/bundle/macos/*.app.tar.gz
           retention-days: 7
