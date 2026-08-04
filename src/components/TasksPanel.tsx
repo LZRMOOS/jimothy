@@ -88,8 +88,22 @@ export function TasksPanel({ notes, dictionary = [], onNavigateNote }: Props) {
     );
   }, [doc]);
 
-  const today = useMemo(() => ymd(new Date()), []);
+  const [today, setToday] = useState(() => ymd(new Date()));
   const [daysAhead, setDaysAhead] = useState(30);
+
+  // Update "today" when the day rolls over
+  useEffect(() => {
+    const checkMidnight = () => {
+      const newToday = ymd(new Date());
+      if (newToday !== today) {
+        setToday(newToday);
+      }
+    };
+
+    // Check every minute
+    const interval = setInterval(checkMidnight, 60000);
+    return () => clearInterval(interval);
+  }, [today]);
 
   const allGroups = useMemo(() => getGroups(allTasks, today), [allTasks, today]);
 

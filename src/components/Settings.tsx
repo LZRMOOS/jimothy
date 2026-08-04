@@ -1867,8 +1867,9 @@ export function Settings({
                             await disable();
                           }
                           setAutoStart(checked);
-                        } catch {
-                          // ignore if autostart setup fails
+                        } catch (err) {
+                          console.error("Autostart setup failed:", err);
+                          alert(`Failed to ${checked ? "enable" : "disable"} autostart: ${err}`);
                         }
                       }}
                     />

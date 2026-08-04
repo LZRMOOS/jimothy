@@ -2262,7 +2262,7 @@ dependencies = [
 
 [[package]]
 name = "jimothy"
-version = "0.8.2"
+version = "0.8.3"
 dependencies = [
  "argon2",
  "base64 0.22.1",
