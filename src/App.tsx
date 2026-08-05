@@ -506,9 +506,7 @@ function App() {
   useEffect(() => {
     const appWindow = getCurrentWindow();
     const unlisten = appWindow.onFocusChanged(({ payload: focused }) => {
-      if (focused && vaultStatus !== "locked") {
-        searchInputRef.current?.focus();
-      } else if (!focused) {
+      if (!focused) {
         // Window lost focus (hidden/backgrounded): commit pending edits so they
         // sync out while we're away, shrinking the multi-device collision window.
         flushSave();
@@ -517,7 +515,7 @@ function App() {
     return () => {
       unlisten.then((fn) => fn());
     };
-  }, [vaultStatus, flushSave]);
+  }, [flushSave]);
 
   useEventListener("create-new-note", () => {
     searchInputRef.current?.focus();
