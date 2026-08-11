@@ -722,26 +722,31 @@ export function TasksPanel({ notes, dictionary = [], onNavigateNote }: Props) {
     let closest: string | null = null;
     let closestDistance = Infinity;
 
-    for (const [date, el] of sectionRefs.current) {
-      const rect = el.getBoundingClientRect();
-      // Only consider sections that are visible
-      if (rect.bottom < listRect.top || rect.top > listRect.bottom) continue;
+    // When scrolled near the top, always pick the first visible section
+    if (list.scrollTop < 50 && sections.length > 0) {
+      setFocusedDay(sections[0].date);
+    } else {
+      for (const [date, el] of sectionRefs.current) {
+        const rect = el.getBoundingClientRect();
+        // Only consider sections that are visible
+        if (rect.bottom < listRect.top || rect.top > listRect.bottom) continue;
 
-      // Find the section whose header is closest to our focus point
-      const distance = Math.abs(rect.top - viewportMiddle);
-      if (distance < closestDistance) {
-        closestDistance = distance;
-        closest = date;
+        // Find the section whose header is closest to our focus point
+        const distance = Math.abs(rect.top - viewportMiddle);
+        if (distance < closestDistance) {
+          closestDistance = distance;
+          closest = date;
+        }
       }
-    }
 
-    if (closest) setFocusedDay(closest);
+      if (closest) setFocusedDay(closest);
+    }
 
     if (list.scrollTop + list.clientHeight >= list.scrollHeight - 200) {
       if (tab === "active" && !hideEmpty) setDaysAhead((prev) => prev + 30);
       else if (tab === "done") setDoneSectionsLimit((prev) => prev + 30);
     }
-  }, [tab, hideEmpty]);
+  }, [tab, hideEmpty, sections]);
 
   useEffect(() => {
     if (sections.length > 0 && !focusedDay) {
