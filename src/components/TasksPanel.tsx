@@ -409,23 +409,17 @@ export function TasksPanel({ notes, dictionary = [], onNavigateNote }: Props) {
   );
 
   const dismissDate = useCallback(() => {
-    const words = [schedDate?.phrase, schedTime?.phrase].filter(Boolean).join(" ");
     setSchedDate(null);
     setSchedTime(null);
-    setAddInput((d) => (words ? `${d}${words} ` : d));
-  }, [schedDate, schedTime]);
+  }, []);
 
   const dismissTime = useCallback(() => {
-    const w = schedTime?.phrase;
     setSchedTime(null);
-    setAddInput((d) => (w ? `${d}${w} ` : d));
-  }, [schedTime]);
+  }, []);
 
   const dismissRecurrence = useCallback(() => {
-    const w = schedRecurrence?.phrase;
     setSchedRecurrence(null);
-    setAddInput((d) => (w ? `${d}${w} ` : d));
-  }, [schedRecurrence]);
+  }, []);
 
   const persistDoc = useCallback(
     (newDoc: TaskDoc) => {

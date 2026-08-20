@@ -131,6 +131,20 @@ function matchDatePhrase(
     }
   }
 
+  const shortMD = w.match(/^(\d{1,2})[-/](\d{1,2})$/);
+  if (shortMD) {
+    const mo = Number(shortMD[1]);
+    const da = Number(shortMD[2]);
+    let year = now.getFullYear();
+    const candidate = new Date(year, mo - 1, da);
+    const todayMid = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+    if (candidate < todayMid) year += 1;
+    const d = new Date(year, mo - 1, da);
+    if (d.getMonth() + 1 === mo && d.getDate() === da) {
+      return { date: `${year}-${pad2(mo)}-${pad2(da)}`, consumed: 1 };
+    }
+  }
+
   return null;
 }
 
