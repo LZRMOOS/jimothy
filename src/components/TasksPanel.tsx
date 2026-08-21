@@ -59,6 +59,7 @@ export function TasksPanel({ notes, dictionary = [], onNavigateNote }: Props) {
   const [dragCid, setDragCid] = useState<string | null>(null);
   const [dropTarget, setDropTarget] = useState<{ cid: string; position: "before" | "after" } | null>(null);
   const [dropSectionDate, setDropSectionDate] = useState<string | null>(null);
+  const [dropGroupTarget, setDropGroupTarget] = useState<string | null>(null);
   const addInputRef = useRef<HTMLTextAreaElement>(null);
   const listRef = useRef<HTMLDivElement>(null);
   const sectionRefs = useRef<Map<string, HTMLDivElement>>(new Map());
@@ -645,6 +646,133 @@ export function TasksPanel({ notes, dictionary = [], onNavigateNote }: Props) {
     [moveToSection]
   );
 
+  // Tag manipulation helpers
+  const addTagToText = useCallback((text: string, tag: string): string => {
+    // Check if tag already exists (case-insensitive)
+    const existingTags = extractHashTags(text);
+    if (existingTags.includes(tag.toLowerCase())) {
+      return text; // Tag already exists, no change
+    }
+    // Append tag at the end
+    return text.trim() + ` #${tag}`;
+  }, []);
+
+  const removeAllTagsFromText = useCallback((text: string): string => {
+    // Remove all tags
+    return text.replace(/#[a-zA-Z0-9_-]+/g, '').trim();
+  }, []);
+
+  // Groups view drag-and-drop handlers
+  const handleGroupDragStart = useCallback((e: React.DragEvent, cid: string) => {
+    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("text/plain", cid);
+    e.dataTransfer.setData("text", cid);
+    e.dataTransfer.setData("application/x-task-id", cid);
+    requestAnimationFrame(() => setDragCid(cid));
+  }, []);
+
+  const handleGroupDragEnd = useCallback(() => {
+    setDragCid(null);
+    setDropGroupTarget(null);
+  }, []);
+
+  const handleGroupContainerDragOver = useCallback((e: React.DragEvent, groupId: string, isSmartGroup: boolean) => {
+    e.preventDefault();
+    e.stopPropagation();
+    // Don't allow dropping on smart groups since they're dynamic filters
+    if (isSmartGroup) {
+      e.dataTransfer.dropEffect = "none";
+      return;
+    }
+    e.dataTransfer.dropEffect = "move";
+    setDropGroupTarget(groupId);
+  }, []);
+
+  const handleGroupContainerDragLeave = useCallback(() => {
+    setDropGroupTarget(null);
+  }, []);
+
+  const handleGroupContainerDrop = useCallback(
+    (e: React.DragEvent, group: Group) => {
+      e.preventDefault();
+      e.stopPropagation();
+
+      // Don't allow dropping on smart groups since they're dynamic filters
+      if (group.type === "smart") {
+        setDragCid(null);
+        setDropGroupTarget(null);
+        return;
+      }
+
+      let fromCid = e.dataTransfer.getData("text/plain") ||
+                    e.dataTransfer.getData("text") ||
+                    e.dataTransfer.getData("application/x-task-id");
+
+      if (!fromCid) {
+        setDragCid(null);
+        setDropGroupTarget(null);
+        return;
+      }
+
+      const task = allTasks.find((t) => t.cid === fromCid);
+      if (!task) {
+        setDragCid(null);
+        setDropGroupTarget(null);
+        return;
+      }
+
+      let updatedText = task.text;
+
+      if (group.type === "tag") {
+        // Add the target group's tag
+        updatedText = addTagToText(updatedText, group.id);
+      }
+
+      if (updatedText !== task.text) {
+        editTask(fromCid, { text: updatedText });
+      }
+
+      setDragCid(null);
+      setDropGroupTarget(null);
+    },
+    [allTasks, addTagToText, editTask]
+  );
+
+  const handleUntaggedDrop = useCallback(
+    (e: React.DragEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+
+      let fromCid = e.dataTransfer.getData("text/plain") ||
+                    e.dataTransfer.getData("text") ||
+                    e.dataTransfer.getData("application/x-task-id");
+
+      if (!fromCid) {
+        setDragCid(null);
+        setDropGroupTarget(null);
+        return;
+      }
+
+      const task = allTasks.find((t) => t.cid === fromCid);
+      if (!task) {
+        setDragCid(null);
+        setDropGroupTarget(null);
+        return;
+      }
+
+      // Remove all tags from the task
+      const updatedText = removeAllTagsFromText(task.text);
+
+      if (updatedText !== task.text) {
+        editTask(fromCid, { text: updatedText });
+      }
+
+      setDragCid(null);
+      setDropGroupTarget(null);
+    },
+    [allTasks, removeAllTagsFromText, editTask]
+  );
+
   const handleSubmit = useCallback(async () => {
     const rawText = addInput.trim();
     if (!rawText && attachments.length === 0) return;
@@ -1185,8 +1313,15 @@ export function TasksPanel({ notes, dictionary = [], onNavigateNote }: Props) {
                     const isExpanded = expandedGroups.has(group.id);
                     const groupTasks = getTasksForGroup(allTasks, group, today);
                     const count = groupTasks.length;
+                    const isDropTarget = dropGroupTarget === group.id;
                     return (
-                      <div key={group.id} className="tasks-groups-item-container">
+                      <div
+                        key={group.id}
+                        className={`tasks-groups-item-container ${isDropTarget && group.type !== "smart" ? "tasks-groups-drop-target" : ""}`}
+                        onDragOver={(e) => handleGroupContainerDragOver(e, group.id, group.type === "smart")}
+                        onDragLeave={handleGroupContainerDragLeave}
+                        onDrop={(e) => handleGroupContainerDrop(e, group)}
+                      >
                         <button
                           className="tasks-groups-item"
                           onClick={() => toggleGroupExpanded(group.id)}
@@ -1214,14 +1349,14 @@ export function TasksPanel({ notes, dictionary = [], onNavigateNote }: Props) {
                                 onDelete={() => deleteTask(task.cid)}
                                 onEdit={() => openEditModal(task.cid)}
                                 onNavigateNote={onNavigateNote}
-                                isDragging={false}
+                                isDragging={dragCid === task.cid}
                                 dropIndicator={null}
-                                onDragStart={() => {}}
+                                onDragStart={(e) => handleGroupDragStart(e, task.cid)}
                                 onDragEnter={() => {}}
                                 onDragOver={() => {}}
                                 onDragLeave={() => {}}
                                 onDrop={() => {}}
-                                onDragEnd={() => {}}
+                                onDragEnd={handleGroupDragEnd}
                               />
                             ))}
                           </div>
@@ -1232,9 +1367,14 @@ export function TasksPanel({ notes, dictionary = [], onNavigateNote }: Props) {
                 )}
             </div>
 
-            {/* Untagged tasks section */}
-            {untaggedTasks.length > 0 && (
-              <div className="tasks-groups-untagged">
+            {/* Untagged tasks section - show when there are untagged tasks OR when dragging */}
+            {(untaggedTasks.length > 0 || dragCid) && (
+              <div
+                className={`tasks-groups-untagged ${dropGroupTarget === "untagged" ? "tasks-groups-drop-target" : ""}`}
+                onDragOver={(e) => handleGroupContainerDragOver(e, "untagged", false)}
+                onDragLeave={handleGroupContainerDragLeave}
+                onDrop={handleUntaggedDrop}
+              >
                 <div className="tasks-groups-untagged-header">
                   Untagged ({untaggedTasks.length})
                 </div>
@@ -1248,14 +1388,14 @@ export function TasksPanel({ notes, dictionary = [], onNavigateNote }: Props) {
                     onDelete={() => deleteTask(task.cid)}
                     onEdit={() => openEditModal(task.cid)}
                     onNavigateNote={onNavigateNote}
-                    isDragging={false}
+                    isDragging={dragCid === task.cid}
                     dropIndicator={null}
-                    onDragStart={() => {}}
+                    onDragStart={(e) => handleGroupDragStart(e, task.cid)}
                     onDragEnter={() => {}}
                     onDragOver={() => {}}
                     onDragLeave={() => {}}
                     onDrop={() => {}}
-                    onDragEnd={() => {}}
+                    onDragEnd={handleGroupDragEnd}
                   />
                 ))}
               </div>

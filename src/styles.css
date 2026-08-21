@@ -74,6 +74,47 @@
   box-sizing: border-box;
 }
 
+/* Global Scrollbar Styles */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(0, 0, 0, 0.2) transparent;
+}
+
+[data-theme="dark"] * {
+  scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
+}
+
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 5px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.3);
+  background-clip: padding-box;
+}
+
+[data-theme="dark"] ::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  background-clip: padding-box;
+}
+
+[data-theme="dark"] ::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
+  background-clip: padding-box;
+}
+
 /* Utility Classes */
 .card {
   background: var(--bg-primary);
@@ -824,19 +865,6 @@ body {
   flex: 1;
   overflow-y: auto;
   background: var(--bg-secondary);
-}
-
-.notes-list::-webkit-scrollbar {
-  width: 6px;
-}
-
-.notes-list::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.notes-list::-webkit-scrollbar-thumb {
-  background: var(--border-strong);
-  border-radius: 3px;
 }
 
 .notes-list-empty {
@@ -5775,6 +5803,13 @@ img.emoji {
 .tasks-groups-item-container {
   background: transparent;
   border-bottom: 1px solid var(--border);
+  transition: background var(--transition), border-color var(--transition);
+}
+
+.tasks-groups-item-container.tasks-groups-drop-target {
+  background: var(--accent-subtle);
+  border-color: var(--accent);
+  border-left: 3px solid var(--accent);
 }
 
 .tasks-groups-item {
@@ -5893,6 +5928,14 @@ img.emoji {
   margin-top: 16px;
   border-top: 1px solid var(--border);
   padding-top: 8px;
+  transition: background var(--transition), border-color var(--transition);
+}
+
+.tasks-groups-untagged.tasks-groups-drop-target {
+  background: var(--accent-subtle);
+  border-color: var(--accent);
+  border-left: 3px solid var(--accent);
+  padding-left: 0;
 }
 
 .tasks-groups-untagged-header {
