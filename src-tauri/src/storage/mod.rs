@@ -432,18 +432,35 @@ pub fn load_notes_deduped(folder: &Path) -> (Vec<Note>, Vec<PathBuf>) {
             if let Some(note) = notes::parse_note(&content, &path.to_string_lossy()) {
                 let note_id = note.id.clone();
                 if let Some(existing) = notes_by_id.get(&note_id) {
-                    // Duplicate detected - keep the one with more recent updated_at
-                    if note.updated_at > existing.updated_at {
-                        // Move the existing (older) one to conflicts
-                        let old_path = PathBuf::from(&existing.file_path);
-                        if let Ok(dest) = move_to_conflicts(folder, &old_path) {
-                            duplicates_moved.push(dest);
+                    // Duplicate detected - check if content differs
+                    let content_differs = existing.title != note.title
+                        || existing.body != note.body
+                        || existing.codex != note.codex;
+
+                    if content_differs {
+                        // Real conflict: keep the one with more recent updated_at
+                        if note.updated_at > existing.updated_at {
+                            // Move the existing (older) one to conflicts
+                            let old_path = PathBuf::from(&existing.file_path);
+                            if let Ok(dest) = move_to_conflicts(folder, &old_path) {
+                                duplicates_moved.push(dest);
+                            }
+                            notes_by_id.insert(note_id, note);
+                        } else {
+                            // Move the new (older) one to conflicts
+                            if let Ok(dest) = move_to_conflicts(folder, &path) {
+                                duplicates_moved.push(dest);
+                            }
                         }
-                        notes_by_id.insert(note_id, note);
                     } else {
-                        // Move the new (older) one to conflicts
-                        if let Ok(dest) = move_to_conflicts(folder, &path) {
-                            duplicates_moved.push(dest);
+                        // Same content, just different timestamps/files.
+                        // Keep the newer one and delete the older duplicate silently.
+                        if note.updated_at > existing.updated_at {
+                            let old_path = PathBuf::from(&existing.file_path);
+                            let _ = fs::remove_file(&old_path);
+                            notes_by_id.insert(note_id, note);
+                        } else {
+                            let _ = fs::remove_file(&path);
                         }
                     }
                 } else {
@@ -836,6 +853,53 @@ mod tests {
             .flatten()
             .collect();
         assert_eq!(conflict_entries.len(), 1);
+    }
+
+    #[test]
+    fn test_load_notes_deduped_auto_resolves_identical_content() {
+        let dir = tempfile::tempdir().unwrap();
+        ensure_quicknotes_dirs(dir.path()).unwrap();
+
+        let now = Utc::now();
+        let earlier = now - chrono::Duration::hours(1);
+
+        // Create two notes with the same ID and SAME content but different timestamps
+        let note1_content = format!(
+            "---\nid: SAMEID\ntitle: Same Title\ncreated_at: {}\nupdated_at: {}\nencrypted: false\n---\n\nSame body",
+            earlier.to_rfc3339(),
+            earlier.to_rfc3339()
+        );
+        let note2_content = format!(
+            "---\nid: SAMEID\ntitle: Same Title\ncreated_at: {}\nupdated_at: {}\nencrypted: false\n---\n\nSame body",
+            now.to_rfc3339(),
+            now.to_rfc3339()
+        );
+
+        fs::write(dir.path().join("note-old--SAMEID.md"), &note1_content).unwrap();
+        fs::write(dir.path().join("note-new--SAMEID.md"), &note2_content).unwrap();
+
+        let (notes, _dropbox) = load_notes_deduped(dir.path());
+        assert_eq!(notes.len(), 1);
+        assert_eq!(notes[0].title, "Same Title");
+        assert_eq!(notes[0].body, "Same body");
+
+        // The older file should be deleted silently, NOT moved to conflicts
+        let conflicts_dir = dir.path().join(".scratch").join("conflicts");
+        if conflicts_dir.exists() {
+            let conflict_entries: Vec<_> = fs::read_dir(&conflicts_dir)
+                .unwrap()
+                .flatten()
+                .collect();
+            assert_eq!(conflict_entries.len(), 0, "Identical content should not create conflict");
+        }
+
+        // One file should be deleted, one should remain
+        let remaining: Vec<_> = fs::read_dir(dir.path())
+            .unwrap()
+            .flatten()
+            .filter(|e| e.path().extension().and_then(|s| s.to_str()) == Some("md"))
+            .collect();
+        assert_eq!(remaining.len(), 1);
     }
 
     #[test]

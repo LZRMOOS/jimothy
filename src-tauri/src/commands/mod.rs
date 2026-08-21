@@ -349,9 +349,18 @@ pub fn save_note(
         if let Some(disk) = storage::read_note_from_disk(&folder, &id, key_ref) {
             // A hair of slack absorbs sub-millisecond RFC3339 round-tripping.
             if (disk.updated_at - base) > chrono::Duration::milliseconds(1) {
-                // Preserve the external version before the save overwrites it.
-                let _ = storage::write_conflict_copy(&folder, &disk, key_ref);
-                hit_conflict = true;
+                // Only create a conflict copy if the content actually differs.
+                // If both devices made the same edit (same title/body/codex),
+                // the timestamps differ but there's no real conflict.
+                let content_differs = disk.title != title
+                    || disk.body != body
+                    || disk.codex != codex;
+
+                if content_differs {
+                    // Preserve the external version before the save overwrites it.
+                    let _ = storage::write_conflict_copy(&folder, &disk, key_ref);
+                    hit_conflict = true;
+                }
             }
         }
     }
