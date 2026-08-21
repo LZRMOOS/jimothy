@@ -362,6 +362,7 @@ pub fn run() {
             commands::check_vault_exists,
             commands::list_conflicts,
             commands::resolve_conflict,
+            commands::auto_clean_conflicts,
             commands::save_image,
             commands::list_emojis,
             commands::import_emoji,

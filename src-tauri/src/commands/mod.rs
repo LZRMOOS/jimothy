@@ -357,9 +357,23 @@ pub fn save_note(
                     || disk.codex != codex;
 
                 if content_differs {
-                    // Preserve the external version before the save overwrites it.
-                    let _ = storage::write_conflict_copy(&folder, &disk, key_ref);
-                    hit_conflict = true;
+                    // Smart auto-resolution: detect conflicts that can be auto-merged.
+                    // Only create a conflict copy when there are deletions (real data loss risk).
+                    use similar::{ChangeTag, TextDiff};
+
+                    let diff = TextDiff::from_lines(&disk.body, &body);
+                    let has_deletions = diff.iter_all_changes()
+                        .any(|change| matches!(change.tag(), ChangeTag::Delete));
+
+                    if has_deletions {
+                        // Real conflict: the save would delete lines that exist on disk.
+                        // Preserve the external version before overwriting it.
+                        let _ = storage::write_conflict_copy(&folder, &disk, key_ref);
+                        hit_conflict = true;
+                    } else {
+                        // No deletions - either pure additions or modifications that replace lines.
+                        // Safe to auto-merge by keeping the save (no data loss).
+                    }
                 }
             }
         }
@@ -1583,6 +1597,57 @@ pub fn resolve_conflict(
     Ok(())
 }
 
+/// Auto-clean identical conflict copies where the content matches the live note.
+/// Returns the number of conflicts removed.
+#[tauri::command]
+pub fn auto_clean_conflicts(state: State<'_, AppState>) -> Result<usize, String> {
+    let folder = state.folder()?;
+    let conflicts_dir = folder.join(".scratch").join("conflicts");
+
+    let mut cleaned = 0;
+    let entries = match fs::read_dir(&conflicts_dir) {
+        Ok(e) => e,
+        Err(_) => return Ok(0), // No conflicts dir means nothing to clean
+    };
+
+    let notes = state.notes.read().unwrap();
+
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if !path.is_file() {
+            continue;
+        }
+        let filename = path.file_name().unwrap_or_default().to_string_lossy().to_string();
+        if filename.starts_with('.') {
+            continue;
+        }
+
+        let (parsed, readable) = read_conflict_note(&path, &state);
+        if !readable {
+            continue;
+        }
+
+        if let Some(conflict) = parsed {
+            // Find matching live note
+            if let Some(live) = notes.iter().find(|n| n.id == conflict.id) {
+                // Check if content is identical
+                let identical = live.title == conflict.title
+                    && live.body == conflict.body
+                    && live.codex == conflict.codex;
+
+                if identical {
+                    // Safe to delete this conflict copy
+                    if fs::remove_file(&path).is_ok() {
+                        cleaned += 1;
+                    }
+                }
+            }
+        }
+    }
+
+    Ok(cleaned)
+}
+
 #[tauri::command]
 pub fn save_image(data: String, extension: String, state: State<'_, AppState>) -> Result<String, String> {
     let folder = state.folder()?;
@@ -2119,6 +2184,51 @@ mod tests {
         let (parsed, readable) = read_conflict_note(&path, &state);
         assert!(!readable);
         assert!(parsed.is_none());
+    }
+
+    #[test]
+    fn smart_conflict_detection_only_additions() {
+        use similar::{ChangeTag, TextDiff};
+
+        // Test: only additions should NOT create a conflict
+        let original = "Line 1\nLine 2\nLine 3\n";
+        let with_additions = "Line 1\nLine 2\nLine 3\nLine 4\nLine 5\n";
+
+        let diff = TextDiff::from_lines(original, with_additions);
+        let only_additions = diff.iter_all_changes()
+            .all(|change| !matches!(change.tag(), ChangeTag::Delete));
+
+        assert!(only_additions, "Should detect only additions (no deletions)");
+    }
+
+    #[test]
+    fn smart_conflict_detection_with_deletions() {
+        use similar::{ChangeTag, TextDiff};
+
+        // Test: deletions should create a conflict
+        let original = "Line 1\nLine 2\nLine 3\nLine 4";
+        let with_deletions = "Line 1\nLine 3\nLine 4";
+
+        let diff = TextDiff::from_lines(original, with_deletions);
+        let only_additions = diff.iter_all_changes()
+            .all(|change| matches!(change.tag(), ChangeTag::Equal | ChangeTag::Insert));
+
+        assert!(!only_additions, "Should detect deletions as real conflict");
+    }
+
+    #[test]
+    fn smart_conflict_detection_with_modifications() {
+        use similar::{ChangeTag, TextDiff};
+
+        // Test: modifications should create a conflict
+        let original = "Line 1\nLine 2\nLine 3";
+        let modified = "Line 1\nLine 2 modified\nLine 3";
+
+        let diff = TextDiff::from_lines(original, modified);
+        let only_additions = diff.iter_all_changes()
+            .all(|change| matches!(change.tag(), ChangeTag::Equal | ChangeTag::Insert));
+
+        assert!(!only_additions, "Should detect modifications as real conflict");
     }
 }
 

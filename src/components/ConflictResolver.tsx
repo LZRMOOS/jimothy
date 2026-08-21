@@ -48,6 +48,8 @@ export function ConflictResolver({ onClose, onResolved }: Props) {
     setLoading(true);
     setError(null);
     try {
+      // Auto-clean identical conflicts before listing
+      await invoke<number>("auto_clean_conflicts");
       const list = await invoke<ConflictEntry[]>("list_conflicts");
       setConflicts(list);
     } catch (e) {
