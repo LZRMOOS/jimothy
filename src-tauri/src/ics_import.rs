@@ -1,4 +1,4 @@
-use chrono::{DateTime, Datelike, NaiveDate, NaiveDateTime, Timelike};
+use chrono::{DateTime, Datelike, Local, NaiveDate, NaiveDateTime, Timelike};
 use ical::IcalParser;
 use serde::{Deserialize, Serialize};
 use std::fs::File;
@@ -44,6 +44,7 @@ fn parse_datetime(dt_str: &str) -> Option<NaiveDateTime> {
     }
 
     // Try parsing as UTC datetime with Z suffix (YYYYMMDDTHHMMSSZ)
+    // Convert to local timezone so events display at the correct local time
     if dt_str.len() == 16 && dt_str.ends_with('Z') {
         if let Ok(dt) = DateTime::parse_from_rfc3339(&format!(
             "{}-{}-{}T{}:{}:{}Z",
@@ -54,7 +55,8 @@ fn parse_datetime(dt_str: &str) -> Option<NaiveDateTime> {
             &dt_str[11..13],
             &dt_str[13..15]
         )) {
-            return Some(dt.naive_utc());
+            // Convert UTC to local timezone
+            return Some(dt.with_timezone(&Local).naive_local());
         }
     }
 
