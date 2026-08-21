@@ -14,7 +14,7 @@ import {
   type Priority,
   type Recurrence,
 } from "../utils/taskList";
-import { buildAgenda, buildDoneList, ymd, dayTitle, type IdTask } from "../utils/agenda";
+import { buildAgenda, buildDoneList, ymd, dayTitle, type IdTask, type IdEvent } from "../utils/agenda";
 import { recognize } from "../utils/naturalDate";
 import { getGroups, getTasksForGroup, searchTasks, extractTags as extractHashTags, getUntaggedTasks, type Group } from "../utils/taskGroups";
 import { IonIcon } from "./IonIcon";
@@ -88,6 +88,13 @@ export function TasksPanel({ notes, dictionary = [], onNavigateNote }: Props) {
     );
   }, [doc]);
 
+  const allEvents = useMemo<IdEvent[]>(() => {
+    let idx = 0;
+    return doc.flatMap((item) =>
+      item.kind === "event" ? [{ ...item.event, cid: `e${idx++}` }] : []
+    );
+  }, [doc]);
+
   const [today, setToday] = useState(() => ymd(new Date()));
   const [daysAhead, setDaysAhead] = useState(30);
 
@@ -156,14 +163,14 @@ export function TasksPanel({ notes, dictionary = [], onNavigateNote }: Props) {
       if (searchQuery.trim()) {
         tasks = searchTasks(allTasks, searchQuery);
       }
-      const all = buildAgenda(tasks, { today, daysAhead: hideEmpty ? 36500 : daysAhead });
-      return hideEmpty ? all.filter((s) => s.tasks.length > 0) : all;
+      const all = buildAgenda(tasks, allEvents, { today, daysAhead: hideEmpty ? 36500 : daysAhead });
+      return hideEmpty ? all.filter((s) => s.tasks.length > 0 || s.events.length > 0) : all;
     } else if (activeGroup) {
       let filtered = getTasksForGroup(allTasks, activeGroup, today);
       if (searchQuery.trim()) {
         filtered = searchTasks(filtered, searchQuery);
       }
-      const all = buildAgenda(filtered, { today, daysAhead: hideEmpty ? 36500 : daysAhead });
+      const all = buildAgenda(filtered, allEvents, { today, daysAhead: hideEmpty ? 36500 : daysAhead });
       return hideEmpty ? all.filter((s) => s.tasks.length > 0) : all;
     }
     return [];
@@ -1275,10 +1282,15 @@ export function TasksPanel({ notes, dictionary = [], onNavigateNote }: Props) {
                 onDrop={(e) => handleSectionDrop(e, section.date)}
               >
                 <span className="tasks-section-title">{section.title}</span>
-                {section.tasks.length > 0 && (
-                  <span className="tasks-section-count">{section.tasks.length}</span>
+                {(section.tasks.length > 0 || section.events.length > 0) && (
+                  <span className="tasks-section-count">
+                    {section.events.length + section.tasks.length}
+                  </span>
                 )}
               </div>
+              {section.events.map((event) => (
+                <EventRow key={event.cid} event={event} />
+              ))}
               {section.tasks.map((task) => (
                 <TaskRow
                   key={task.cid}
@@ -1436,6 +1448,28 @@ type Chip =
   | { kind: "note"; label: string; id: string }
   | { kind: "url"; label: string; href: string }
   | { kind: "tag"; label: string };
+
+function EventRow({ event }: { event: IdEvent }) {
+  const timeDisplay = useMemo(() => {
+    if (event.endTime === null && event.startTime === 0) {
+      return "All day";
+    }
+    if (event.endTime !== null) {
+      return `${formatTime(event.startTime)}-${formatTime(event.endTime)}`;
+    }
+    return formatTime(event.startTime);
+  }, [event]);
+
+  return (
+    <div className="event-row">
+      <div className="event-bar" />
+      <div className="event-content">
+        <span className="event-time">{timeDisplay}</span>
+        <span className="event-title">{event.text}</span>
+      </div>
+    </div>
+  );
+}
 
 const MD_LINK_RE = /\[([^\]]*)\]\(([^)\s]+)\)/g;
 const BARE_URL_RE = /https?:\/\/[^\s]+/g;

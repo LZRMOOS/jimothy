@@ -1,14 +1,16 @@
-import type { Task } from "./taskList";
+import type { Task, CalendarEvent } from "./taskList";
 import { sortForAgenda, ymd, addDays } from "./taskList";
 
 export { ymd } from "./taskList";
 
 export type IdTask = Task & { cid: string };
+export type IdEvent = CalendarEvent & { cid: string };
 
 export type AgendaSection = {
   date: string;
   title: string;
   tasks: IdTask[];
+  events: IdEvent[];
 };
 
 export function fromYmd(s: string): Date {
@@ -35,31 +37,47 @@ export function dayTitle(date: string, todayYmd: string): string {
 
 export function buildAgenda(
   tasks: IdTask[],
+  events: IdEvent[],
   opts: { today: string; daysAhead: number },
 ): AgendaSection[] {
   const active = tasks.filter((t) => !t.done);
 
-  const byDate = new Map<string, IdTask[]>();
+  const tasksByDate = new Map<string, IdTask[]>();
   for (const t of active) {
     const key = t.date === null || t.date < opts.today ? opts.today : t.date;
-    const arr = byDate.get(key);
+    const arr = tasksByDate.get(key);
     if (arr) arr.push(t);
-    else byDate.set(key, [t]);
+    else tasksByDate.set(key, [t]);
+  }
+
+  const eventsByDate = new Map<string, IdEvent[]>();
+  for (const e of events) {
+    const key = e.date < opts.today ? opts.today : e.date;
+    const arr = eventsByDate.get(key);
+    if (arr) arr.push(e);
+    else eventsByDate.set(key, [e]);
   }
 
   const windowDays = new Set<string>();
   const base = fromYmd(opts.today);
   for (let i = 0; i <= opts.daysAhead; i++) windowDays.add(ymd(addDays(base, i)));
-  for (const key of byDate.keys()) windowDays.add(key);
+  for (const key of tasksByDate.keys()) windowDays.add(key);
+  for (const key of eventsByDate.keys()) windowDays.add(key);
 
   const dayKeys = [...windowDays].sort();
 
   const sections: AgendaSection[] = [];
   for (const key of dayKeys) {
+    const dayTasks = tasksByDate.get(key) ?? [];
+    const dayEvents = eventsByDate.get(key) ?? [];
+    // Sort events by start time
+    const sortedEvents = dayEvents.sort((a, b) => a.startTime - b.startTime);
+
     sections.push({
       date: key,
       title: dayTitle(key, opts.today),
-      tasks: sortForAgenda(byDate.get(key) ?? []) as IdTask[],
+      tasks: sortForAgenda(dayTasks) as IdTask[],
+      events: sortedEvents,
     });
   }
   return sections;
@@ -88,6 +106,7 @@ export function buildDoneList(
       date: key,
       title: key === "undated" ? "Undated" : dayTitle(key, opts.today),
       tasks: byDate.get(key) ?? [],
+      events: [], // No events in done list
     });
   }
   return sections;

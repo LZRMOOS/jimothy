@@ -16,8 +16,18 @@ import artRaccoon from "../assets/art-raccoon.png";
 
 type SettingsTab = "general" | "organization" | "keyboard" | "editor" | "storage" | "security" | "markdown";
 type GeneralTab = "behavior" | "about";
+type OrganizationTab = "general" | "calendar";
 type KeyboardTab = "shortcuts" | "commands";
 type EditorTab = "colors" | "macros" | "dictionary" | "emoji";
+
+type CalendarImport = {
+  id: string;
+  name: string;
+  filename: string;
+  imported_at: string;
+  event_count: number;
+  date_range?: { start: string; end: string };
+};
 
 // Self-contained PIN quick-unlock control. Works for either escrow: the vault
 // (rendered while the vault is unlocked) or note protection (rendered in
@@ -1763,6 +1773,7 @@ export function Settings({
   };
 
   const [generalTab, setGeneralTab] = useState<GeneralTab>("behavior");
+  const [organizationTab, setOrganizationTab] = useState<OrganizationTab>("general");
   const [keyboardTab, setKeyboardTab] = useState<KeyboardTab>("shortcuts");
   const [editorTab, setEditorTab] = useState<EditorTab>("colors");
 
@@ -1779,6 +1790,11 @@ export function Settings({
   const generalTabs: { id: GeneralTab; label: string }[] = [
     { id: "behavior", label: "Behavior" },
     { id: "about", label: "About" },
+  ];
+
+  const organizationTabs: { id: OrganizationTab; label: string }[] = [
+    { id: "general", label: "General" },
+    { id: "calendar", label: "Calendar" },
   ];
 
   const keyboardTabs: { id: KeyboardTab; label: string }[] = [
@@ -1980,7 +1996,21 @@ export function Settings({
 
             {activeTab === "organization" && (
               <div className="settings-section">
-                <h3>Codexes<InfoTooltip><ul><li>Rename codexes and customize their colors</li><li>Set a default codex to show on app open</li></ul></InfoTooltip></h3>
+                <nav className="settings-subtabs">
+                  {organizationTabs.map((tab) => (
+                    <button
+                      key={tab.id}
+                      className={`settings-subtab ${organizationTab === tab.id ? "active" : ""}`}
+                      onClick={() => setOrganizationTab(tab.id)}
+                    >
+                      {tab.label}
+                    </button>
+                  ))}
+                </nav>
+
+                {organizationTab === "general" && (
+                  <>
+                    <h3>Codexes<InfoTooltip><ul><li>Rename codexes and customize their colors</li><li>Set a default codex to show on app open</li></ul></InfoTooltip></h3>
                 <p className="settings-hint">
                   Codexes are collections for grouping notes. Create one by assigning a codex name to any note.
                 </p>
@@ -2075,6 +2105,12 @@ export function Settings({
                       }
                     />
                   </div>
+                )}
+                  </>
+                )}
+
+                {organizationTab === "calendar" && (
+                  <CalendarImportSection />
                 )}
 
               </div>
@@ -2938,5 +2974,108 @@ console.log(hello);
         </div>
       </div>
     </div>
+  );
+}
+
+function CalendarImportSection() {
+  const [imports, setImports] = useState<CalendarImport[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  const loadImports = useCallback(async () => {
+    try {
+      const data = await invoke<CalendarImport[]>("list_calendar_imports");
+      setImports(data);
+    } catch (err) {
+      console.error("Failed to load imports:", err);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadImports();
+  }, [loadImports]);
+
+  const handleImport = async () => {
+    try {
+      const file = await open({
+        multiple: false,
+        filters: [{ name: "Calendar", extensions: ["ics"] }],
+      });
+      if (file) {
+        setLoading(true);
+        const record = await invoke<CalendarImport>("import_ics", { path: file });
+        alert(`Imported ${record.event_count} event${record.event_count === 1 ? "" : "s"}. Open the Tasks panel (Cmd+T) to see them.`);
+        await loadImports();
+      }
+    } catch (err) {
+      console.error("ICS import error:", err);
+      alert("Import failed: " + (err instanceof Error ? err.message : String(err)));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRemove = async (importId: string, name: string) => {
+    if (!confirm(`Remove "${name}"? This will delete all ${imports.find(i => i.id === importId)?.event_count || 0} events from this import.`)) {
+      return;
+    }
+    try {
+      setLoading(true);
+      const count = await invoke<number>("remove_calendar_import", { importId });
+      alert(`Removed ${count} event${count === 1 ? "" : "s"}`);
+      await loadImports();
+    } catch (err) {
+      console.error("Remove error:", err);
+      alert("Failed to remove: " + (err instanceof Error ? err.message : String(err)));
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <>
+      <h3>Calendar Import</h3>
+      <p className="settings-hint">
+        Import events from ICS calendar files into your Tasks note. Events appear alongside tasks in the Tasks panel.
+      </p>
+      <button
+        className="btn secondary btn-sm"
+        onClick={handleImport}
+        disabled={loading}
+        style={{ marginTop: "12px" }}
+      >
+        {loading ? "Importing..." : "Import ICS File"}
+      </button>
+
+      {imports.length > 0 && (
+        <div className="org-list" style={{ marginTop: "12px" }}>
+          {imports.map((imp) => (
+            <div key={imp.id} className="org-list-item">
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <span className="org-list-name">{imp.name}</span>
+                <span className="org-list-count">
+                  {imp.event_count} event{imp.event_count === 1 ? "" : "s"}
+                  {imp.date_range && (
+                    <>
+                      {" • "}
+                      {new Date(imp.date_range.start).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+                      {" - "}
+                      {new Date(imp.date_range.end).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })}
+                    </>
+                  )}
+                </span>
+              </div>
+              <button
+                className="org-list-action danger"
+                onClick={() => handleRemove(imp.id, imp.name)}
+                disabled={loading}
+                title="Remove this import"
+              >
+                <IonIcon name="trash-outline" size={12} />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+    </>
   );
 }

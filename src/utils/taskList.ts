@@ -12,8 +12,17 @@ export type Task = {
   done: boolean;
 };
 
+export type CalendarEvent = {
+  text: string;
+  date: string; // YYYY-MM-DD
+  startTime: number; // minutes from midnight
+  endTime: number | null; // null for all-day
+  importId?: string; // optional import ID for tracking
+};
+
 export type TaskDoc = Array<
   | { kind: "task"; task: Task }
+  | { kind: "event"; event: CalendarEvent }
   | { kind: "raw"; text: string }
 >;
 
@@ -21,6 +30,7 @@ const TASK_LINE_RE = /^(\s*(?:[-*+]|\d+[.)])\s+\[)([ xX])(\]\s+)(.*)$/;
 const PRIORITY_TOKEN_RE = /(?:^|\s)(!(?:high|med|low))(?=\s|$)/g;
 const DATE_TOKEN_RE = /(?:^|\s)(!(\d{4})-(\d{2})-(\d{2})(?:T(\d{2}):(\d{2}))?)(?=\s|$)/g;
 const RECURRENCE_TOKEN_RE = /(?:^|\s)(!every:(\d+)([dwmy]))(?=\s|$)/g;
+const EVENT_LINE_RE = /^\[((?:all-day)|(?:(\d{1,2}):?(\d{2})?(am|pm)-(\d{1,2}):?(\d{2})?(am|pm))|(?:(\d{1,2}):?(\d{2})?(am|pm)))\]\s+(.+?)\s+!(\d{4})-(\d{2})-(\d{2})(?:\s+!import:([a-zA-Z0-9]+))?$/;
 
 export function isValidDate(y: number, m: number, d: number): boolean {
   if (m < 1 || m > 12 || d < 1 || d > 31) return false;
@@ -130,11 +140,59 @@ function parseTaskLine(line: string): Task | null {
   return { text, date, time, priority, recurrence, done };
 }
 
+function parse12HourTime(hour: string, minute: string | undefined, period: string): number {
+  let h = Number(hour);
+  const m = minute ? Number(minute) : 0;
+  if (period === "pm" && h !== 12) h += 12;
+  if (period === "am" && h === 12) h = 0;
+  return h * 60 + m;
+}
+
+function parseEventLine(line: string): CalendarEvent | null {
+  const m = line.match(EVENT_LINE_RE);
+  if (!m) return null;
+
+  const timeRange = m[1];
+  const text = m[11];
+  const year = Number(m[12]);
+  const month = Number(m[13]);
+  const day = Number(m[14]);
+  const importId = m[15] || undefined;
+
+  if (!isValidDate(year, month, day)) return null;
+  const date = `${m[12]}-${m[13]}-${m[14]}`;
+
+  if (timeRange === "all-day") {
+    // All-day event: use sentinel values
+    return { text, date, startTime: 0, endTime: null, importId };
+  }
+
+  // Check for time range: [HH:MMam-HH:MMpm]
+  if (m[2] && m[5]) {
+    const startTime = parse12HourTime(m[2], m[3], m[4]);
+    const endTime = parse12HourTime(m[5], m[6], m[7]);
+    return { text, date, startTime, endTime, importId };
+  }
+
+  // Single time: [HH:MMam]
+  if (m[8]) {
+    const startTime = parse12HourTime(m[8], m[9], m[10]);
+    return { text, date, startTime, endTime: null, importId };
+  }
+
+  return null;
+}
+
 export function parseTaskDoc(body: string): TaskDoc {
   if (body === "") return [];
   return body.split("\n").map((line) => {
     const task = parseTaskLine(line);
-    return task ? { kind: "task" as const, task } : { kind: "raw" as const, text: line };
+    if (task) return { kind: "task" as const, task };
+
+    const event = parseEventLine(line);
+    if (event) return { kind: "event" as const, event };
+
+    return { kind: "raw" as const, text: line };
   });
 }
 
@@ -143,12 +201,35 @@ export function serializeTask(task: Task): string {
   return `- ${box} ${task.text}${tokenSuffix(task)}`;
 }
 
+function serializeEvent(event: CalendarEvent): string {
+  let timeRange: string;
+  if (event.endTime === null && event.startTime === 0) {
+    timeRange = "[all-day]";
+  } else if (event.endTime !== null) {
+    timeRange = `[${formatTime(event.startTime)}-${formatTime(event.endTime)}]`;
+  } else {
+    timeRange = `[${formatTime(event.startTime)}]`;
+  }
+  const base = `${timeRange} ${event.text} !${event.date}`;
+  return event.importId ? `${base} !import:${event.importId}` : base;
+}
+
 export function serializeTaskDoc(doc: TaskDoc): string {
-  return doc.map((item) => (item.kind === "task" ? serializeTask(item.task) : item.text)).join("\n");
+  return doc
+    .map((item) => {
+      if (item.kind === "task") return serializeTask(item.task);
+      if (item.kind === "event") return serializeEvent(item.event);
+      return item.text;
+    })
+    .join("\n");
 }
 
 export function tasksOf(doc: TaskDoc): Task[] {
   return doc.flatMap((item) => (item.kind === "task" ? [item.task] : []));
+}
+
+export function eventsOf(doc: TaskDoc): CalendarEvent[] {
+  return doc.flatMap((item) => (item.kind === "event" ? [item.event] : []));
 }
 
 export function sortForAgenda(tasks: Task[]): Task[] {

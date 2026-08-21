@@ -5400,6 +5400,56 @@ img.emoji {
   opacity: 1;
 }
 
+/* Event rows */
+.event-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 8px;
+  cursor: default;
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+.event-row .event-bar {
+  width: 2px;
+  height: 16px;
+  background: var(--accent);
+  border-radius: 1px;
+  flex-shrink: 0;
+  opacity: 0.6;
+}
+
+.event-row .event-content {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.event-row .event-time {
+  font-size: 11px;
+  color: var(--text-hint);
+  font-weight: 500;
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.event-row .event-title {
+  color: var(--text-secondary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 11px;
+}
+
+.event-row:hover {
+  background: transparent;
+}
+
 .task-done .task-title {
   text-decoration: line-through;
   color: var(--text-hint);

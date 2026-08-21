@@ -1888,6 +1888,186 @@ pub fn rename_emoji(
     })
 }
 
+/// Import calendar events from an ICS file and append them to the Tasks note.
+/// Returns the import record.
+#[tauri::command]
+pub fn import_ics(path: String, app: AppHandle, state: State<'_, AppState>) -> Result<crate::ics_import::ImportRecord, String> {
+    let all_events = crate::ics_import::parse_ics_file(&path)?;
+
+    if all_events.is_empty() {
+        return Err("No events found in ICS file".to_string());
+    }
+
+    // Filter to only future events (today or later)
+    let today = Utc::now().format("%Y-%m-%d").to_string();
+    let events: Vec<_> = all_events.into_iter()
+        .filter(|e| e.date >= today)
+        .collect();
+
+    if events.is_empty() {
+        return Err("No future events found in ICS file (all events are in the past)".to_string());
+    }
+
+    let event_count = events.len();
+
+    // Generate import ID and metadata
+    let import_id = ulid::Ulid::new().to_string();
+    let filename = std::path::Path::new(&path)
+        .file_name()
+        .and_then(|n| n.to_str())
+        .unwrap_or("unknown.ics")
+        .to_string();
+    let name = filename.trim_end_matches(".ics").replace("_", " ").replace("-", " ");
+
+    // Calculate date range
+    let date_range = if !events.is_empty() {
+        let mut dates: Vec<&String> = events.iter().map(|e| &e.date).collect();
+        dates.sort();
+        Some(crate::ics_import::DateRange {
+            start: dates.first().unwrap().to_string(),
+            end: dates.last().unwrap().to_string(),
+        })
+    } else {
+        None
+    };
+
+    let import_record = crate::ics_import::ImportRecord {
+        id: import_id.clone(),
+        name,
+        filename,
+        imported_at: Utc::now().to_rfc3339(),
+        event_count,
+        date_range,
+    };
+
+    let folder = state.folder()?;
+
+    let event_lines: Vec<String> = events
+        .iter()
+        .map(|e| crate::ics_import::format_event_line(e, Some(&import_id)))
+        .collect();
+
+    // Read current tasks from .scratch/tasks.md
+    let tasks_file = tasks_path(&folder);
+    let mut current_content = if tasks_file.exists() {
+        fs::read_to_string(&tasks_file).unwrap_or_default()
+    } else {
+        String::new()
+    };
+
+    // Append events
+    if !current_content.is_empty() && !current_content.ends_with('\n') {
+        current_content.push('\n');
+    }
+    current_content.push_str(&event_lines.join("\n"));
+
+    // Write back to tasks file
+    let scratch_dir = folder.join(".scratch");
+    fs::create_dir_all(&scratch_dir)
+        .map_err(|e| format!("Failed to create .scratch dir: {}", e))?;
+    fs::write(&tasks_file, current_content)
+        .map_err(|e| format!("Failed to write tasks file: {}", e))?;
+
+    // Save import record
+    save_import_record(&folder, &import_record)?;
+
+    // Emit event to trigger frontend reload
+    let _ = app.emit("tasks-changed", ());
+
+    Ok(import_record)
+}
+
+fn import_records_path(folder: &Path) -> PathBuf {
+    folder.join(".scratch").join("calendar-imports.json")
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+struct ImportRecordsFile {
+    imports: Vec<crate::ics_import::ImportRecord>,
+}
+
+fn load_import_records(folder: &Path) -> Result<Vec<crate::ics_import::ImportRecord>, String> {
+    let path = import_records_path(folder);
+    if !path.exists() {
+        return Ok(Vec::new());
+    }
+    let content = fs::read_to_string(&path)
+        .map_err(|e| format!("Failed to read import records: {}", e))?;
+    let file: ImportRecordsFile = serde_json::from_str(&content)
+        .map_err(|e| format!("Failed to parse import records: {}", e))?;
+    Ok(file.imports)
+}
+
+fn save_import_record(folder: &Path, record: &crate::ics_import::ImportRecord) -> Result<(), String> {
+    let mut records = load_import_records(folder)?;
+    records.push(record.clone());
+
+    let file = ImportRecordsFile { imports: records };
+    let json = serde_json::to_string_pretty(&file)
+        .map_err(|e| format!("Failed to serialize import records: {}", e))?;
+
+    let path = import_records_path(folder);
+    fs::create_dir_all(path.parent().unwrap())
+        .map_err(|e| format!("Failed to create .scratch dir: {}", e))?;
+    fs::write(&path, json)
+        .map_err(|e| format!("Failed to write import records: {}", e))?;
+
+    Ok(())
+}
+
+#[tauri::command]
+pub fn list_calendar_imports(state: State<'_, AppState>) -> Result<Vec<crate::ics_import::ImportRecord>, String> {
+    let folder = state.folder()?;
+    load_import_records(&folder)
+}
+
+#[tauri::command]
+pub fn remove_calendar_import(import_id: String, state: State<'_, AppState>) -> Result<usize, String> {
+    let folder = state.folder()?;
+
+    // Read current tasks from .scratch/tasks.md
+    let tasks_file = tasks_path(&folder);
+    let content = if tasks_file.exists() {
+        fs::read_to_string(&tasks_file)
+            .map_err(|e| format!("Failed to read tasks file: {}", e))?
+    } else {
+        return Err("Tasks file not found".to_string());
+    };
+
+    // Remove lines with this import ID
+    let import_marker = format!("!import:{}", import_id);
+    let lines: Vec<&str> = content.lines().collect();
+    let mut removed_count = 0;
+    let filtered_lines: Vec<&str> = lines
+        .into_iter()
+        .filter(|line| {
+            if line.contains(&import_marker) {
+                removed_count += 1;
+                false
+            } else {
+                true
+            }
+        })
+        .collect();
+
+    let new_content = filtered_lines.join("\n");
+
+    // Write back to tasks file
+    fs::write(&tasks_file, new_content)
+        .map_err(|e| format!("Failed to write tasks file: {}", e))?;
+
+    // Remove from import records
+    let mut records = load_import_records(&folder)?;
+    records.retain(|r| r.id != import_id);
+    let file = ImportRecordsFile { imports: records };
+    let json = serde_json::to_string_pretty(&file)
+        .map_err(|e| format!("Failed to serialize: {}", e))?;
+    fs::write(import_records_path(&folder), json)
+        .map_err(|e| format!("Failed to write: {}", e))?;
+
+    Ok(removed_count)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

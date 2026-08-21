@@ -1,5 +1,6 @@
 mod commands;
 mod crypto;
+mod ics_import;
 mod notes;
 mod pin;
 mod platform;
@@ -366,6 +367,9 @@ pub fn run() {
             commands::import_emoji,
             commands::delete_emoji,
             commands::rename_emoji,
+            commands::import_ics,
+            commands::list_calendar_imports,
+            commands::remove_calendar_import,
             set_tray_visible,
             open_scratchpad,
             update_global_shortcut,
