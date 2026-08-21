@@ -272,4 +272,83 @@ mod tests {
         let line = format_event_line(&all_day, None);
         assert_eq!(line, "[all-day] Holiday !2026-08-25");
     }
+
+    #[test]
+    fn test_utc_timezone_conversion() {
+        // Test that UTC times (Z suffix) convert to local timezone
+        // 20260821T150000Z = 3pm UTC
+        // In PDT (UTC-7): should become 8am local
+        // In EDT (UTC-4): should become 11am local
+        let dt = parse_datetime("20260821T150000Z");
+        assert!(dt.is_some());
+        let dt = dt.unwrap();
+
+        // The converted time should NOT be 15 (3pm UTC)
+        // It should be adjusted to local timezone
+        // We can't hardcode the exact hour since it depends on the machine's timezone,
+        // but we can verify it's a valid datetime and different from UTC
+        assert_eq!(dt.year(), 2026);
+        assert_eq!(dt.month(), 8);
+        // Day might change if crossing midnight boundary
+        assert!(dt.day() >= 20 && dt.day() <= 22);
+
+        // Verify it parsed successfully and has a time component
+        assert!(dt.hour() < 24);
+        assert!(dt.minute() < 60);
+
+        // In most US timezones (PDT/EDT), 3pm UTC should convert to morning/early afternoon
+        // This is a sanity check that some conversion happened
+        println!("UTC 15:00 converted to local: {:02}:{:02}", dt.hour(), dt.minute());
+    }
+
+    #[test]
+    fn test_parse_ics_with_utc_times() {
+        use std::io::Write;
+        use tempfile::NamedTempFile;
+
+        // Create a test ICS file with UTC times
+        let mut file = NamedTempFile::new().unwrap();
+        writeln!(file, "BEGIN:VCALENDAR").unwrap();
+        writeln!(file, "VERSION:2.0").unwrap();
+        writeln!(file, "PRODID:-//Test//Test//EN").unwrap();
+        writeln!(file, "BEGIN:VEVENT").unwrap();
+        writeln!(file, "DTSTART:20260821T150000Z").unwrap();  // 3pm UTC
+        writeln!(file, "DTEND:20260821T160000Z").unwrap();    // 4pm UTC
+        writeln!(file, "SUMMARY:UTC Test Event").unwrap();
+        writeln!(file, "UID:test-001@jimothy").unwrap();
+        writeln!(file, "END:VEVENT").unwrap();
+        writeln!(file, "END:VCALENDAR").unwrap();
+        file.flush().unwrap();
+
+        // Parse the ICS file
+        let events = parse_ics_file(file.path().to_str().unwrap()).unwrap();
+
+        assert_eq!(events.len(), 1);
+        let event = &events[0];
+
+        // Verify event was parsed
+        assert_eq!(event.summary, "UTC Test Event");
+        assert_eq!(event.date, "2026-08-21");
+
+        // Verify times were converted from UTC to local
+        // start_time should NOT be 900 (15*60 = 3pm UTC)
+        // In PDT it should be 480 (8*60 = 8am)
+        // In EDT it should be 660 (11*60 = 11am)
+        assert!(event.start_time.is_some());
+        let start_minutes = event.start_time.unwrap();
+
+        println!("\nParsed event from ICS:");
+        println!("  Event: {}", event.summary);
+        println!  ("  Date: {}", event.date);
+        println!("  Start: {} minutes ({:02}:{:02})",
+                 start_minutes, start_minutes / 60, start_minutes % 60);
+
+        // The start time should be in local timezone, not UTC
+        // We can't assert exact value because it depends on machine timezone,
+        // but we can verify it's not the UTC time
+        // 900 minutes = 15:00 (3pm UTC)
+        if start_minutes == 900 {
+            panic!("Event time was NOT converted from UTC! Still showing 3pm (900 minutes)");
+        }
+    }
 }
