@@ -52,10 +52,11 @@ export function buildAgenda(
 
   const eventsByDate = new Map<string, IdEvent[]>();
   for (const e of events) {
-    const key = e.date < opts.today ? opts.today : e.date;
-    const arr = eventsByDate.get(key);
+    // Skip events in the past - they should disappear after their date
+    if (e.date < opts.today) continue;
+    const arr = eventsByDate.get(e.date);
     if (arr) arr.push(e);
-    else eventsByDate.set(key, [e]);
+    else eventsByDate.set(e.date, [e]);
   }
 
   const windowDays = new Set<string>();
