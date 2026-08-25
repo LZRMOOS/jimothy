@@ -100,6 +100,14 @@ Tasks live in a single note with codex `"Tasks"` (constant: `TASK_CODEX`). The b
 ```
 Tokens: `!high`/`!med`/`!low` (priority), `!YYYY-MM-DD` or `!YYYY-MM-DDTHH:MM` (date with optional time), `!every:N[dwmy]` (recurrence). Non-task lines (headings, blanks, prose) are preserved verbatim.
 
+**Natural language date/time parsing (`src/utils/naturalDate.ts`):**
+The task input modal recognizes natural language date and time expressions:
+- Relative dates: "today", "tomorrow", "yesterday", "in N days/weeks", "next monday", "monday" (next occurrence), "every other week"
+- Relative time: "in N hours", "in N minutes" (also accepts "hour", "min", "mins" and abbreviations "h", "hr", "hrs", "m" like "in 3h", "in 30m" - calculates exact datetime from current time, crosses midnight correctly)
+- Absolute dates: "august 27", "aug 27 2028", "8/27", "8-27-2028", "2026-08-27"
+- Times: "9am", "2pm", "14:30", "noon", "midnight"
+- Combine date and time: "tomorrow 9am", "in 3h", "in 30m", "8/27 2pm"
+
 **Recurrence (`!every:Nd/w/m/y`):**
 - Units: `d` (day), `w` (week), `m` (month), `y` (year). Always appears after the date token.
 - Check-off behavior: do NOT mark done. Advance the date by the interval from the current date value (not from today). The task stays unchecked with its new future date. Recurring tasks never appear in the done list.
@@ -128,7 +136,7 @@ Tokens: `!high`/`!med`/`!low` (priority), `!YYYY-MM-DD` or `!YYYY-MM-DDTHH:MM` (
 - "View Tasks" command and Cmd+T are the entry points
 - Three tabs: Upcoming (agenda view), Groups (organize by tags and smart filters), Done
 - **Groups tab**: Organize tasks by #tags (extracted from task text) and smart filters (Recurring, High priority, Overdue, No due date). Tags use the same `#([a-zA-Z0-9_-]+)` pattern as the markdown tag highlight, ensuring byte compatibility with mobile. Groups expand/collapse inline to show tasks. Search bar (Cmd+F) filters groups by name and tasks within them, also filters untagged tasks.
-- Add modal supports natural date/time/recurrence parsing ("tomorrow 9am", "every 2 weeks"), `[[` note link autocomplete, `@` dictionary mentions, and URL auto-detection
+- Add modal supports natural date/time/recurrence parsing ("tomorrow 9am", "in 3h", "in 30m", "every 2 weeks"), `[[` note link autocomplete, `@` dictionary mentions, and URL auto-detection
 - Task rows display inline tag pills for all `#tags` in the task text
 - Done tab uses compact table-like rows with undo button on hover
 - Infinite scroll (loads 30 days at a time)

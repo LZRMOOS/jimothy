@@ -320,6 +320,12 @@ export function TasksPanel({ notes, dictionary = [], onNavigateNote }: Props) {
         setSchedTime({ value: r.time, label: formatTime(r.time), phrase: tPhrase });
         allSpans.push(...r.timeSpans);
         lifted = true;
+      } else if (r.time !== null && r.timeSpans.length === 0 && r.dateSpans.length > 0 && !schedTime) {
+        // Handle relative time expressions like "in 3 hours" where time is part of the date phrase
+        const phrase = r.dateSpans.map(([s, e]) => next.slice(s, e)).join(" ");
+        setSchedTime({ value: r.time, label: formatTime(r.time), phrase });
+        // Don't add to allSpans since it's already in dateSpans
+        lifted = true;
       }
 
       if (r.recurrence && r.recurrenceSpans.length > 0 && !schedRecurrence) {

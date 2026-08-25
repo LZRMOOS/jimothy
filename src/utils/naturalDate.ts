@@ -56,7 +56,7 @@ function parseTime(token: string): number | null {
 function matchDatePhrase(
   words: string[],
   now: Date,
-): { date: string; consumed: number } | null {
+): { date: string; consumed: number; time?: number } | null {
   const w = words[0];
   if (!w) return null;
 
@@ -64,12 +64,40 @@ function matchDatePhrase(
   if (w === "tomorrow" || w === "tmrw" || w === "tom") return { date: ymd(addDays(now, 1)), consumed: 1 };
   if (w === "yesterday") return { date: ymd(addDays(now, -1)), consumed: 1 };
 
-  if (w === "in" && words[1] && words[2]) {
-    const num = Number(words[1]);
-    const unit = words[2];
-    if (Number.isInteger(num) && num > 0) {
-      if (unit === "day" || unit === "days") return { date: ymd(addDays(now, num)), consumed: 3 };
-      if (unit === "week" || unit === "weeks") return { date: ymd(addDays(now, num * 7)), consumed: 3 };
+  if (w === "in" && words[1]) {
+    // Check for compact format like "3h" or "20m"
+    const compact = words[1].match(/^(\d+)(h|hr|hrs|m)$/);
+    if (compact) {
+      const num = Number(compact[1]);
+      const unit = compact[2];
+      if (num > 0) {
+        if (unit === "h" || unit === "hr" || unit === "hrs") {
+          const target = new Date(now.getTime() + num * 60 * 60 * 1000);
+          return { date: ymd(target), consumed: 2, time: target.getHours() * 60 + target.getMinutes() };
+        }
+        if (unit === "m") {
+          const target = new Date(now.getTime() + num * 60 * 1000);
+          return { date: ymd(target), consumed: 2, time: target.getHours() * 60 + target.getMinutes() };
+        }
+      }
+    }
+
+    // Full format like "in 3 hours"
+    if (words[2]) {
+      const num = Number(words[1]);
+      const unit = words[2];
+      if (Number.isInteger(num) && num > 0) {
+        if (unit === "day" || unit === "days") return { date: ymd(addDays(now, num)), consumed: 3 };
+        if (unit === "week" || unit === "weeks") return { date: ymd(addDays(now, num * 7)), consumed: 3 };
+        if (unit === "hour" || unit === "hours") {
+          const target = new Date(now.getTime() + num * 60 * 60 * 1000);
+          return { date: ymd(target), consumed: 3, time: target.getHours() * 60 + target.getMinutes() };
+        }
+        if (unit === "minute" || unit === "minutes" || unit === "min" || unit === "mins") {
+          const target = new Date(now.getTime() + num * 60 * 1000);
+          return { date: ymd(target), consumed: 3, time: target.getHours() * 60 + target.getMinutes() };
+        }
+      }
     }
   }
 
@@ -258,6 +286,7 @@ function analyze(
     const hit = matchDatePhrase(lower.slice(i), now);
     if (hit) {
       date = hit.date;
+      if (hit.time !== undefined) time = hit.time;
       for (let k = 0; k < hit.consumed; k++) kind[i + k] = "date";
     }
   }
