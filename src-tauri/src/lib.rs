@@ -60,6 +60,10 @@ fn toggle_scratchpad(app: &tauri::AppHandle) {
     if let Some(window) = app.get_webview_window("scratchpad") {
         if window.is_minimized().unwrap_or(false) {
             let _ = window.unminimize();
+            let _ = window.set_size(tauri::Size::Logical(tauri::LogicalSize {
+                width: 380.0,
+                height: 420.0,
+            }));
             let _ = window.center();
             let _ = window.set_focus();
         } else if window.is_visible().unwrap_or(false) {
@@ -69,6 +73,10 @@ fn toggle_scratchpad(app: &tauri::AppHandle) {
                 let _ = window.set_focus();
             }
         } else {
+            let _ = window.set_size(tauri::Size::Logical(tauri::LogicalSize {
+                width: 380.0,
+                height: 420.0,
+            }));
             let _ = window.center();
             let _ = window.show();
             let _ = window.set_focus();
